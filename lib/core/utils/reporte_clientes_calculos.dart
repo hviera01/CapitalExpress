@@ -1,6 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../models/prestamo_model.dart';
+import 'firestore_parse.dart';
 
 /// Mismas formulas que ReporteClienteScreen.kt (estadoEfectivo,
 /// totalesCliente, proximoPagoCliente) portadas literal para que el
@@ -67,8 +66,9 @@ String estadoEfectivoCliente({
 DateTime? proximoPagoCliente(List<PrestamoModel> prestamos) {
   final hoy = DateTime.now();
   final fechas = prestamos
-      .where((p) => p.saldo > 0.01 && p.proximoPago is Timestamp)
-      .map((p) => (p.proximoPago as Timestamp).toDate())
+      .where((p) => p.saldo > 0.01)
+      .map((p) => asProximoPagoFecha(p.proximoPago))
+      .whereType<DateTime>()
       .toList();
   if (fechas.isEmpty) return null;
 

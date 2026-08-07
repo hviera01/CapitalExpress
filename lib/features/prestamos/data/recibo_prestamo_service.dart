@@ -3,58 +3,133 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/models/cliente_model.dart';
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/currency_utils.dart';
+import '../../../core/utils/firestore_parse.dart';
 
-/// Recibo de desembolso del préstamo, equivalente a
-/// ReciboHelper.generarReciboPrestamoPDF (Kotlin) — formato angosto tipo
-/// ticket termico (80mm) para que sirva tanto para imprimir en una
-/// impresora de recibos como para PDF normal en pantalla.
+String _f2(int n) => n.toString().padLeft(2, '0');
+String _fecha(DateTime d) => '${_f2(d.day)}/${_f2(d.month)}/${d.year}';
+
+/// Recibo de desembolso del préstamo -- mismo contenido, orden y tamaño
+/// EXACTOS que ReciboHelper.generarReciboPrestamoPDF en el sistema viejo:
+/// ticket termico de 189x756pt (no 80mm genéricos), con los mismos
+/// campos (numero de cobrador, lugar, cliente, monto grande, desglose
+/// compacto, total, proximo pago, telefono/dirección del cliente,
+/// firma).
 class ReciboPrestamoService {
   static Future<void> imprimir(PrestamoModel p) async {
-    final pdf = pw.Document();
-    final fecha = p.fecha?.toDate();
-    final proximo = p.proximoPago;
+    ClienteModel? cliente;
+    if (p.clienteId.isNotEmpty) {
+      final doc = await FirebaseFirestore.instance.collection('clientes').doc(p.clienteId).get();
+      if (doc.exists) cliente = ClienteModel.fromDoc(doc);
+    }
 
+    final fecha = p.fecha?.toDate() ?? DateTime.now();
+    final proximo = asProximoPagoFecha(p.proximoPago);
+    final total = p.totalPagar > 0 ? p.totalPagar : (p.monto + p.interes);
+    final ahora = DateTime.now();
+
+    final pdf = pw.Document();
     pdf.addPage(
+      // Medidas EXACTAS del sistema viejo: 189x756pt (5cm x 20cm), no
+      // las mismas que el recibo de abono (189x612pt) -- este recibo
+      // lleva mas contenido (telefono, direccion, firma) y nunca se
+      // recorto en la app original.
       pw.Page(
-        pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, double.infinity, marginAll: 12),
+        pageFormat: const PdfPageFormat(189, 756, marginAll: 15),
         build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
             pw.Center(
-              child: pw.Text('CAPITAL EXPRESS',
+              child: pw.Text('CAPITAL',
                   style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             ),
-            pw.Center(child: pw.Text('=' * 32, style: const pw.TextStyle(fontSize: 10))),
-            pw.SizedBox(height: 8),
-            pw.Text('RECIBO DE PRÉSTAMO', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Center(
+              child: pw.Text('EXPRESS',
+                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            ),
+            pw.Center(child: pw.Text('FINANCIERA', style: const pw.TextStyle(fontSize: 9))),
+            pw.SizedBox(height: 4),
+            if (p.numeroCobrador.isNotEmpty)
+              pw.Center(child: pw.Text(p.numeroCobrador, style: const pw.TextStyle(fontSize: 9))),
+            pw.SizedBox(height: 4),
+            pw.Divider(thickness: 1),
+            if (p.lugar.isNotEmpty)
+              pw.Center(child: pw.Text(p.lugar, style: const pw.TextStyle(fontSize: 9))),
+            pw.Center(
+                child: pw.Text('Prestamo N° ${p.numeroPrestamo}',
+                    style: const pw.TextStyle(fontSize: 9))),
+            pw.Center(
+                child: pw.Text('Doc ${_fecha(fecha).replaceAll('/', '')}',
+                    style: const pw.TextStyle(fontSize: 9))),
+            pw.SizedBox(height: 4),
+            pw.Center(child: pw.Text('Sr(a) ${p.cliente}', style: const pw.TextStyle(fontSize: 9))),
             pw.SizedBox(height: 6),
-            _fila('Préstamo N°', p.numeroPrestamo),
-            _fila('Cliente', p.cliente),
-            if (fecha != null) _fila('Fecha', '${fecha.day}/${fecha.month}/${fecha.year}'),
-            _fila('Lugar', p.lugar),
-            pw.Divider(),
-            _fila('Monto prestado', formatearLempiras(p.monto)),
-            _fila('Interés', formatearLempiras(p.interes)),
-            _fila('Total a pagar', formatearLempiras(p.totalPagar)),
-            _fila('Cuotas', '${p.cuotas} (${p.plazo})'),
-            _fila('Monto cuota', formatearLempiras(p.cuota)),
-            if (proximo is Timestamp) ...[
-              () {
-                final d = proximo.toDate();
-                return _fila('Próximo pago', '${d.day}/${d.month}/${d.year}');
-              }(),
+            pw.Center(child: pw.Text('Prestamo', style: const pw.TextStyle(fontSize: 9))),
+            pw.SizedBox(height: 2),
+            pw.Center(
+                child: pw.Text(formatearLempiras(total),
+                    style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold))),
+            pw.SizedBox(height: 4),
+            pw.Center(child: pw.Text('${p.cuotas} cuotas', style: const pw.TextStyle(fontSize: 9))),
+            pw.SizedBox(height: 6),
+            pw.Divider(thickness: 1),
+            _fila('Cuotas', '${p.cuotas}'),
+            _fila('Fecha', _fecha(fecha)),
+            _fila('Monto', formatearLempiras(p.monto)),
+            _fila('Capital', formatearLempiras(p.monto)),
+            _fila('Interes', formatearLempiras(p.interes)),
+            if (p.mora > 0) _fila('Mora', formatearLempiras(p.mora)),
+            pw.SizedBox(height: 4),
+            pw.Divider(thickness: 1),
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Total:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                pw.Text(formatearLempiras(total),
+                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            if (proximo != null) ...[
+              pw.Center(child: pw.Text('Proximo:', style: const pw.TextStyle(fontSize: 9))),
+              pw.Center(child: pw.Text(_fecha(proximo), style: const pw.TextStyle(fontSize: 9))),
+              pw.SizedBox(height: 4),
             ],
-            pw.Divider(),
-            _fila('Cobrador', p.cobrador.isEmpty ? 'Sin asignar' : p.cobrador),
-            pw.SizedBox(height: 10),
-            pw.Center(child: pw.Text('=' * 32, style: const pw.TextStyle(fontSize: 10))),
+            if (cliente != null && cliente.telefono.isNotEmpty) ...[
+              pw.Center(child: pw.Text('Tel:', style: const pw.TextStyle(fontSize: 9))),
+              pw.Center(child: pw.Text(cliente.telefono, style: const pw.TextStyle(fontSize: 9))),
+              pw.SizedBox(height: 4),
+            ],
+            if (cliente != null && cliente.direccionCasa.isNotEmpty) ...[
+              pw.Center(
+                  child: pw.Text(cliente.direccionCasa,
+                      textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 7))),
+              pw.SizedBox(height: 6),
+            ],
+            pw.Center(child: pw.Text('Consultas llamar:', style: const pw.TextStyle(fontSize: 7))),
+            if (p.numeroCobrador.isNotEmpty)
+              pw.Center(child: pw.Text('(${p.numeroCobrador})', style: const pw.TextStyle(fontSize: 7))),
+            pw.SizedBox(height: 6),
+            pw.Divider(thickness: 1),
+            pw.SizedBox(height: 4),
+            pw.Center(child: pw.Text(_fecha(ahora), style: const pw.TextStyle(fontSize: 7))),
+            pw.Center(
+                child: pw.Text('${_f2(ahora.hour)}:${_f2(ahora.minute)}:${_f2(ahora.second)}',
+                    style: const pw.TextStyle(fontSize: 7))),
             pw.SizedBox(height: 6),
             pw.Center(
-              child: pw.Text('Gracias por su preferencia',
-                  style: const pw.TextStyle(fontSize: 9)),
+                child: pw.Text('CONSERVE ESTE RECIBO',
+                    style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))),
+            pw.SizedBox(height: 8),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 20),
+              child: pw.Divider(thickness: 1),
             ),
+            pw.SizedBox(height: 4),
+            pw.Center(child: pw.Text('Firma Cliente', style: const pw.TextStyle(fontSize: 7))),
           ],
         ),
       ),
@@ -65,13 +140,12 @@ class ReciboPrestamoService {
 
   static pw.Widget _fila(String label, String valor) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: const pw.TextStyle(fontSize: 10)),
-          pw.Text(valor,
-              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+          pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
+          pw.Text(valor, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
         ],
       ),
     );

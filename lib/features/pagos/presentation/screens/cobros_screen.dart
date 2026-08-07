@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,12 +8,15 @@ import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/firestore_parse.dart';
 import '../../../../core/utils/normalizar_texto.dart';
+import '../../../../core/utils/prestamo_calculos.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../providers/pagos_provider.dart';
 
 const _estadosExcluidos = {
   'saldado',
@@ -92,12 +94,42 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
     final notificaciones = <_NotifCobro>[];
 
-    for (final p in prestamos) {
-      if (_estadosExcluidos.contains(p.estado.toLowerCase())) continue;
-      final proximoPago = p.proximoPago;
-      if (proximoPago is! Timestamp) continue;
+    // Igual que procesarPrestamoUltraOptimizado en el sistema viejo: el
+    // campo `proximoPago` del prestamo es la fuente principal, pero no
+    // todos los prestamos (sobre todo los mas viejos) lo tienen bien
+    // guardado. Cuando falta o no se puede interpretar, se reconstruye
+    // en vivo: ultimo pago real + un intervalo de plazo, o si nunca pago,
+    // fecha de inicio + un intervalo. Sin este respaldo, esos prestamos
+    // simplemente desaparecian de Cobros/Notificaciones.
+    final candidatos = prestamos.where((p) => !_estadosExcluidos.contains(p.estado.toLowerCase()));
+    final pagoRepo = ref.read(pagoRepositoryProvider);
+    final fechasPorPrestamo = <String, DateTime?>{};
 
-      final fecha = proximoPago.toDate();
+    await Future.wait(candidatos.map((p) async {
+      final directa = asProximoPagoFecha(p.proximoPago);
+      if (directa != null) {
+        fechasPorPrestamo[p.prestamoId] = directa;
+        return;
+      }
+      DateTime? base;
+      try {
+        final pagos = await pagoRepo.obtenerPorPrestamo(p.prestamoId);
+        for (final pago in pagos) {
+          final f = pago.fechaPago?.toDate();
+          if (f != null && (base == null || f.isAfter(base))) base = f;
+        }
+      } catch (_) {
+        // sin conexion a pagos: se sigue con el respaldo de fecha de inicio.
+      }
+      base ??= p.fecha?.toDate();
+      fechasPorPrestamo[p.prestamoId] =
+          base != null ? calcularProximaFecha(base, p.plazo) : null;
+    }));
+
+    for (final p in candidatos) {
+      final fecha = fechasPorPrestamo[p.prestamoId];
+      if (fecha == null) continue;
+
       final fechaSinHora = DateTime(fecha.year, fecha.month, fecha.day);
       final diferenciaDias = fechaSinHora.difference(hoySinHora).inDays;
 

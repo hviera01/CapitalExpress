@@ -61,8 +61,13 @@ class ReciboPagoService {
 
     final pdf = pw.Document();
     pdf.addPage(
+      // Mismas medidas EXACTAS que ReciboHelper.generarReciboPDF en el
+      // sistema viejo: 189x612pt (no son "80mm genericos" -- son los
+      // valores afinados a mano contra la impresora termica real, ver
+      // comentarios de ese archivo sobre por que se recorto de 756 a
+      // 612 y por que el margen superior subio a 32f).
       pw.Page(
-        pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, double.infinity, marginAll: 10),
+        pageFormat: const PdfPageFormat(189, 612, marginAll: 15),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
