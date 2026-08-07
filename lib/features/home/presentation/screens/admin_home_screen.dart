@@ -120,6 +120,14 @@ class AdminHomeScreen extends ConsumerWidget {
           ),
           const CeSectionLabel('Historial'),
           CeMenuRow(
+            icono: Icons.summarize_outlined,
+            titulo: 'Reporte de Clientes',
+            subtitulo: 'Filtros, resumen y exportar a PDF',
+            chevron: true,
+            onTap: () => context.push('/clientes/reporte'),
+          ),
+          const SizedBox(height: 12),
+          CeMenuRow(
             icono: Icons.receipt_long_outlined,
             titulo: 'Historial de Pagos',
             subtitulo: 'Arqueo de caja y transacciones',

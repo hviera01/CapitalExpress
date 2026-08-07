@@ -12,6 +12,7 @@ import '../../features/clientes/presentation/screens/clientes_list_screen.dart';
 import '../../features/clientes/presentation/screens/cliente_form_screen.dart';
 import '../../features/clientes/presentation/screens/cliente_resumen_screen.dart';
 import '../../features/clientes/presentation/screens/cliente_detalle_screen.dart';
+import '../../features/clientes/presentation/screens/reporte_clientes_screen.dart';
 import '../../features/prestamos/presentation/screens/prestamos_list_screen.dart';
 import '../../features/prestamos/presentation/screens/crear_prestamo_screen.dart';
 import '../../features/prestamos/presentation/screens/prestamo_detalle_screen.dart';
@@ -58,6 +59,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'nuevo',
             builder: (context, state) => const ClienteFormScreen(),
+          ),
+          GoRoute(
+            path: 'reporte',
+            builder: (context, state) => const ReporteClientesScreen(),
           ),
           GoRoute(
             path: ':id',

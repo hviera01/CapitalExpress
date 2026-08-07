@@ -110,40 +110,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
 
     final clienteRepo = ref.read(clienteRepositoryProvider);
     final prestamoRepo = ref.read(prestamoRepositoryProvider);
-    final actualizado = ClienteModel(
-      id: _cliente!.id,
-      nombre: _cliente!.nombre,
-      identidad: _cliente!.identidad,
-      telefono: _cliente!.telefono,
-      direccionCasa: _cliente!.direccionCasa,
-      direccionNegocio: _cliente!.direccionNegocio,
-      estadoCivil: _cliente!.estadoCivil,
-      nombreConyuge: _cliente!.nombreConyuge,
-      identidadConyuge: _cliente!.identidadConyuge,
-      telefonoConyuge: _cliente!.telefonoConyuge,
-      referencia1Nombre: _cliente!.referencia1Nombre,
-      referencia1Identidad: _cliente!.referencia1Identidad,
-      referencia1Telefono: _cliente!.referencia1Telefono,
-      referencia1Parentesco: _cliente!.referencia1Parentesco,
-      referencia1Direccion: _cliente!.referencia1Direccion,
-      referencia2Nombre: _cliente!.referencia2Nombre,
-      referencia2Identidad: _cliente!.referencia2Identidad,
-      referencia2Telefono: _cliente!.referencia2Telefono,
-      referencia2Parentesco: _cliente!.referencia2Parentesco,
-      referencia2Direccion: _cliente!.referencia2Direccion,
-      fotoCasaUrl: _cliente!.fotoCasaUrl,
-      fotoNegocioUrl: _cliente!.fotoNegocioUrl,
-      fotoClienteUrl: _cliente!.fotoClienteUrl,
-      fotoIdentidadFrenteUrl: _cliente!.fotoIdentidadFrenteUrl,
-      fotoIdentidadReversoUrl: _cliente!.fotoIdentidadReversoUrl,
-      fotoReciboLuzUrl: _cliente!.fotoReciboLuzUrl,
-      garantiaTexto: _cliente!.garantiaTexto,
-      garantiaFotoUrl: _cliente!.garantiaFotoUrl,
-      estado: _cliente!.estado,
-      tienePrestamo: _cliente!.tienePrestamo,
-      cobradorAsignado: elegido.uid,
-    );
-    await clienteRepo.actualizar(actualizado);
+    await clienteRepo.actualizarCobrador(_cliente!.id, elegido.uid);
     for (final p in _prestamos.where((p) => p.estado != 'saldado')) {
       await prestamoRepo.reasignarCobrador(p.prestamoId, elegido.uid);
     }
@@ -193,8 +160,8 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                   child: SizedBox(
                     width: 96,
                     height: 96,
-                    child: c.fotoClienteUrl.isNotEmpty
-                        ? ImagenRedNetwork(url: c.fotoClienteUrl)
+                    child: c.fotoPersonaUrl.isNotEmpty
+                        ? ImagenRedNetwork(url: c.fotoPersonaUrl)
                         : const ColoredBox(
                             color: CEColors.surface,
                             child: Icon(Icons.person_outline,

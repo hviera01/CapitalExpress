@@ -45,7 +45,7 @@ class ClienteRepository {
       query = query.where('estado', isEqualTo: estado);
     }
 
-    final snap = await query.limit(300).get();
+    final snap = await query.limit(100).get();
     final clientes = <ClienteModel>[];
     for (final doc in snap.docs) {
       try {
@@ -64,6 +64,28 @@ class ClienteRepository {
             normalizarTexto(c.identidad).contains(q) ||
             normalizarTexto(c.telefono).contains(q))
         .toList();
+  }
+
+  /// Trae TODOS los clientes del alcance (sin limit). A diferencia de
+  /// `buscar`, esto es a proposito para el Reporte de Clientes, que
+  /// necesita el universo completo para calcular sumas reales -- no es
+  /// para pantallas de navegacion cotidiana.
+  Future<List<ClienteModel>> obtenerTodos({String? cobradorUid}) async {
+    Query<Map<String, dynamic>> query = _col;
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    final snap = await query.get();
+    final clientes = <ClienteModel>[];
+    for (final doc in snap.docs) {
+      try {
+        clientes.add(ClienteModel.fromDoc(doc));
+      } catch (_) {
+        // documento con formato inesperado: se omite.
+      }
+    }
+    clientes.sort((a, b) => a.nombre.compareTo(b.nombre));
+    return clientes;
   }
 
   Future<int> contar({String? cobradorUid, String? estado}) async {
@@ -102,5 +124,14 @@ class ClienteRepository {
 
   Future<void> eliminar(String id) async {
     await _col.doc(id).delete();
+  }
+
+  /// Reasigna el cobrador de un cliente puntual (usado por "Asignar
+  /// Cobrador" en el Resumen del Cliente).
+  Future<void> actualizarCobrador(String id, String cobradorUid) async {
+    await _col.doc(id).update({
+      'cobradorAsignado': cobradorUid,
+      'ultimaActividad': FieldValue.serverTimestamp(),
+    });
   }
 }

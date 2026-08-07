@@ -65,6 +65,26 @@ class PrestamoRepository {
     });
   }
 
+  /// Trae TODOS los prestamos no eliminados del alcance (para el Reporte
+  /// de Clientes, que necesita el universo completo -- no es para
+  /// pantallas de navegacion cotidiana, ahi se usa `buscar`).
+  Future<List<PrestamoModel>> obtenerTodos({String? cobradorUid}) async {
+    Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: false);
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    final snap = await query.get();
+    final prestamos = <PrestamoModel>[];
+    for (final doc in snap.docs) {
+      try {
+        prestamos.add(PrestamoModel.fromDoc(doc));
+      } catch (_) {
+        // documento con formato inesperado: se omite.
+      }
+    }
+    return prestamos;
+  }
+
   /// Cantidad total de prestamos del alcance dado (para el stat "Total"
   /// sin tener que bajar todos los documentos).
   Future<int> contar({String? cobradorUid, bool soloEliminados = false}) async {
@@ -103,7 +123,7 @@ class PrestamoRepository {
       query = query.where('estado', isEqualTo: estado);
     }
 
-    final snap = await query.limit(300).get();
+    final snap = await query.limit(100).get();
     final prestamos = <PrestamoModel>[];
     for (final doc in snap.docs) {
       try {

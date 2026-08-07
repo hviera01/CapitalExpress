@@ -15,7 +15,7 @@ import '../../../../core/widgets/selector_foto.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/clientes_provider.dart';
 
-const _estadosCiviles = ['Soltero/a', 'Casado/a', 'Union libre', 'Divorciado/a', 'Viudo/a'];
+const _estadosCiviles = ['Soltero', 'Casado', 'Union libre', 'Divorciado', 'Viudo'];
 
 /// Crear o editar un cliente. Si `clienteId` es null es un cliente nuevo.
 class ClienteFormScreen extends ConsumerStatefulWidget {
@@ -37,23 +37,20 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     'nombre': TextEditingController(),
     'identidad': TextEditingController(),
     'telefono': TextEditingController(),
-    'empresa': TextEditingController(),
+    'nombreEmpresa': TextEditingController(),
     'direccionCasa': TextEditingController(),
     'direccionNegocio': TextEditingController(),
-    'nombreConyuge': TextEditingController(),
-    'identidadConyuge': TextEditingController(),
-    'telefonoConyuge': TextEditingController(),
-    'referencia1Nombre': TextEditingController(),
-    'referencia1Identidad': TextEditingController(),
-    'referencia1Telefono': TextEditingController(),
-    'referencia1Parentesco': TextEditingController(),
-    'referencia1Direccion': TextEditingController(),
-    'referencia2Nombre': TextEditingController(),
-    'referencia2Identidad': TextEditingController(),
-    'referencia2Telefono': TextEditingController(),
-    'referencia2Parentesco': TextEditingController(),
-    'referencia2Direccion': TextEditingController(),
-    'garantiaTexto': TextEditingController(),
+    'garantia': TextEditingController(),
+    'ref1Nombre': TextEditingController(),
+    'ref1Identidad': TextEditingController(),
+    'ref1Telefono': TextEditingController(),
+    'ref1Parentesco': TextEditingController(),
+    'ref1Direccion': TextEditingController(),
+    'ref2Nombre': TextEditingController(),
+    'ref2Identidad': TextEditingController(),
+    'ref2Telefono': TextEditingController(),
+    'ref2Parentesco': TextEditingController(),
+    'ref2Direccion': TextEditingController(),
   };
 
   String _estadoCivil = _estadosCiviles.first;
@@ -61,27 +58,27 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
   final _fotos = <String, Uint8List?>{
     'fotoCasaUrl': null,
     'fotoNegocioUrl': null,
-    'fotoClienteUrl': null,
+    'fotoPersonaUrl': null,
     'fotoIdentidadFrenteUrl': null,
     'fotoIdentidadReversoUrl': null,
     'fotoReciboLuzUrl': null,
-    'garantiaFotoUrl': null,
-    'fotoExtra1Url': null,
-    'fotoExtra2Url': null,
-    'fotoExtra3Url': null,
+    'fotoGarantiaUrl': null,
+    'fotoExtra1': null,
+    'fotoExtra2': null,
+    'fotoExtra3': null,
   };
 
   static const _fotosInfo = [
-    ('fotoClienteUrl', 'Foto del cliente', Icons.person_outline),
+    ('fotoPersonaUrl', 'Foto del cliente', Icons.person_outline),
     ('fotoCasaUrl', 'Foto de la casa', Icons.home_outlined),
     ('fotoNegocioUrl', 'Foto del negocio', Icons.storefront_outlined),
     ('fotoIdentidadFrenteUrl', 'Identidad (frente)', Icons.badge_outlined),
     ('fotoIdentidadReversoUrl', 'Identidad (reverso)', Icons.badge_outlined),
     ('fotoReciboLuzUrl', 'Recibo de luz', Icons.receipt_long_outlined),
-    ('garantiaFotoUrl', 'Foto de la garantía', Icons.description_outlined),
-    ('fotoExtra1Url', 'Foto Extra 1', Icons.add_a_photo_outlined),
-    ('fotoExtra2Url', 'Foto Extra 2', Icons.add_a_photo_outlined),
-    ('fotoExtra3Url', 'Foto Extra 3', Icons.add_a_photo_outlined),
+    ('fotoGarantiaUrl', 'Foto de la garantía', Icons.description_outlined),
+    ('fotoExtra1', 'Foto Extra 1', Icons.add_a_photo_outlined),
+    ('fotoExtra2', 'Foto Extra 2', Icons.add_a_photo_outlined),
+    ('fotoExtra3', 'Foto Extra 3', Icons.add_a_photo_outlined),
   ];
 
   @override
@@ -99,23 +96,20 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         _campos['nombre']!.text = cliente.nombre;
         _campos['identidad']!.text = cliente.identidad;
         _campos['telefono']!.text = cliente.telefono;
-        _campos['empresa']!.text = cliente.empresa;
+        _campos['nombreEmpresa']!.text = cliente.nombreEmpresa;
         _campos['direccionCasa']!.text = cliente.direccionCasa;
         _campos['direccionNegocio']!.text = cliente.direccionNegocio;
-        _campos['nombreConyuge']!.text = cliente.nombreConyuge;
-        _campos['identidadConyuge']!.text = cliente.identidadConyuge;
-        _campos['telefonoConyuge']!.text = cliente.telefonoConyuge;
-        _campos['referencia1Nombre']!.text = cliente.referencia1Nombre;
-        _campos['referencia1Identidad']!.text = cliente.referencia1Identidad;
-        _campos['referencia1Telefono']!.text = cliente.referencia1Telefono;
-        _campos['referencia1Parentesco']!.text = cliente.referencia1Parentesco;
-        _campos['referencia1Direccion']!.text = cliente.referencia1Direccion;
-        _campos['referencia2Nombre']!.text = cliente.referencia2Nombre;
-        _campos['referencia2Identidad']!.text = cliente.referencia2Identidad;
-        _campos['referencia2Telefono']!.text = cliente.referencia2Telefono;
-        _campos['referencia2Parentesco']!.text = cliente.referencia2Parentesco;
-        _campos['referencia2Direccion']!.text = cliente.referencia2Direccion;
-        _campos['garantiaTexto']!.text = cliente.garantiaTexto;
+        _campos['garantia']!.text = cliente.garantia;
+        _campos['ref1Nombre']!.text = cliente.ref1.nombre;
+        _campos['ref1Identidad']!.text = cliente.ref1.identidad;
+        _campos['ref1Telefono']!.text = cliente.ref1.telefono;
+        _campos['ref1Parentesco']!.text = cliente.ref1.parentesco;
+        _campos['ref1Direccion']!.text = cliente.ref1.direccion;
+        _campos['ref2Nombre']!.text = cliente.ref2.nombre;
+        _campos['ref2Identidad']!.text = cliente.ref2.identidad;
+        _campos['ref2Telefono']!.text = cliente.ref2.telefono;
+        _campos['ref2Parentesco']!.text = cliente.ref2.parentesco;
+        _campos['ref2Direccion']!.text = cliente.ref2.direccion;
         if (_estadosCiviles.contains(cliente.estadoCivil)) {
           _estadoCivil = cliente.estadoCivil;
         }
@@ -140,22 +134,22 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         return c.fotoCasaUrl;
       case 'fotoNegocioUrl':
         return c.fotoNegocioUrl;
-      case 'fotoClienteUrl':
-        return c.fotoClienteUrl;
+      case 'fotoPersonaUrl':
+        return c.fotoPersonaUrl;
       case 'fotoIdentidadFrenteUrl':
         return c.fotoIdentidadFrenteUrl;
       case 'fotoIdentidadReversoUrl':
         return c.fotoIdentidadReversoUrl;
       case 'fotoReciboLuzUrl':
         return c.fotoReciboLuzUrl;
-      case 'garantiaFotoUrl':
-        return c.garantiaFotoUrl;
-      case 'fotoExtra1Url':
-        return c.fotoExtra1Url;
-      case 'fotoExtra2Url':
-        return c.fotoExtra2Url;
-      case 'fotoExtra3Url':
-        return c.fotoExtra3Url;
+      case 'fotoGarantiaUrl':
+        return c.fotoGarantiaUrl;
+      case 'fotoExtra1':
+        return c.fotoExtra1;
+      case 'fotoExtra2':
+        return c.fotoExtra2;
+      case 'fotoExtra3':
+        return c.fotoExtra3;
       default:
         return '';
     }
@@ -185,38 +179,40 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         nombre: _campos['nombre']!.text.trim(),
         identidad: _campos['identidad']!.text.trim(),
         telefono: _campos['telefono']!.text.trim(),
-        empresa: _campos['empresa']!.text.trim(),
+        nombreEmpresa: _campos['nombreEmpresa']!.text.trim(),
         direccionCasa: _campos['direccionCasa']!.text.trim(),
         direccionNegocio: _campos['direccionNegocio']!.text.trim(),
         estadoCivil: _estadoCivil,
-        nombreConyuge: _campos['nombreConyuge']!.text.trim(),
-        identidadConyuge: _campos['identidadConyuge']!.text.trim(),
-        telefonoConyuge: _campos['telefonoConyuge']!.text.trim(),
-        referencia1Nombre: _campos['referencia1Nombre']!.text.trim(),
-        referencia1Identidad: _campos['referencia1Identidad']!.text.trim(),
-        referencia1Telefono: _campos['referencia1Telefono']!.text.trim(),
-        referencia1Parentesco: _campos['referencia1Parentesco']!.text.trim(),
-        referencia1Direccion: _campos['referencia1Direccion']!.text.trim(),
-        referencia2Nombre: _campos['referencia2Nombre']!.text.trim(),
-        referencia2Identidad: _campos['referencia2Identidad']!.text.trim(),
-        referencia2Telefono: _campos['referencia2Telefono']!.text.trim(),
-        referencia2Parentesco: _campos['referencia2Parentesco']!.text.trim(),
-        referencia2Direccion: _campos['referencia2Direccion']!.text.trim(),
+        ref1: ReferenciaPersonal(
+          nombre: _campos['ref1Nombre']!.text.trim(),
+          identidad: _campos['ref1Identidad']!.text.trim(),
+          telefono: _campos['ref1Telefono']!.text.trim(),
+          parentesco: _campos['ref1Parentesco']!.text.trim(),
+          direccion: _campos['ref1Direccion']!.text.trim(),
+        ),
+        ref2: ReferenciaPersonal(
+          nombre: _campos['ref2Nombre']!.text.trim(),
+          identidad: _campos['ref2Identidad']!.text.trim(),
+          telefono: _campos['ref2Telefono']!.text.trim(),
+          parentesco: _campos['ref2Parentesco']!.text.trim(),
+          direccion: _campos['ref2Direccion']!.text.trim(),
+        ),
         fotoCasaUrl: urls['fotoCasaUrl']!,
         fotoNegocioUrl: urls['fotoNegocioUrl']!,
-        fotoClienteUrl: urls['fotoClienteUrl']!,
+        fotoPersonaUrl: urls['fotoPersonaUrl']!,
         fotoIdentidadFrenteUrl: urls['fotoIdentidadFrenteUrl']!,
         fotoIdentidadReversoUrl: urls['fotoIdentidadReversoUrl']!,
         fotoReciboLuzUrl: urls['fotoReciboLuzUrl']!,
-        fotoExtra1Url: urls['fotoExtra1Url']!,
-        fotoExtra2Url: urls['fotoExtra2Url']!,
-        fotoExtra3Url: urls['fotoExtra3Url']!,
-        garantiaTexto: _campos['garantiaTexto']!.text.trim(),
-        garantiaFotoUrl: urls['garantiaFotoUrl']!,
+        fotoExtra1: urls['fotoExtra1']!,
+        fotoExtra2: urls['fotoExtra2']!,
+        fotoExtra3: urls['fotoExtra3']!,
+        garantia: _campos['garantia']!.text.trim(),
+        fotoGarantiaUrl: urls['fotoGarantiaUrl']!,
         estado: _clienteOriginal?.estado ?? 'activo',
         tienePrestamo: _clienteOriginal?.tienePrestamo ?? false,
         cobradorAsignado: _clienteOriginal?.cobradorAsignado ??
             (usuario.rol == Roles.cobrador ? usuario.uid : ''),
+        cobrador: _clienteOriginal?.cobrador ?? usuario.nombre,
       );
 
       final repo = ref.read(clienteRepositoryProvider);
@@ -313,8 +309,8 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
               titulo: 'Datos de Trabajo',
               child: Column(
                 children: [
-                  _campo('empresa', 'Empresa'),
-                  _campo('garantiaTexto', 'Garantía', lineas: 2),
+                  _campo('nombreEmpresa', 'Empresa'),
+                  _campo('garantia', 'Garantía', lineas: 2),
                   _campo('direccionCasa', 'Dirección Casa'),
                   _campo('direccionNegocio', 'Dirección Negocio', ultimo: true),
                 ],
@@ -336,21 +332,6 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
                     .toList(),
               ),
             ),
-            if (_estadoCivil != 'Soltero/a') ...[
-              const SizedBox(height: 16),
-              CeSectionCard(
-                icono: Icons.people_outline,
-                titulo: 'Cónyuge',
-                child: Column(
-                  children: [
-                    _campo('nombreConyuge', 'Nombre del cónyuge'),
-                    _campo('identidadConyuge', 'Identidad del cónyuge'),
-                    _campo('telefonoConyuge', 'Teléfono del cónyuge',
-                        tipo: TextInputType.phone, ultimo: true),
-                  ],
-                ),
-              ),
-            ],
             const SizedBox(height: 16),
             CeSectionCard(
               icono: Icons.contacts_outlined,
@@ -365,11 +346,11 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
                       title: const Text('Referencia 1',
                           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       children: [
-                        _campo('referencia1Nombre', 'Nombre'),
-                        _campo('referencia1Identidad', 'Identidad'),
-                        _campo('referencia1Telefono', 'Teléfono', tipo: TextInputType.phone),
-                        _campo('referencia1Parentesco', 'Parentesco'),
-                        _campo('referencia1Direccion', 'Dirección', ultimo: true),
+                        _campo('ref1Nombre', 'Nombre'),
+                        _campo('ref1Identidad', 'Identidad'),
+                        _campo('ref1Telefono', 'Teléfono', tipo: TextInputType.phone),
+                        _campo('ref1Parentesco', 'Parentesco'),
+                        _campo('ref1Direccion', 'Dirección', ultimo: true),
                       ],
                     ),
                     const Divider(height: 1),
@@ -379,11 +360,11 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
                       title: const Text('Referencia 2',
                           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       children: [
-                        _campo('referencia2Nombre', 'Nombre'),
-                        _campo('referencia2Identidad', 'Identidad'),
-                        _campo('referencia2Telefono', 'Teléfono', tipo: TextInputType.phone),
-                        _campo('referencia2Parentesco', 'Parentesco'),
-                        _campo('referencia2Direccion', 'Dirección', ultimo: true),
+                        _campo('ref2Nombre', 'Nombre'),
+                        _campo('ref2Identidad', 'Identidad'),
+                        _campo('ref2Telefono', 'Teléfono', tipo: TextInputType.phone),
+                        _campo('ref2Parentesco', 'Parentesco'),
+                        _campo('ref2Direccion', 'Dirección', ultimo: true),
                       ],
                     ),
                   ],

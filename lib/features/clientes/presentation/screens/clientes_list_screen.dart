@@ -162,9 +162,17 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
               children: [
                 TextField(
                   controller: _busquedaCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Buscar por nombre, identidad o teléfono',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Limpiar',
+                      onPressed: () {
+                        _busquedaCtrl.clear();
+                        if (_seBusco) _buscar();
+                      },
+                    ),
                   ),
                   onSubmitted: (_) => _buscar(),
                 ),
@@ -315,8 +323,8 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                     child: SizedBox(
                       width: 56,
                       height: 56,
-                      child: c.fotoClienteUrl.isNotEmpty
-                          ? ImagenRedNetwork(url: c.fotoClienteUrl)
+                      child: c.fotoPersonaUrl.isNotEmpty
+                          ? ImagenRedNetwork(url: c.fotoPersonaUrl)
                           : const ColoredBox(
                               color: CEColors.surface,
                               child: Icon(Icons.person_outline, color: CEColors.textSecondary),
@@ -332,8 +340,8 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                         const SizedBox(height: 4),
                         if (c.telefono.isNotEmpty) _filaIcono(Icons.call_outlined, c.telefono),
-                        if (c.empresa.isNotEmpty)
-                          _filaIcono(Icons.storefront_outlined, c.empresa),
+                        if (c.nombreEmpresa.isNotEmpty)
+                          _filaIcono(Icons.storefront_outlined, c.nombreEmpresa),
                         if (c.identidad.isNotEmpty)
                           _filaIcono(Icons.badge_outlined, c.identidad),
                         if (c.tienePrestamo) ...[

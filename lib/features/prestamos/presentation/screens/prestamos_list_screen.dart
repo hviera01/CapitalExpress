@@ -178,9 +178,17 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
               children: [
                 TextField(
                   controller: _busquedaCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Buscar cliente o número...',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Limpiar',
+                      onPressed: () {
+                        _busquedaCtrl.clear();
+                        if (_seBusco) _buscar();
+                      },
+                    ),
                   ),
                   onSubmitted: (_) => _buscar(),
                 ),

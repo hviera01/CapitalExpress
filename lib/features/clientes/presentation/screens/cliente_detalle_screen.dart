@@ -69,7 +69,8 @@ class _ClienteDetalleScreenState extends ConsumerState<ClienteDetalleScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _Titulo('Datos de Trabajo', Icons.work_outline),
-                _fila('Garantía', c.garantiaTexto),
+                if (c.nombreEmpresa.isNotEmpty) _fila('Empresa', c.nombreEmpresa),
+                _fila('Garantía', c.garantia),
                 _fila('Dirección Casa', c.direccionCasa),
                 _fila('Dirección Negocio', c.direccionNegocio),
               ],
@@ -83,10 +84,6 @@ class _ClienteDetalleScreenState extends ConsumerState<ClienteDetalleScreen> {
                 children: [
                   const _Titulo('Estado Civil', Icons.favorite_outline),
                   _fila('Estado civil', c.estadoCivil),
-                  if (c.nombreConyuge.isNotEmpty) _fila('Cónyuge', c.nombreConyuge),
-                  if (c.identidadConyuge.isNotEmpty)
-                    _fila('Identidad cónyuge', c.identidadConyuge),
-                  if (c.telefonoConyuge.isNotEmpty) _fila('Teléfono cónyuge', c.telefonoConyuge),
                 ],
               ),
             ),
@@ -97,22 +94,22 @@ class _ClienteDetalleScreenState extends ConsumerState<ClienteDetalleScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _Titulo('Referencias Personales', Icons.contacts_outlined),
-                if (c.referencia1Nombre.isNotEmpty) ...[
+                if (!c.ref1.estaVacia) ...[
                   const Text('Referencia 1', style: TextStyle(fontWeight: FontWeight.w700)),
-                  _fila('Nombre', c.referencia1Nombre),
-                  _fila('Identidad', c.referencia1Identidad),
-                  _fila('Teléfono', c.referencia1Telefono),
-                  _fila('Parentesco', c.referencia1Parentesco),
-                  _fila('Dirección', c.referencia1Direccion),
+                  _fila('Nombre', c.ref1.nombre),
+                  _fila('Identidad', c.ref1.identidad),
+                  _fila('Teléfono', c.ref1.telefono),
+                  _fila('Parentesco', c.ref1.parentesco),
+                  _fila('Dirección', c.ref1.direccion),
                   const Divider(height: 24),
                 ],
-                if (c.referencia2Nombre.isNotEmpty) ...[
+                if (!c.ref2.estaVacia) ...[
                   const Text('Referencia 2', style: TextStyle(fontWeight: FontWeight.w700)),
-                  _fila('Nombre', c.referencia2Nombre),
-                  _fila('Identidad', c.referencia2Identidad),
-                  _fila('Teléfono', c.referencia2Telefono),
-                  _fila('Parentesco', c.referencia2Parentesco),
-                  _fila('Dirección', c.referencia2Direccion),
+                  _fila('Nombre', c.ref2.nombre),
+                  _fila('Identidad', c.ref2.identidad),
+                  _fila('Teléfono', c.ref2.telefono),
+                  _fila('Parentesco', c.ref2.parentesco),
+                  _fila('Dirección', c.ref2.direccion),
                 ],
               ],
             ),
@@ -128,16 +125,16 @@ class _ClienteDetalleScreenState extends ConsumerState<ClienteDetalleScreen> {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    c.fotoClienteUrl,
+                    c.fotoPersonaUrl,
                     c.fotoCasaUrl,
                     c.fotoNegocioUrl,
                     c.fotoIdentidadFrenteUrl,
                     c.fotoIdentidadReversoUrl,
                     c.fotoReciboLuzUrl,
-                    c.garantiaFotoUrl,
-                    c.fotoExtra1Url,
-                    c.fotoExtra2Url,
-                    c.fotoExtra3Url,
+                    c.fotoGarantiaUrl,
+                    c.fotoExtra1,
+                    c.fotoExtra2,
+                    c.fotoExtra3,
                   ]
                       .where((u) => u.isNotEmpty)
                       .map((u) => GestureDetector(
