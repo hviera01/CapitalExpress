@@ -308,6 +308,12 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                         setState(() => _resultados.removeWhere((r) => r.id == c.id));
                         _cargarStats();
                       },
+                      onActualizado: (actualizado) {
+                        setState(() {
+                          final i = _resultados.indexWhere((r) => r.id == actualizado.id);
+                          if (i != -1) _resultados[i] = actualizado;
+                        });
+                      },
                     ),
                   )),
           ],
@@ -322,11 +328,13 @@ class _ClienteTile extends ConsumerStatefulWidget {
   final bool tienePrestamo;
   final String? nombreCobrador;
   final VoidCallback onEliminado;
+  final ValueChanged<ClienteModel> onActualizado;
 
   const _ClienteTile({
     required this.cliente,
     required this.tienePrestamo,
     required this.onEliminado,
+    required this.onActualizado,
     this.nombreCobrador,
   });
 
@@ -380,7 +388,12 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
     final c = widget.cliente;
     switch (accion) {
       case 'editar':
-        context.push('/clientes/${c.id}/editar', extra: c);
+        await context.push('/clientes/${c.id}/editar', extra: c);
+        // Al volver de editar, se trae el cliente actualizado -- antes
+        // la fila se quedaba mostrando los datos viejos hasta que se
+        // repetia la busqueda a mano.
+        final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(c.id);
+        if (actualizado != null) widget.onActualizado(actualizado);
         break;
       case 'llamar':
         llamarTelefono(c.telefono);
@@ -425,6 +438,20 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
     }
   }
 
+  /// Dentro de Resumen del Cliente se puede editar o eliminar el
+  /// cliente -- al volver aca (con o sin cambios) se refresca esta
+  /// fila para no quedar mostrando datos viejos o un cliente ya
+  /// borrado.
+  Future<void> _abrirResumen(BuildContext context) async {
+    await context.push('/clientes/${widget.cliente.id}', extra: widget.cliente);
+    final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(widget.cliente.id);
+    if (actualizado != null) {
+      widget.onActualizado(actualizado);
+    } else {
+      widget.onEliminado();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.cliente;
@@ -434,7 +461,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
         children: [
           InkWell(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            onTap: () => context.push('/clientes/${c.id}', extra: c),
+            onTap: () => _abrirResumen(context),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(

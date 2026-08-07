@@ -329,7 +329,20 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
           else
             ..._resultados.map((p) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _PrestamoCard(prestamo: p, eliminadoView: _verEliminados),
+                  child: _PrestamoCard(
+                    prestamo: p,
+                    eliminadoView: _verEliminados,
+                    onActualizado: (actualizado) {
+                      setState(() {
+                        final i = _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
+                        if (i != -1) _resultados[i] = actualizado;
+                      });
+                    },
+                    onEliminado: () {
+                      setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
+                      _cargarStats();
+                    },
+                  ),
                 )),
         ],
       ),
@@ -340,8 +353,41 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
 class _PrestamoCard extends ConsumerWidget {
   final PrestamoModel prestamo;
   final bool eliminadoView;
+  final ValueChanged<PrestamoModel> onActualizado;
+  final VoidCallback onEliminado;
 
-  const _PrestamoCard({required this.prestamo, required this.eliminadoView});
+  const _PrestamoCard({
+    required this.prestamo,
+    required this.eliminadoView,
+    required this.onActualizado,
+    required this.onEliminado,
+  });
+
+  Future<void> _editar(BuildContext context, WidgetRef ref) async {
+    await context.push('/prestamos/${prestamo.prestamoId}/editar', extra: prestamo);
+    // Al volver de editar, se trae el prestamo actualizado -- antes la
+    // card se quedaba mostrando los datos viejos hasta repetir la
+    // busqueda a mano.
+    await _refrescar(ref);
+  }
+
+  /// Detalle del Prestamo tambien permite eliminar/restaurar/editar --
+  /// al volver aca se refresca esta card (o se quita de la lista si ya
+  /// no corresponde a la vista actual) en vez de dejarla con datos
+  /// viejos.
+  Future<void> _verDetalle(BuildContext context, WidgetRef ref) async {
+    await context.push('/prestamos/${prestamo.prestamoId}', extra: prestamo);
+    await _refrescar(ref);
+  }
+
+  Future<void> _refrescar(WidgetRef ref) async {
+    final actualizado = await ref.read(prestamoRepositoryProvider).obtenerPorId(prestamo.prestamoId);
+    if (actualizado == null || actualizado.eliminado != eliminadoView) {
+      onEliminado();
+    } else {
+      onActualizado(actualizado);
+    }
+  }
 
   Color _colorEstado() {
     switch (prestamo.estado) {
@@ -361,7 +407,7 @@ class _PrestamoCard extends ConsumerWidget {
 
     return CeCard(
       padding: EdgeInsets.zero,
-      onTap: () => context.push('/prestamos/${prestamo.prestamoId}', extra: prestamo),
+      onTap: () => _verDetalle(context, ref),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -449,8 +495,7 @@ class _PrestamoCard extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () =>
-                            context.push('/prestamos/${prestamo.prestamoId}', extra: prestamo),
+                        onPressed: () => _verDetalle(context, ref),
                         child: const Text('Ver'),
                       ),
                     ),
@@ -458,8 +503,7 @@ class _PrestamoCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => context
-                              .push('/prestamos/${prestamo.prestamoId}/editar', extra: prestamo),
+                          onPressed: () => _editar(context, ref),
                           child: const Text('Editar'),
                         ),
                       ),
@@ -483,6 +527,7 @@ class _PrestamoCard extends ConsumerWidget {
                               await repo.marcarEliminado(prestamo.prestamoId,
                                   eliminadoPor: usuario.nombre);
                             }
+                            onEliminado();
                           },
                           child: Text(eliminadoView ? 'Restaurar' : 'Eliminar'),
                         ),
@@ -519,6 +564,7 @@ class _PrestamoCard extends ConsumerWidget {
                           await ref
                               .read(prestamoRepositoryProvider)
                               .eliminarPermanente(prestamo.prestamoId);
+                          onEliminado();
                         }
                       },
                       icon: const Icon(Icons.delete_forever_outlined, size: 16),

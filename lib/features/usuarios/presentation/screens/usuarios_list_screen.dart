@@ -245,7 +245,13 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
                           child: _UsuarioTile(
                             usuario: u,
                             prestamosAsignados: _prestamosAsignados[u.uid] ?? 0,
-                            onEditar: () => context.push('/usuarios/${u.uid}/editar', extra: u),
+                            onEditar: () async {
+                              await context.push('/usuarios/${u.uid}/editar', extra: u);
+                              // Al volver de editar, se recarga la lista --
+                              // antes se quedaba mostrando los datos viejos
+                              // hasta salir y volver a entrar.
+                              _cargar();
+                            },
                             onCambiarEstado: (nuevo) => _cambiarEstado(u, nuevo),
                           ),
                         )),
