@@ -16,6 +16,7 @@ import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../providers/clientes_provider.dart';
 
 const _estados = ['Todos', 'Activo', 'Inactivo'];
@@ -37,6 +38,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   String _filtroEstado = 'Todos';
 
   bool _cargandoStats = true;
+  String? _errorStats;
   int _total = 0;
   int _activos = 0;
   int _pagosTarde = 0;
@@ -46,6 +48,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   bool _seBusco = false;
   List<ClienteModel> _resultados = [];
   final Map<String, bool> _tienePrestamoReal = {};
+  Map<String, String> _nombresCobradores = {};
 
   String? _cobradorUid;
   bool _esAdmin = true;
@@ -53,7 +56,29 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _cargarStats());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarStats();
+      _cargarNombresCobradores();
+    });
+  }
+
+  /// Para poder mostrar el nombre real del cobrador asignado en cada
+  /// card (antes no se mostraba en ningun lado, ni siquiera en Resumen
+  /// del Cliente). Solo hace falta para admin -- un cobrador viendo
+  /// "Mis Clientes" ya sabe que son los suyos.
+  Future<void> _cargarNombresCobradores() async {
+    final usuario = ref.read(authProvider).usuario;
+    if (usuario?.rol != Roles.admin) return;
+    try {
+      final cobradores = await ref.read(usuarioRepositoryProvider).obtenerCobradores();
+      if (!mounted) return;
+      setState(() {
+        _nombresCobradores = {for (final c in cobradores) c.uid: c.nombre};
+      });
+    } catch (_) {
+      // No es critico: si falla, las cards simplemente no muestran el
+      // nombre del cobrador (se resuelve "Sin asignar"/UID como antes).
+    }
   }
 
   @override
@@ -67,25 +92,36 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     _esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = _esAdmin ? null : usuario?.uid;
 
-    setState(() => _cargandoStats = true);
+    setState(() {
+      _cargandoStats = true;
+      _errorStats = null;
+    });
     final clienteRepo = ref.read(clienteRepositoryProvider);
     final prestamoRepo = ref.read(prestamoRepositoryProvider);
 
-    final resultados = await Future.wait([
-      clienteRepo.contar(cobradorUid: _cobradorUid),
-      clienteRepo.contar(cobradorUid: _cobradorUid, estado: 'activo'),
-      prestamoRepo.contarEnMora(cobradorUid: _cobradorUid),
-      prestamoRepo.sumarSaldoPendiente(cobradorUid: _cobradorUid),
-    ]);
+    try {
+      final resultados = await Future.wait([
+        clienteRepo.contar(cobradorUid: _cobradorUid),
+        clienteRepo.contar(cobradorUid: _cobradorUid, estado: 'activo'),
+        prestamoRepo.contarEnMora(cobradorUid: _cobradorUid),
+        prestamoRepo.sumarSaldoPendiente(cobradorUid: _cobradorUid),
+      ]);
 
-    if (!mounted) return;
-    setState(() {
-      _total = resultados[0] as int;
-      _activos = resultados[1] as int;
-      _pagosTarde = resultados[2] as int;
-      _pendiente = resultados[3] as double;
-      _cargandoStats = false;
-    });
+      if (!mounted) return;
+      setState(() {
+        _total = resultados[0] as int;
+        _activos = resultados[1] as int;
+        _pagosTarde = resultados[2] as int;
+        _pendiente = resultados[3] as double;
+        _cargandoStats = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorStats = '$e';
+        _cargandoStats = false;
+      });
+    }
   }
 
   Future<void> _buscar() async {
@@ -139,38 +175,55 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          GridView.count(
-            crossAxisCount: esEscritorio(context) ? 4 : 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.3,
-            children: [
-              CeStatCard(
-                icono: Icons.people_outline,
-                valor: _cargandoStats ? '…' : '$_total',
-                etiqueta: 'Total',
+          if (_errorStats != null)
+            CeCard(
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: CEColors.danger),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'No se pudieron cargar las estadísticas: $_errorStats',
+                      style: const TextStyle(fontSize: 12, color: CEColors.danger),
+                    ),
+                  ),
+                  TextButton(onPressed: _cargarStats, child: const Text('Reintentar')),
+                ],
               ),
-              CeStatCard(
-                icono: Icons.trending_up,
-                valor: _cargandoStats ? '…' : '$_activos',
-                etiqueta: 'Activos',
-                color: CEColors.success,
-              ),
-              CeStatCard(
-                icono: Icons.warning_amber_outlined,
-                valor: _cargandoStats ? '…' : '$_pagosTarde',
-                etiqueta: 'Pagos Tarde',
-                color: CEColors.danger,
-              ),
-              CeStatCard(
-                icono: Icons.account_balance_wallet_outlined,
-                valor: _cargandoStats ? '…' : formatearLempiras(_pendiente),
-                etiqueta: 'Pendiente',
-                color: CEColors.accent,
-              ),
-            ],
+            )
+          else
+            GridView.count(
+              crossAxisCount: esEscritorio(context) ? 4 : 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.3,
+              children: [
+                CeStatCard(
+                  icono: Icons.people_outline,
+                  valor: _cargandoStats ? '…' : '$_total',
+                  etiqueta: 'Total',
+                ),
+                CeStatCard(
+                  icono: Icons.trending_up,
+                  valor: _cargandoStats ? '…' : '$_activos',
+                  etiqueta: 'Activos',
+                  color: CEColors.success,
+                ),
+                CeStatCard(
+                  icono: Icons.warning_amber_outlined,
+                  valor: _cargandoStats ? '…' : '$_pagosTarde',
+                  etiqueta: 'Pagos Tarde',
+                  color: CEColors.danger,
+                ),
+                CeStatCard(
+                  icono: Icons.account_balance_wallet_outlined,
+                  valor: _cargandoStats ? '…' : formatearLempiras(_pendiente),
+                  etiqueta: 'Pendiente',
+                  color: CEColors.accent,
+                ),
+              ],
           ),
           const SizedBox(height: 16),
           CeCard(
@@ -251,6 +304,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                     child: _ClienteTile(
                       cliente: c,
                       tienePrestamo: _tienePrestamoReal[c.id] ?? c.tienePrestamo,
+                      nombreCobrador: _nombresCobradores[c.cobradorAsignado],
                       onEliminado: () {
                         setState(() => _resultados.removeWhere((r) => r.id == c.id));
                         _cargarStats();
@@ -267,12 +321,14 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
 class _ClienteTile extends ConsumerStatefulWidget {
   final ClienteModel cliente;
   final bool tienePrestamo;
+  final String? nombreCobrador;
   final VoidCallback onEliminado;
 
   const _ClienteTile({
     required this.cliente,
     required this.tienePrestamo,
     required this.onEliminado,
+    this.nombreCobrador,
   });
 
   @override
@@ -282,20 +338,43 @@ class _ClienteTile extends ConsumerStatefulWidget {
 class _ClienteTileState extends ConsumerState<_ClienteTile> {
   bool _expandido = false;
   bool _cargando = false;
+  String? _error;
   List<PrestamoModel>? _prestamos;
 
   Future<void> _toggle() async {
+    if (_cargando) return; // evita doble-tap mientras ya esta cargando
     if (!_expandido && _prestamos == null) {
-      setState(() => _cargando = true);
-      final prestamos =
-          await ref.read(prestamoRepositoryProvider).obtenerPorCliente(widget.cliente.id);
-      if (!mounted) return;
       setState(() {
-        _prestamos = prestamos;
-        _cargando = false;
+        _cargando = true;
+        _error = null;
       });
+      try {
+        final prestamos =
+            await ref.read(prestamoRepositoryProvider).obtenerPorCliente(widget.cliente.id);
+        if (!mounted) return;
+        setState(() {
+          _prestamos = prestamos;
+          _cargando = false;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = '$e';
+          _cargando = false;
+          _expandido = true; // se expande igual para mostrar el error + reintentar
+        });
+        return;
+      }
     }
     setState(() => _expandido = !_expandido);
+  }
+
+  void _reintentar() {
+    setState(() {
+      _prestamos = null;
+      _expandido = false;
+    });
+    _toggle();
   }
 
   Future<void> _accion(BuildContext context, String accion) async {
@@ -388,6 +467,10 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                           _filaIcono(Icons.storefront_outlined, c.nombreEmpresa),
                         if (c.identidad.isNotEmpty)
                           _filaIcono(Icons.badge_outlined, c.identidad),
+                        if (widget.nombreCobrador != null)
+                          _filaIcono(Icons.person_pin_circle_outlined, widget.nombreCobrador!)
+                        else if (c.cobradorAsignado.isEmpty)
+                          _filaIcono(Icons.person_pin_circle_outlined, 'Sin cobrador asignado'),
                         if (widget.tienePrestamo) ...[
                           const SizedBox(height: 6),
                           Container(
@@ -474,6 +557,23 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
         padding: EdgeInsets.all(20),
         child: Center(
           child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline, size: 16, color: CEColors.danger),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('No se pudo cargar: $_error',
+                  style: const TextStyle(fontSize: 12, color: CEColors.danger)),
+            ),
+            TextButton(onPressed: _reintentar, child: const Text('Reintentar')),
+          ],
         ),
       );
     }

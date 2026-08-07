@@ -30,6 +30,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
   bool _verEliminados = false;
 
   bool _cargandoStats = true;
+  String? _errorStats;
   int _total = 0;
   int _activos = 0;
   int _saldados = 0;
@@ -57,20 +58,31 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
     final esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = esAdmin ? null : usuario?.uid;
 
-    setState(() => _cargandoStats = true);
-    final repo = ref.read(prestamoRepositoryProvider);
-    final resultados = await Future.wait([
-      repo.contar(cobradorUid: _cobradorUid),
-      repo.contarPorEstado('activo', cobradorUid: _cobradorUid),
-      repo.contarPorEstado('saldado', cobradorUid: _cobradorUid),
-    ]);
-    if (!mounted) return;
     setState(() {
-      _total = resultados[0];
-      _activos = resultados[1];
-      _saldados = resultados[2];
-      _cargandoStats = false;
+      _cargandoStats = true;
+      _errorStats = null;
     });
+    final repo = ref.read(prestamoRepositoryProvider);
+    try {
+      final resultados = await Future.wait([
+        repo.contar(cobradorUid: _cobradorUid),
+        repo.contarPorEstado('activo', cobradorUid: _cobradorUid),
+        repo.contarPorEstado('saldado', cobradorUid: _cobradorUid),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _total = resultados[0];
+        _activos = resultados[1];
+        _saldados = resultados[2];
+        _cargandoStats = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorStats = '$e';
+        _cargandoStats = false;
+      });
+    }
   }
 
   Future<void> _buscar() async {
@@ -119,6 +131,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final esAdmin = ref.watch(authProvider).usuario?.rol == Roles.admin;
     final hayFiltros = _busquedaCtrl.text.isNotEmpty || _filtroEstado != 'Todos' || _verEliminados;
 
     return CeScaffold(
@@ -145,33 +158,50 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.0,
-            children: [
-              CeStatCard(
-                icono: Icons.payments_outlined,
-                valor: _cargandoStats ? '…' : '$_total',
-                etiqueta: 'TOTAL',
+          if (_errorStats != null)
+            CeCard(
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: CEColors.danger),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'No se pudieron cargar las estadísticas: $_errorStats',
+                      style: const TextStyle(fontSize: 12, color: CEColors.danger),
+                    ),
+                  ),
+                  TextButton(onPressed: _cargarStats, child: const Text('Reintentar')),
+                ],
               ),
-              CeStatCard(
-                icono: Icons.check_circle_outline,
-                valor: _cargandoStats ? '…' : '$_activos',
-                etiqueta: 'ACTIVOS',
-                color: CEColors.success,
-              ),
-              CeStatCard(
-                icono: Icons.history_toggle_off,
-                valor: _cargandoStats ? '…' : '$_saldados',
-                etiqueta: 'SALDADOS',
-                color: CEColors.accent,
-              ),
-            ],
-          ),
+            )
+          else
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.0,
+              children: [
+                CeStatCard(
+                  icono: Icons.payments_outlined,
+                  valor: _cargandoStats ? '…' : '$_total',
+                  etiqueta: 'TOTAL',
+                ),
+                CeStatCard(
+                  icono: Icons.check_circle_outline,
+                  valor: _cargandoStats ? '…' : '$_activos',
+                  etiqueta: 'ACTIVOS',
+                  color: CEColors.success,
+                ),
+                CeStatCard(
+                  icono: Icons.history_toggle_off,
+                  valor: _cargandoStats ? '…' : '$_saldados',
+                  etiqueta: 'SALDADOS',
+                  color: CEColors.accent,
+                ),
+              ],
+            ),
           const SizedBox(height: 16),
           CeCard(
             child: Column(
@@ -193,19 +223,21 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
                   ),
                   onSubmitted: (_) => _buscar(),
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, size: 18, color: CEColors.danger),
-                    const SizedBox(width: 8),
-                    const Expanded(child: Text('Ver eliminados', style: TextStyle(fontSize: 13))),
-                    Switch(
-                      value: _verEliminados,
-                      activeThumbColor: CEColors.danger,
-                      onChanged: (v) => setState(() => _verEliminados = v),
-                    ),
-                  ],
-                ),
+                if (esAdmin) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, size: 18, color: CEColors.danger),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Ver eliminados', style: TextStyle(fontSize: 13))),
+                      Switch(
+                        value: _verEliminados,
+                        activeThumbColor: CEColors.danger,
+                        onChanged: (v) => setState(() => _verEliminados = v),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 6),
                 const Align(
                   alignment: Alignment.centerLeft,
@@ -256,7 +288,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
                     ),
                   ),
                 ],
-                if (_verEliminados && _resultados.isNotEmpty) ...[
+                if (esAdmin && _verEliminados && _resultados.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
@@ -430,28 +462,30 @@ class _PrestamoCard extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: eliminadoView ? CEColors.success : CEColors.danger,
-                          side: BorderSide(
-                            color: eliminadoView ? CEColors.success : CEColors.danger,
+                    if (esAdmin) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: eliminadoView ? CEColors.success : CEColors.danger,
+                            side: BorderSide(
+                              color: eliminadoView ? CEColors.success : CEColors.danger,
+                            ),
                           ),
+                          onPressed: () async {
+                            final repo = ref.read(prestamoRepositoryProvider);
+                            if (eliminadoView) {
+                              await repo.restaurar(prestamo.prestamoId);
+                            } else {
+                              final usuario = ref.read(authProvider).usuario!;
+                              await repo.marcarEliminado(prestamo.prestamoId,
+                                  eliminadoPor: usuario.nombre);
+                            }
+                          },
+                          child: Text(eliminadoView ? 'Restaurar' : 'Eliminar'),
                         ),
-                        onPressed: () async {
-                          final repo = ref.read(prestamoRepositoryProvider);
-                          if (eliminadoView) {
-                            await repo.restaurar(prestamo.prestamoId);
-                          } else {
-                            final usuario = ref.read(authProvider).usuario!;
-                            await repo.marcarEliminado(prestamo.prestamoId,
-                                eliminadoPor: usuario.nombre);
-                          }
-                        },
-                        child: Text(eliminadoView ? 'Restaurar' : 'Eliminar'),
                       ),
-                    ),
+                    ],
                   ],
                 ),
                 if (eliminadoView) ...[

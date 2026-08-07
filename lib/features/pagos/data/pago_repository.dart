@@ -46,8 +46,22 @@ class PagoRepository {
 
   Future<List<PagoModel>> obtenerPorPrestamo(String prestamoId) async {
     final snap = await _col.where('prestamoId', isEqualTo: prestamoId).get();
+    return _ordenados(snap.docs);
+  }
+
+  /// Igual que [obtenerPorPrestamo] pero en vivo (Historial de Pagos de
+  /// un prestamo puntual) -- si se registra o borra un pago desde otra
+  /// pantalla/dispositivo, esta lista se actualiza sola.
+  Stream<List<PagoModel>> streamPorPrestamo(String prestamoId) {
+    return _col
+        .where('prestamoId', isEqualTo: prestamoId)
+        .snapshots()
+        .map((snap) => _ordenados(snap.docs));
+  }
+
+  List<PagoModel> _ordenados(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
     final pagos = <PagoModel>[];
-    for (final doc in snap.docs) {
+    for (final doc in docs) {
       try {
         pagos.add(PagoModel.fromDoc(doc));
       } catch (_) {

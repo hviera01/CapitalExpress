@@ -148,11 +148,32 @@ class PrestamoRepository {
     return PrestamoModel.fromDoc(doc);
   }
 
+  /// Igual que [obtenerPorId] pero en vivo -- para Detalle del Prestamo,
+  /// asi si se aplica una mora o se registra/borra un pago desde otro
+  /// lado la pantalla se actualiza sola, sin tener que salir y volver a
+  /// entrar. Es un solo documento, no una lista grande, asi que mantener
+  /// el stream abierto no pesa nada.
+  Stream<PrestamoModel?> streamPorId(String id) {
+    return _col.doc(id).snapshots().map((doc) => doc.exists ? PrestamoModel.fromDoc(doc) : null);
+  }
+
   /// Prestamos de un cliente puntual (para el resumen del cliente).
   Future<List<PrestamoModel>> obtenerPorCliente(String clienteId) async {
     final snap = await _col.where('clienteId', isEqualTo: clienteId).get();
+    return _prestamosValidos(snap.docs);
+  }
+
+  /// Igual que [obtenerPorCliente] pero en vivo (Resumen del Cliente).
+  Stream<List<PrestamoModel>> streamPorCliente(String clienteId) {
+    return _col
+        .where('clienteId', isEqualTo: clienteId)
+        .snapshots()
+        .map((snap) => _prestamosValidos(snap.docs));
+  }
+
+  List<PrestamoModel> _prestamosValidos(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
     final prestamos = <PrestamoModel>[];
-    for (final doc in snap.docs) {
+    for (final doc in docs) {
       try {
         final p = PrestamoModel.fromDoc(doc);
         if (!p.eliminado) prestamos.add(p);

@@ -25,36 +25,21 @@ class PrestamoDetalleScreen extends ConsumerStatefulWidget {
 }
 
 class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
-  PrestamoModel? _prestamo;
-  bool _cargando = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _cargar();
-  }
-
-  Future<void> _cargar() async {
-    final p = await ref.read(prestamoRepositoryProvider).obtenerPorId(widget.prestamoId);
-    if (mounted) {
-      setState(() {
-        _prestamo = p;
-        _cargando = false;
-      });
-    }
-  }
+  // Stream en vivo: si se aplica una mora, se registra/borra un pago, o
+  // se edita el prestamo desde otra pantalla/dispositivo, esto se
+  // actualiza solo -- no hace falta volver a entrar ni tocar "refrescar".
+  late final Stream<PrestamoModel?> _stream =
+      ref.read(prestamoRepositoryProvider).streamPorId(widget.prestamoId);
 
   Future<void> _eliminar() async {
     final usuario = ref.read(authProvider).usuario!;
     await ref
         .read(prestamoRepositoryProvider)
         .marcarEliminado(widget.prestamoId, eliminadoPor: usuario.nombre);
-    await _cargar();
   }
 
   Future<void> _restaurar() async {
     await ref.read(prestamoRepositoryProvider).restaurar(widget.prestamoId);
-    await _cargar();
   }
 
   Color _colorEstado(String estado) {
@@ -70,17 +55,29 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<PrestamoModel?>(
+      stream: _stream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Error al cargar el préstamo: ${snapshot.error}')),
+          );
+        }
+        final p = snapshot.data;
+        if (p == null) {
+          return const Scaffold(body: Center(child: Text('Préstamo no encontrado')));
+        }
+        return _contenido(context, p);
+      },
+    );
+  }
+
+  Widget _contenido(BuildContext context, PrestamoModel p) {
     final usuario = ref.watch(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
-
-    if (_cargando) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    final p = _prestamo;
-    if (p == null) {
-      return const Scaffold(body: Center(child: Text('Préstamo no encontrado')));
-    }
-
     final formatoFecha = DateFormat('dd/MM/yyyy');
     final colorEstado = _colorEstado(p.estado);
 
@@ -94,10 +91,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Editar',
-              onPressed: () async {
-                await context.push('/prestamos/${p.prestamoId}/editar');
-                _cargar();
-              },
+              onPressed: () => context.push('/prestamos/${p.prestamoId}/editar'),
             ),
           if (esAdmin)
             IconButton(
@@ -105,7 +99,6 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
               tooltip: p.eliminado ? 'Restaurar' : 'Eliminar',
               onPressed: p.eliminado ? _restaurar : _eliminar,
             ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
         ],
       ),
       body: ListView(

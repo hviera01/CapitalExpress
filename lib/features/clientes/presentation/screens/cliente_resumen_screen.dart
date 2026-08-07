@@ -32,39 +32,46 @@ class ClienteResumenScreen extends ConsumerStatefulWidget {
 }
 
 class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
-  ClienteModel? _cliente;
-  List<PrestamoModel> _prestamos = [];
-  bool _cargando = true;
+  // El cliente y sus prestamos quedan en vivo: si se aplica una mora, se
+  // registra/borra un pago, o se reasigna el cobrador desde otro lado,
+  // esta pantalla se actualiza sola. Los cobradores (para el selector de
+  // "Asignar Cobrador") no hace falta que sean en vivo, son una lista de
+  // staff que casi no cambia -- se cargan una sola vez.
+  late final Stream<ClienteModel?> _streamCliente =
+      ref.read(clienteRepositoryProvider).streamPorId(widget.clienteId);
+  late final Stream<List<PrestamoModel>> _streamPrestamos =
+      ref.read(prestamoRepositoryProvider).streamPorCliente(widget.clienteId);
+
+  List<UsuarioSimple> _cobradores = [];
 
   @override
   void initState() {
     super.initState();
-    _cargar();
+    _cargarCobradores();
   }
 
-  Future<void> _cargar() async {
-    setState(() => _cargando = true);
-    // Las dos consultas no dependen entre si: pedirlas en paralelo corta
-    // el tiempo de carga a la mitad en vez de esperar una y despues la otra.
-    final resultados = await Future.wait([
-      ref.read(clienteRepositoryProvider).obtenerPorId(widget.clienteId),
-      ref.read(prestamoRepositoryProvider).obtenerPorCliente(widget.clienteId),
-    ]);
-    if (mounted) {
-      setState(() {
-        _cliente = resultados[0] as ClienteModel?;
-        _prestamos = resultados[1] as List<PrestamoModel>;
-        _cargando = false;
-      });
-    }
+  Future<void> _cargarCobradores() async {
+    final cobradores = await ref.read(usuarioRepositoryProvider).obtenerCobradores();
+    if (mounted) setState(() => _cobradores = cobradores);
   }
 
-  Future<void> _confirmarEliminar() async {
+  /// Nombre real del cobrador asignado (el campo del cliente solo
+  /// guarda el uid) -- antes esto no se mostraba en ningun lado, solo
+  /// se sabia si HABIA alguien asignado o no, no quien.
+  String _nombreCobradorAsignado(ClienteModel c) {
+    final uid = c.cobradorAsignado;
+    if (uid.isEmpty) return 'Sin asignar';
+    final match = _cobradores.where((co) => co.uid == uid);
+    if (match.isEmpty) return 'Cobrador desconocido';
+    return match.first.nombre;
+  }
+
+  Future<void> _confirmarEliminar(String nombre) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar cliente'),
-        content: Text('¿Eliminar a ${_cliente?.nombre}? Esta acción no se puede deshacer.'),
+        content: Text('¿Eliminar a $nombre? Esta acción no se puede deshacer.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           TextButton(
@@ -80,9 +87,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
     }
   }
 
-  Future<void> _asignarCobrador() async {
-    final cobradores = await ref.read(usuarioRepositoryProvider).obtenerCobradores();
-    if (!mounted) return;
+  Future<void> _asignarCobrador(ClienteModel cliente, List<PrestamoModel> prestamos) async {
     final elegido = await showModalBottomSheet<UsuarioSimple>(
       context: context,
       builder: (context) => SafeArea(
@@ -93,12 +98,12 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
               padding: EdgeInsets.all(16),
               child: Text('Asignar cobrador', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
-            if (cobradores.isEmpty)
+            if (_cobradores.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(16),
                 child: Text('No hay cobradores registrados'),
               ),
-            ...cobradores.map((c) => ListTile(
+            ..._cobradores.map((c) => ListTile(
                   leading: const Icon(Icons.person_outline),
                   title: Text(c.nombre),
                   onTap: () => Navigator.pop(context, c),
@@ -112,38 +117,56 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
 
     final clienteRepo = ref.read(clienteRepositoryProvider);
     final prestamoRepo = ref.read(prestamoRepositoryProvider);
-    await clienteRepo.actualizarCobrador(_cliente!.id, elegido.uid);
-    for (final p in _prestamos.where((p) => p.estado != 'saldado')) {
+    await clienteRepo.actualizarCobrador(cliente.id, elegido.uid);
+    for (final p in prestamos.where((p) => p.estado != 'saldado')) {
       await prestamoRepo.reasignarCobrador(p.prestamoId, elegido.uid);
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Cobrador asignado: ${elegido.nombre}')),
       );
-      _cargar();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_cargando) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    final c = _cliente;
-    if (c == null) {
-      return const Scaffold(body: Center(child: Text('Cliente no encontrado')));
-    }
+    return StreamBuilder<ClienteModel?>(
+      stream: _streamCliente,
+      builder: (context, clienteSnap) {
+        if (clienteSnap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (clienteSnap.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Error al cargar el cliente: ${clienteSnap.error}')),
+          );
+        }
+        final c = clienteSnap.data;
+        if (c == null) {
+          return const Scaffold(body: Center(child: Text('Cliente no encontrado')));
+        }
+        return StreamBuilder<List<PrestamoModel>>(
+          stream: _streamPrestamos,
+          builder: (context, prestamosSnap) {
+            final prestamos = prestamosSnap.data ?? const [];
+            return _contenido(context, c, prestamos);
+          },
+        );
+      },
+    );
+  }
 
+  Widget _contenido(BuildContext context, ClienteModel c, List<PrestamoModel> prestamos) {
     // Misma funcion que Reporte de Clientes / Reporte de Prestamos usan
     // para "pendiente" (el campo `saldo`, no un total-pagado recalculado)
     // -- para que el numero de "Pendiente" sea siempre el mismo sin
     // importar desde que pantalla se mire.
-    final totales = totalesCliente(_prestamos);
+    final totales = totalesCliente(prestamos);
     final totalPrestado = totales.prestado;
     final totalAbonado = totales.abonado;
     final saldoPendiente = totales.pendiente;
     var activos = 0, saldados = 0;
-    for (final p in _prestamos) {
+    for (final p in prestamos) {
       if (p.estado == 'saldado') {
         saldados++;
       } else {
@@ -283,10 +306,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                 icono: Icons.edit_outlined,
                 titulo: 'Editar',
                 subtitulo: 'Datos del cliente',
-                onTap: () async {
-                  await context.push('/clientes/${c.id}/editar');
-                  _cargar();
-                },
+                onTap: () => context.push('/clientes/${c.id}/editar'),
               ),
               CeMenuCard(
                 icono: Icons.badge_outlined,
@@ -297,22 +317,22 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
               CeMenuCard(
                 icono: Icons.person_pin_circle_outlined,
                 titulo: 'Asignar Cobrador',
-                subtitulo: c.cobradorAsignado.isEmpty ? 'Sin asignar' : 'Cambiar',
-                onTap: _asignarCobrador,
+                subtitulo: _nombreCobradorAsignado(c),
+                onTap: () => _asignarCobrador(c, prestamos),
               ),
               CeMenuCard(
                 icono: Icons.delete_outline,
                 titulo: 'Borrar Cliente',
                 subtitulo: 'Acción permanente',
-                onTap: _confirmarEliminar,
+                onTap: () => _confirmarEliminar(c.nombre),
               ),
             ],
           ),
-          if (_prestamos.isNotEmpty) ...[
+          if (prestamos.isNotEmpty) ...[
             const SizedBox(height: 20),
             const Text('Préstamos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 10),
-            ..._prestamos.map((p) => Padding(
+            ...prestamos.map((p) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: CeCard(
                     onTap: () => context.push('/prestamos/${p.prestamoId}'),

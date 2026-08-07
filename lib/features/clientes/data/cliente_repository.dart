@@ -106,6 +106,12 @@ class ClienteRepository {
     return ClienteModel.fromDoc(doc);
   }
 
+  /// Igual que [obtenerPorId] pero en vivo (Resumen del Cliente), para
+  /// que un cambio (ej. reasignar cobrador) se refleje sin recargar.
+  Stream<ClienteModel?> streamPorId(String id) {
+    return _col.doc(id).snapshots().map((doc) => doc.exists ? ClienteModel.fromDoc(doc) : null);
+  }
+
   Future<String> crear(ClienteModel cliente) async {
     final doc = await _col.add({
       ...cliente.toMap(),
