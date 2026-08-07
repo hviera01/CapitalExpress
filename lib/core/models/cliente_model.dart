@@ -8,6 +8,7 @@ class ClienteModel {
   final String nombre;
   final String identidad;
   final String telefono;
+  final String empresa;
   final String direccionCasa;
   final String direccionNegocio;
   final String estadoCivil;
@@ -30,6 +31,9 @@ class ClienteModel {
   final String fotoIdentidadFrenteUrl;
   final String fotoIdentidadReversoUrl;
   final String fotoReciboLuzUrl;
+  final String fotoExtra1Url;
+  final String fotoExtra2Url;
+  final String fotoExtra3Url;
   final String garantiaTexto;
   final String garantiaFotoUrl;
   final String estado;
@@ -43,6 +47,7 @@ class ClienteModel {
     this.nombre = '',
     this.identidad = '',
     this.telefono = '',
+    this.empresa = '',
     this.direccionCasa = '',
     this.direccionNegocio = '',
     this.estadoCivil = '',
@@ -65,6 +70,9 @@ class ClienteModel {
     this.fotoIdentidadFrenteUrl = '',
     this.fotoIdentidadReversoUrl = '',
     this.fotoReciboLuzUrl = '',
+    this.fotoExtra1Url = '',
+    this.fotoExtra2Url = '',
+    this.fotoExtra3Url = '',
     this.garantiaTexto = '',
     this.garantiaFotoUrl = '',
     this.estado = 'activo',
@@ -82,6 +90,7 @@ class ClienteModel {
       nombre: s('nombre'),
       identidad: s('identidad'),
       telefono: s('telefono'),
+      empresa: s('empresa'),
       direccionCasa: s('direccionCasa'),
       direccionNegocio: s('direccionNegocio'),
       estadoCivil: s('estadoCivil'),
@@ -104,6 +113,9 @@ class ClienteModel {
       fotoIdentidadFrenteUrl: s('fotoIdentidadFrenteUrl'),
       fotoIdentidadReversoUrl: s('fotoIdentidadReversoUrl'),
       fotoReciboLuzUrl: s('fotoReciboLuzUrl'),
+      fotoExtra1Url: s('fotoExtra1Url'),
+      fotoExtra2Url: s('fotoExtra2Url'),
+      fotoExtra3Url: s('fotoExtra3Url'),
       garantiaTexto: s('garantiaTexto'),
       garantiaFotoUrl: s('garantiaFotoUrl'),
       estado: d['estado'] == null ? 'activo' : s('estado'),
@@ -118,6 +130,7 @@ class ClienteModel {
         'nombre': nombre,
         'identidad': identidad,
         'telefono': telefono,
+        'empresa': empresa,
         'direccionCasa': direccionCasa,
         'direccionNegocio': direccionNegocio,
         'estadoCivil': estadoCivil,
@@ -140,6 +153,9 @@ class ClienteModel {
         'fotoIdentidadFrenteUrl': fotoIdentidadFrenteUrl,
         'fotoIdentidadReversoUrl': fotoIdentidadReversoUrl,
         'fotoReciboLuzUrl': fotoReciboLuzUrl,
+        'fotoExtra1Url': fotoExtra1Url,
+        'fotoExtra2Url': fotoExtra2Url,
+        'fotoExtra3Url': fotoExtra3Url,
         'garantiaTexto': garantiaTexto,
         'garantiaFotoUrl': garantiaFotoUrl,
         'estado': estado,

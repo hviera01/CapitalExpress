@@ -70,6 +70,52 @@ class PrestamoRepository {
     return PrestamoModel.fromDoc(doc);
   }
 
+  /// Prestamos de un cliente puntual (para el resumen del cliente).
+  Future<List<PrestamoModel>> obtenerPorCliente(String clienteId) async {
+    final snap = await _col.where('clienteId', isEqualTo: clienteId).get();
+    final prestamos = <PrestamoModel>[];
+    for (final doc in snap.docs) {
+      try {
+        final p = PrestamoModel.fromDoc(doc);
+        if (!p.eliminado) prestamos.add(p);
+      } catch (_) {
+        // documento con formato inesperado: se omite.
+      }
+    }
+    return prestamos;
+  }
+
+  /// Reasigna el cobrador del prestamo (usado al "Asignar Cobrador" a un
+  /// cliente, que cascadea a todos sus prestamos activos).
+  Future<void> reasignarCobrador(String id, String cobradorUid) async {
+    await _col.doc(id).update({
+      'cobradorAsignado': cobradorUid,
+      'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Cantidad de prestamos en mora (para el stat "Pagos Tarde").
+  Future<int> contarEnMora({String? cobradorUid}) async {
+    Query<Map<String, dynamic>> query = _col.where('estado', isEqualTo: 'mora');
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    final agg = await query.count().get();
+    return agg.count ?? 0;
+  }
+
+  /// Suma del saldo pendiente de todos los prestamos no eliminados (para
+  /// el stat "Pendiente"). Se agrega en el servidor, no se descargan
+  /// los documentos.
+  Future<double> sumarSaldoPendiente({String? cobradorUid}) async {
+    Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: false);
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    final agg = await query.aggregate(sum('saldo')).get();
+    return (agg.getSum('saldo') ?? 0).toDouble();
+  }
+
   Future<String> crear(Map<String, dynamic> datos) async {
     final docRef = _col.doc();
     await docRef.set({
@@ -79,6 +125,13 @@ class PrestamoRepository {
       'fechaCreacion': FieldValue.serverTimestamp(),
     });
     return docRef.id;
+  }
+
+  Future<void> actualizar(String id, Map<String, dynamic> datos) async {
+    await _col.doc(id).update({
+      ...datos,
+      'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> marcarEliminado(String id, {required String eliminadoPor}) async {
@@ -95,5 +148,34 @@ class PrestamoRepository {
       'eliminadoPor': FieldValue.delete(),
       'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Borra el documento de verdad (a diferencia de marcarEliminado, que
+  /// es un soft-delete). Se usa desde el modo "Ver eliminados" para
+  /// purgar definitivamente.
+  Future<void> eliminarPermanente(String id) async {
+    await _col.doc(id).delete();
+  }
+
+  /// Purga TODOS los prestamos ya marcados como eliminados (soft-delete)
+  /// del alcance dado. Usa batches de 400 escrituras (limite de Firestore
+  /// es 500 por batch).
+  Future<int> eliminarTodosLosEliminados({String? cobradorUid}) async {
+    Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: true);
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    final snap = await query.get();
+    var borrados = 0;
+    for (var i = 0; i < snap.docs.length; i += 400) {
+      final lote = snap.docs.skip(i).take(400);
+      final batch = _db.batch();
+      for (final doc in lote) {
+        batch.delete(doc.reference);
+        borrados++;
+      }
+      await batch.commit();
+    }
+    return borrados;
   }
 }

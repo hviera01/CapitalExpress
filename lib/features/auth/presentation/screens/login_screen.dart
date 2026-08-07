@@ -134,23 +134,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 64,
-          height: 64,
-          decoration: const BoxDecoration(
-            color: Colors.white24,
-            shape: BoxShape.circle,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(Icons.account_balance, color: Colors.white, size: 30),
+          child: Image.asset('assets/images/logo_capital_express.png', height: 56),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const Text(
           'Iniciar Sesión',
           style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Tu socio financiero de confianza',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
         ),
         const SizedBox(height: 28),
         _campoOscuro(

@@ -156,34 +156,22 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.shield_outlined, color: Colors.white, size: 22),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'CAPITAL EXPRESS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Image.asset('assets/images/logo_capital_express.png', height: 34),
           ),
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.only(left: 32),
-            child: Text(
-              subtituloApp,
-              style: TextStyle(
-                color: colorSubtitulo,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6,
-              ),
+          const SizedBox(height: 10),
+          Text(
+            subtituloApp,
+            style: TextStyle(
+              color: colorSubtitulo,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
             ),
           ),
           const SizedBox(height: 40),

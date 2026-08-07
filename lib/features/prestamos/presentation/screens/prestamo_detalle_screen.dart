@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -10,6 +11,7 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../data/recibo_prestamo_service.dart';
 import '../../providers/prestamos_provider.dart';
 
 class PrestamoDetalleScreen extends ConsumerStatefulWidget {
@@ -86,6 +88,15 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
       appBar: AppBar(
         title: const Text('Detalle del Préstamo'),
         actions: [
+          if (esAdmin && !p.eliminado)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Editar',
+              onPressed: () async {
+                await context.push('/prestamos/${p.prestamoId}/editar');
+                _cargar();
+              },
+            ),
           if (esAdmin)
             IconButton(
               icon: Icon(p.eliminado ? Icons.restore_from_trash_outlined : Icons.delete_outline),
@@ -275,7 +286,6 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                _filaFinanciera('ID Sistema', p.prestamoId),
                 _filaFinanciera('Cobrador Asignado',
                     p.cobrador.isEmpty ? 'Sin asignar' : p.cobrador),
                 if (p.fecha != null)
@@ -302,6 +312,15 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             ),
           ],
           const SizedBox(height: 20),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => ReciboPrestamoService.imprimir(p),
+              icon: const Icon(Icons.print_outlined),
+              label: const Text('Reimprimir Recibo del Préstamo'),
+            ),
+          ),
+          const SizedBox(height: 12),
           SizedBox(
             height: 50,
             child: ElevatedButton.icon(

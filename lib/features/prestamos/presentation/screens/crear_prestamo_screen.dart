@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
+import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
@@ -17,6 +18,7 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
+import '../../data/recibo_prestamo_service.dart';
 import '../../providers/prestamos_provider.dart';
 
 class CrearPrestamoScreen extends ConsumerStatefulWidget {
@@ -37,6 +39,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
   final _montoCtrl = TextEditingController();
   final _interesMensualCtrl = TextEditingController();
   final _interesTotalCtrl = TextEditingController();
+  final _moraCtrl = TextEditingController();
   final _cuotasCtrl = TextEditingController();
   final _lugarCtrl = TextEditingController();
   final _garantiaCtrl = TextEditingController();
@@ -54,6 +57,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
     _montoCtrl.dispose();
     _interesMensualCtrl.dispose();
     _interesTotalCtrl.dispose();
+    _moraCtrl.dispose();
     _cuotasCtrl.dispose();
     _lugarCtrl.dispose();
     _garantiaCtrl.dispose();
@@ -102,7 +106,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
         urlsFotos.add(await storage.subirFoto(bytes: bytes, carpeta: 'prestamos'));
       }
 
-      await repo.crear({
+      final prestamoId = await repo.crear({
         'numeroPrestamo': numeroPrestamo,
         'cliente': _clienteSeleccionado!.nombre,
         'clienteId': _clienteSeleccionado!.id,
@@ -141,8 +145,26 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Préstamo creado: N° $numeroPrestamo')),
         );
-        context.pop();
       }
+
+      await ReciboPrestamoService.imprimir(PrestamoModel(
+        prestamoId: prestamoId,
+        clienteId: _clienteSeleccionado!.id,
+        cliente: _clienteSeleccionado!.nombre,
+        monto: monto,
+        interes: calculo.interesCalculado,
+        totalPagar: calculo.totalAPagar,
+        cuota: calculo.cuotaEstimada,
+        cuotas: cuotas,
+        plazo: _plazo,
+        fecha: Timestamp.fromDate(_fechaInicio),
+        lugar: _lugarCtrl.text.trim(),
+        cobrador: usuario.nombre,
+        numeroPrestamo: numeroPrestamo,
+        proximoPago: Timestamp.fromDate(proximaFecha),
+      ));
+
+      if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -195,7 +217,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                   TextFormField(
                     controller: _montoCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'Monto del préstamo', prefixIcon: Icon(Icons.attach_money)),
+                        labelText: 'Monto del préstamo', prefixText: 'L. '),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     onChanged: (_) => setState(() {}),
                     validator: (v) =>
@@ -307,6 +329,13 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       onChanged: (_) => setState(() {}),
                     ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _moraCtrl,
+                    decoration: const InputDecoration(labelText: 'Mora diaria por retraso (L.)'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ],
               ),
             ),
@@ -356,8 +385,8 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.save_outlined),
-                label: const Text('Guardar'),
+                    : const Icon(Icons.print_outlined),
+                label: const Text('Guardar e Imprimir'),
               ),
             ),
             const SizedBox(height: 24),
@@ -483,6 +512,13 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
   }
 
   Widget _resumen(ResultadoCalculoPrestamo c) {
+    final cuotas = int.tryParse(_cuotasCtrl.text) ?? 0;
+    final dias = calcularDiasEfectivos(_plazo, cuotas, _fechaInicio);
+    final meses = dias / 30.0;
+    final proximaFecha = calcularProximaFecha(_fechaInicio, _plazo);
+    final mora = double.tryParse(_moraCtrl.text) ?? 0;
+    final monto = double.tryParse(_montoCtrl.text) ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -492,32 +528,114 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          const Text('Resumen del préstamo',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.summarize_outlined, color: Colors.white70, size: 18),
-              SizedBox(width: 8),
-              Text('Resumen',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Total a pagar',
+                      style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.5))),
+                  Text(formatearLempiras(c.totalAPagar),
+                      style: const TextStyle(
+                          fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white)),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Cuota estimada',
+                      style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.5))),
+                  Text(formatearLempiras(c.cuotaEstimada),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF8FB8FF))),
+                ],
+              ),
+            ],
+          ),
+          Divider(color: Colors.white.withValues(alpha: 0.1), height: 28),
+          Row(
+            children: [
+              _resumenItem('Monto', formatearLempiras(monto)),
+              const SizedBox(width: 12),
+              _resumenItem('Interés total', formatearLempiras(c.interesCalculado)),
             ],
           ),
           const SizedBox(height: 12),
-          _filaResumen('Interés', formatearLempiras(c.interesCalculado)),
-          _filaResumen('Total a pagar', formatearLempiras(c.totalAPagar)),
-          _filaResumen('Cuota estimada', formatearLempiras(c.cuotaEstimada)),
+          Row(
+            children: [
+              _resumenItem('Cuotas', '$cuotas ($_plazo)'),
+              const SizedBox(width: 12),
+              _resumenItem('Días efectivos', '$dias ≈ ${meses.toStringAsFixed(1)} meses'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF8FB8FF)),
+                    const SizedBox(width: 8),
+                    Text('Primer pago',
+                        style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
+                  ],
+                ),
+                Text(_formatoFecha.format(proximaFecha),
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF8FB8FF))),
+              ],
+            ),
+          ),
+          if (mora > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFFFB020)),
+                const SizedBox(width: 6),
+                Text('Mora diaria: ${formatearLempiras(mora)}',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFFFFB020))),
+              ],
+            ),
+          ],
+          if (_fotos.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.photo_outlined, size: 14, color: Colors.white.withValues(alpha: 0.5)),
+                const SizedBox(width: 6),
+                Text('${_fotos.length} foto(s) adjunta(s)',
+                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _filaResumen(String label, String valor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _resumenItem(String label, String valor) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10, color: Colors.white.withValues(alpha: 0.45), fontWeight: FontWeight.w500)),
+          const SizedBox(height: 2),
           Text(valor,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
         ],
       ),
     );

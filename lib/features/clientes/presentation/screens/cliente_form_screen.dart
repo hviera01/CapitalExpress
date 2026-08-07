@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
@@ -36,6 +37,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     'nombre': TextEditingController(),
     'identidad': TextEditingController(),
     'telefono': TextEditingController(),
+    'empresa': TextEditingController(),
     'direccionCasa': TextEditingController(),
     'direccionNegocio': TextEditingController(),
     'nombreConyuge': TextEditingController(),
@@ -62,7 +64,11 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     'fotoClienteUrl': null,
     'fotoIdentidadFrenteUrl': null,
     'fotoIdentidadReversoUrl': null,
+    'fotoReciboLuzUrl': null,
     'garantiaFotoUrl': null,
+    'fotoExtra1Url': null,
+    'fotoExtra2Url': null,
+    'fotoExtra3Url': null,
   };
 
   static const _fotosInfo = [
@@ -71,7 +77,11 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     ('fotoNegocioUrl', 'Foto del negocio', Icons.storefront_outlined),
     ('fotoIdentidadFrenteUrl', 'Identidad (frente)', Icons.badge_outlined),
     ('fotoIdentidadReversoUrl', 'Identidad (reverso)', Icons.badge_outlined),
+    ('fotoReciboLuzUrl', 'Recibo de luz', Icons.receipt_long_outlined),
     ('garantiaFotoUrl', 'Foto de la garantía', Icons.description_outlined),
+    ('fotoExtra1Url', 'Foto Extra 1', Icons.add_a_photo_outlined),
+    ('fotoExtra2Url', 'Foto Extra 2', Icons.add_a_photo_outlined),
+    ('fotoExtra3Url', 'Foto Extra 3', Icons.add_a_photo_outlined),
   ];
 
   @override
@@ -89,6 +99,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         _campos['nombre']!.text = cliente.nombre;
         _campos['identidad']!.text = cliente.identidad;
         _campos['telefono']!.text = cliente.telefono;
+        _campos['empresa']!.text = cliente.empresa;
         _campos['direccionCasa']!.text = cliente.direccionCasa;
         _campos['direccionNegocio']!.text = cliente.direccionNegocio;
         _campos['nombreConyuge']!.text = cliente.nombreConyuge;
@@ -135,8 +146,16 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         return c.fotoIdentidadFrenteUrl;
       case 'fotoIdentidadReversoUrl':
         return c.fotoIdentidadReversoUrl;
+      case 'fotoReciboLuzUrl':
+        return c.fotoReciboLuzUrl;
       case 'garantiaFotoUrl':
         return c.garantiaFotoUrl;
+      case 'fotoExtra1Url':
+        return c.fotoExtra1Url;
+      case 'fotoExtra2Url':
+        return c.fotoExtra2Url;
+      case 'fotoExtra3Url':
+        return c.fotoExtra3Url;
       default:
         return '';
     }
@@ -166,6 +185,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         nombre: _campos['nombre']!.text.trim(),
         identidad: _campos['identidad']!.text.trim(),
         telefono: _campos['telefono']!.text.trim(),
+        empresa: _campos['empresa']!.text.trim(),
         direccionCasa: _campos['direccionCasa']!.text.trim(),
         direccionNegocio: _campos['direccionNegocio']!.text.trim(),
         estadoCivil: _estadoCivil,
@@ -187,7 +207,10 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         fotoClienteUrl: urls['fotoClienteUrl']!,
         fotoIdentidadFrenteUrl: urls['fotoIdentidadFrenteUrl']!,
         fotoIdentidadReversoUrl: urls['fotoIdentidadReversoUrl']!,
-        fotoReciboLuzUrl: _clienteOriginal?.fotoReciboLuzUrl ?? '',
+        fotoReciboLuzUrl: urls['fotoReciboLuzUrl']!,
+        fotoExtra1Url: urls['fotoExtra1Url']!,
+        fotoExtra2Url: urls['fotoExtra2Url']!,
+        fotoExtra3Url: urls['fotoExtra3Url']!,
         garantiaTexto: _campos['garantiaTexto']!.text.trim(),
         garantiaFotoUrl: urls['garantiaFotoUrl']!,
         estado: _clienteOriginal?.estado ?? 'activo',
@@ -226,6 +249,47 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
       appBar: AppBar(
         title: Text(_clienteOriginal == null ? 'Crear Nuevo Cliente' : 'Editar cliente'),
       ),
+      drawer: Drawer(
+        backgroundColor: CEColors.primary,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  ref.watch(authProvider).usuario?.nombre ?? '',
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const Divider(color: Colors.white24, height: 1),
+              ListTile(
+                iconColor: Colors.white,
+                textColor: Colors.white,
+                leading: const Icon(Icons.close),
+                title: const Text('Cerrar'),
+                onTap: () => context.pop(),
+              ),
+              ListTile(
+                iconColor: Colors.white,
+                textColor: Colors.white,
+                leading: const Icon(Icons.logout),
+                title: const Text('Cerrar sesión'),
+                onTap: () => ref.read(authProvider.notifier).logout(),
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      floatingActionButton: Builder(
+        builder: (context) => FloatingActionButton(
+          backgroundColor: CEColors.primary,
+          onPressed: () => Scaffold.of(context).openDrawer(),
+          child: const Icon(Icons.menu, color: Colors.white),
+        ),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -248,6 +312,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
               titulo: 'Datos de Trabajo',
               child: Column(
                 children: [
+                  _campo('empresa', 'Empresa'),
                   _campo('garantiaTexto', 'Garantía', lineas: 2),
                   _campo('direccionCasa', 'Dirección Casa'),
                   _campo('direccionNegocio', 'Dirección Negocio', ultimo: true),
@@ -289,32 +354,39 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
             CeSectionCard(
               icono: Icons.contacts_outlined,
               titulo: 'Referencias Personales',
-              child: Column(
-                children: [
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Referencia 1',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  ),
-                  const SizedBox(height: 8),
-                  _campo('referencia1Nombre', 'Nombre'),
-                  _campo('referencia1Identidad', 'Identidad'),
-                  _campo('referencia1Telefono', 'Teléfono', tipo: TextInputType.phone),
-                  _campo('referencia1Parentesco', 'Parentesco'),
-                  _campo('referencia1Direccion', 'Dirección'),
-                  const Divider(height: 28),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Referencia 2',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  ),
-                  const SizedBox(height: 8),
-                  _campo('referencia2Nombre', 'Nombre'),
-                  _campo('referencia2Identidad', 'Identidad'),
-                  _campo('referencia2Telefono', 'Teléfono', tipo: TextInputType.phone),
-                  _campo('referencia2Parentesco', 'Parentesco'),
-                  _campo('referencia2Direccion', 'Dirección', ultimo: true),
-                ],
+              child: Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: Column(
+                  children: [
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: const EdgeInsets.only(bottom: 8),
+                      title: const Text('Referencia 1',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      children: [
+                        _campo('referencia1Nombre', 'Nombre'),
+                        _campo('referencia1Identidad', 'Identidad'),
+                        _campo('referencia1Telefono', 'Teléfono', tipo: TextInputType.phone),
+                        _campo('referencia1Parentesco', 'Parentesco'),
+                        _campo('referencia1Direccion', 'Dirección', ultimo: true),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: const EdgeInsets.only(bottom: 8, top: 8),
+                      title: const Text('Referencia 2',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      children: [
+                        _campo('referencia2Nombre', 'Nombre'),
+                        _campo('referencia2Identidad', 'Identidad'),
+                        _campo('referencia2Telefono', 'Teléfono', tipo: TextInputType.phone),
+                        _campo('referencia2Parentesco', 'Parentesco'),
+                        _campo('referencia2Direccion', 'Dirección', ultimo: true),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 16),

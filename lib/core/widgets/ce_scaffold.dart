@@ -10,6 +10,8 @@ class CeScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
   final Widget body;
   final Widget? floatingActionButton;
+  final FloatingActionButtonLocation? floatingActionButtonLocation;
+  final Widget? drawer;
   final double maxWidth;
 
   const CeScaffold({
@@ -17,6 +19,8 @@ class CeScaffold extends StatelessWidget {
     required this.body,
     this.appBar,
     this.floatingActionButton,
+    this.floatingActionButtonLocation,
+    this.drawer,
     this.maxWidth = 760,
   });
 
@@ -26,7 +30,9 @@ class CeScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: appBar,
+      drawer: drawer,
       floatingActionButton: floatingActionButton,
+      floatingActionButtonLocation: floatingActionButtonLocation,
       body: escritorio
           ? Align(
               alignment: Alignment.topCenter,

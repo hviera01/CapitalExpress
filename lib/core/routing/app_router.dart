@@ -10,9 +10,12 @@ import '../../features/home/presentation/screens/admin_home_screen.dart';
 import '../../features/home/presentation/screens/cobrador_home_screen.dart';
 import '../../features/clientes/presentation/screens/clientes_list_screen.dart';
 import '../../features/clientes/presentation/screens/cliente_form_screen.dart';
+import '../../features/clientes/presentation/screens/cliente_resumen_screen.dart';
+import '../../features/clientes/presentation/screens/cliente_detalle_screen.dart';
 import '../../features/prestamos/presentation/screens/prestamos_list_screen.dart';
 import '../../features/prestamos/presentation/screens/crear_prestamo_screen.dart';
 import '../../features/prestamos/presentation/screens/prestamo_detalle_screen.dart';
+import '../../features/prestamos/presentation/screens/editar_prestamo_screen.dart';
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
@@ -59,7 +62,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: ':id',
             builder: (context, state) =>
-                ClienteFormScreen(clienteId: state.pathParameters['id']),
+                ClienteResumenScreen(clienteId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'editar',
+                builder: (context, state) =>
+                    ClienteFormScreen(clienteId: state.pathParameters['id']),
+              ),
+              GoRoute(
+                path: 'detalle',
+                builder: (context, state) =>
+                    ClienteDetalleScreen(clienteId: state.pathParameters['id']!),
+              ),
+            ],
           ),
         ],
       ),
@@ -77,6 +92,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: ':id',
             builder: (context, state) =>
                 PrestamoDetalleScreen(prestamoId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'editar',
+                builder: (context, state) =>
+                    EditarPrestamoScreen(prestamoId: state.pathParameters['id']!),
+              ),
+            ],
           ),
         ],
       ),

@@ -125,6 +125,50 @@ class PrestamosListScreen extends ConsumerWidget {
                         ),
                       ),
                     ],
+                    if (verEliminados && prestamosAsync.value?.isNotEmpty == true) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: CEColors.danger,
+                            side: const BorderSide(color: CEColors.danger),
+                          ),
+                          onPressed: () async {
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Eliminar todos'),
+                                content: const Text(
+                                    'Se borrarán definitivamente todos los préstamos eliminados. Esta acción no se puede deshacer.'),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('Cancelar')),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('Eliminar todos',
+                                        style: TextStyle(color: CEColors.danger)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (ok == true) {
+                              final borrados = await ref
+                                  .read(prestamoRepositoryProvider)
+                                  .eliminarTodosLosEliminados(cobradorUid: cobradorUid);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('$borrados préstamo(s) borrados')),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.delete_forever_outlined, size: 16),
+                          label: const Text('Eliminar todos permanentemente'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -302,6 +346,42 @@ class _PrestamoCard extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (eliminadoView) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(foregroundColor: CEColors.danger),
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Eliminar permanentemente'),
+                            content: Text(
+                                '¿Borrar definitivamente el préstamo de ${prestamo.cliente}? Esta acción no se puede deshacer.'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancelar')),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('Eliminar',
+                                    style: TextStyle(color: CEColors.danger)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok == true) {
+                          await ref
+                              .read(prestamoRepositoryProvider)
+                              .eliminarPermanente(prestamo.prestamoId);
+                        }
+                      },
+                      icon: const Icon(Icons.delete_forever_outlined, size: 16),
+                      label: const Text('Eliminar permanentemente'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

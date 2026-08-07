@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/cliente_model.dart';
+import '../../../core/utils/normalizar_texto.dart';
 
 class ClienteRepository {
   final _col = FirebaseFirestore.instance.collection('clientes');
@@ -25,6 +26,56 @@ class ClienteRepository {
       clientes.sort((a, b) => a.nombre.compareTo(b.nombre));
       return clientes;
     });
+  }
+
+  /// Busqueda puntual (no streaming): solo trae lo que hace falta, no
+  /// toda la coleccion de una. El filtro por cobrador/estado va al
+  /// servidor (Firestore); el texto libre se aplica en memoria sobre
+  /// ese subconjunto ya acotado.
+  Future<List<ClienteModel>> buscar({
+    String? cobradorUid,
+    String? estado,
+    String texto = '',
+  }) async {
+    Query<Map<String, dynamic>> query = _col;
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    if (estado != null) {
+      query = query.where('estado', isEqualTo: estado);
+    }
+
+    final snap = await query.limit(300).get();
+    final clientes = <ClienteModel>[];
+    for (final doc in snap.docs) {
+      try {
+        clientes.add(ClienteModel.fromDoc(doc));
+      } catch (_) {
+        // documento con formato inesperado: se omite.
+      }
+    }
+    clientes.sort((a, b) => a.nombre.compareTo(b.nombre));
+
+    if (texto.trim().isEmpty) return clientes;
+    final q = normalizarTexto(texto);
+    return clientes
+        .where((c) =>
+            normalizarTexto(c.nombre).contains(q) ||
+            normalizarTexto(c.identidad).contains(q) ||
+            normalizarTexto(c.telefono).contains(q))
+        .toList();
+  }
+
+  Future<int> contar({String? cobradorUid, String? estado}) async {
+    Query<Map<String, dynamic>> query = _col;
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    if (estado != null) {
+      query = query.where('estado', isEqualTo: estado);
+    }
+    final agg = await query.count().get();
+    return agg.count ?? 0;
   }
 
   Future<ClienteModel?> obtenerPorId(String id) async {
