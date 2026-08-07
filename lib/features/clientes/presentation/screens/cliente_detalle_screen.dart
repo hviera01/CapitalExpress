@@ -11,28 +11,31 @@ import '../../providers/clientes_provider.dart';
 
 class ClienteDetalleScreen extends ConsumerStatefulWidget {
   final String clienteId;
+  final ClienteModel? clienteInicial;
 
-  const ClienteDetalleScreen({super.key, required this.clienteId});
+  const ClienteDetalleScreen({super.key, required this.clienteId, this.clienteInicial});
 
   @override
   ConsumerState<ClienteDetalleScreen> createState() => _ClienteDetalleScreenState();
 }
 
 class _ClienteDetalleScreenState extends ConsumerState<ClienteDetalleScreen> {
-  ClienteModel? _cliente;
-  bool _cargando = true;
+  late ClienteModel? _cliente = widget.clienteInicial;
+  late bool _cargando = widget.clienteInicial == null;
 
   @override
   void initState() {
     super.initState();
-    ref.read(clienteRepositoryProvider).obtenerPorId(widget.clienteId).then((c) {
-      if (mounted) {
-        setState(() {
-          _cliente = c;
-          _cargando = false;
-        });
-      }
-    });
+    if (widget.clienteInicial == null) {
+      ref.read(clienteRepositoryProvider).obtenerPorId(widget.clienteId).then((c) {
+        if (mounted) {
+          setState(() {
+            _cliente = c;
+            _cargando = false;
+          });
+        }
+      });
+    }
   }
 
   @override

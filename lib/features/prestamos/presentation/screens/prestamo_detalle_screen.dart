@@ -17,8 +17,9 @@ import '../../providers/prestamos_provider.dart';
 
 class PrestamoDetalleScreen extends ConsumerStatefulWidget {
   final String prestamoId;
+  final PrestamoModel? prestamoInicial;
 
-  const PrestamoDetalleScreen({super.key, required this.prestamoId});
+  const PrestamoDetalleScreen({super.key, required this.prestamoId, this.prestamoInicial});
 
   @override
   ConsumerState<PrestamoDetalleScreen> createState() => _PrestamoDetalleScreenState();
@@ -57,8 +58,9 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
   Widget build(BuildContext context) {
     return StreamBuilder<PrestamoModel?>(
       stream: _stream,
+      initialData: widget.prestamoInicial,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasError) {
@@ -91,7 +93,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Editar',
-              onPressed: () => context.push('/prestamos/${p.prestamoId}/editar'),
+              onPressed: () => context.push('/prestamos/${p.prestamoId}/editar', extra: p),
             ),
           if (esAdmin)
             IconButton(

@@ -17,8 +17,9 @@ const _roles = ['admin', 'cobrador'];
 /// es null es un usuario nuevo -- mismo criterio que ClienteFormScreen.
 class UsuarioFormScreen extends ConsumerStatefulWidget {
   final String? usuarioId;
+  final UsuarioModel? usuarioInicial;
 
-  const UsuarioFormScreen({super.key, this.usuarioId});
+  const UsuarioFormScreen({super.key, this.usuarioId, this.usuarioInicial});
 
   @override
   ConsumerState<UsuarioFormScreen> createState() => _UsuarioFormScreenState();
@@ -27,7 +28,7 @@ class UsuarioFormScreen extends ConsumerStatefulWidget {
 class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
   final _formKey = GlobalKey<FormState>();
   UsuarioModel? _usuarioOriginal;
-  bool _cargando = true;
+  late bool _cargando = widget.usuarioInicial == null && widget.usuarioId != null;
   bool _guardando = false;
   bool _verPassword = false;
 
@@ -46,23 +47,29 @@ class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
   @override
   void initState() {
     super.initState();
-    _cargar();
+    if (widget.usuarioInicial != null) {
+      // Ya lo teniamos en memoria (Ver Usuarios) -- sin viaje redondo a
+      // Firestore antes de mostrar el formulario.
+      _aplicarUsuario(widget.usuarioInicial!);
+    } else if (widget.usuarioId != null) {
+      _cargar();
+    }
+  }
+
+  void _aplicarUsuario(UsuarioModel usuario) {
+    _usuarioOriginal = usuario;
+    _nombreCtrl.text = usuario.nombre;
+    _codigoCtrl.text = usuario.codigo;
+    _passwordCtrl.text = usuario.password;
+    _telefonoCtrl.text = usuario.telefono;
+    _identidadCtrl.text = usuario.identidad;
+    _direccionCtrl.text = usuario.direccion;
+    _rol = _roles.contains(usuario.rol) ? usuario.rol : 'admin';
   }
 
   Future<void> _cargar() async {
-    if (widget.usuarioId != null) {
-      final usuario = await ref.read(usuarioRepositoryProvider).obtenerPorId(widget.usuarioId!);
-      if (usuario != null) {
-        _usuarioOriginal = usuario;
-        _nombreCtrl.text = usuario.nombre;
-        _codigoCtrl.text = usuario.codigo;
-        _passwordCtrl.text = usuario.password;
-        _telefonoCtrl.text = usuario.telefono;
-        _identidadCtrl.text = usuario.identidad;
-        _direccionCtrl.text = usuario.direccion;
-        _rol = _roles.contains(usuario.rol) ? usuario.rol : 'admin';
-      }
-    }
+    final usuario = await ref.read(usuarioRepositoryProvider).obtenerPorId(widget.usuarioId!);
+    if (usuario != null) _aplicarUsuario(usuario);
     if (mounted) setState(() => _cargando = false);
   }
 
@@ -119,6 +126,7 @@ class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
       } else {
         await repo.actualizar(usuario);
       }
+      ref.invalidate(cobradoresCacheProvider);
 
       if (mounted) context.pop();
     } catch (e) {

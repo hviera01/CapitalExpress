@@ -59,7 +59,7 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
     _esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = _esAdmin ? null : usuario?.uid;
     if (_esAdmin) {
-      _cobradores = await ref.read(usuarioRepositoryProvider).obtenerCobradores();
+      _cobradores = await ref.read(cobradoresCacheProvider.future);
     }
     final hoy = DateTime.now();
     _fechaInicio = DateTime(hoy.year, hoy.month, hoy.day);

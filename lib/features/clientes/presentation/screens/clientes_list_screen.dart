@@ -69,7 +69,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     final usuario = ref.read(authProvider).usuario;
     if (usuario?.rol != Roles.admin) return;
     try {
-      final cobradores = await ref.read(usuarioRepositoryProvider).obtenerCobradores();
+      final cobradores = await ref.read(cobradoresCacheProvider.future);
       if (!mounted) return;
       setState(() {
         _nombresCobradores = {for (final c in cobradores) c.uid: c.nombre};
@@ -380,7 +380,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
     final c = widget.cliente;
     switch (accion) {
       case 'editar':
-        context.push('/clientes/${c.id}/editar');
+        context.push('/clientes/${c.id}/editar', extra: c);
         break;
       case 'llamar':
         llamarTelefono(c.telefono);
@@ -434,7 +434,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
         children: [
           InkWell(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            onTap: () => context.push('/clientes/${c.id}'),
+            onTap: () => context.push('/clientes/${c.id}', extra: c),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(

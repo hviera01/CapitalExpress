@@ -17,10 +17,15 @@ import '../../providers/clientes_provider.dart';
 const _estadosCiviles = ['Soltero', 'Casado', 'Union libre', 'Divorciado', 'Viudo'];
 
 /// Crear o editar un cliente. Si `clienteId` es null es un cliente nuevo.
+/// [clienteInicial] es opcional: si quien navega aca ya tiene el
+/// ClienteModel en memoria (la lista, el resumen), se lo pasa por
+/// `extra` del router y esta pantalla se salta el viaje redondo a
+/// Firestore que antes hacia SIEMPRE antes de mostrar el formulario.
 class ClienteFormScreen extends ConsumerStatefulWidget {
   final String? clienteId;
+  final ClienteModel? clienteInicial;
 
-  const ClienteFormScreen({super.key, this.clienteId});
+  const ClienteFormScreen({super.key, this.clienteId, this.clienteInicial});
 
   @override
   ConsumerState<ClienteFormScreen> createState() => _ClienteFormScreenState();
@@ -29,7 +34,7 @@ class ClienteFormScreen extends ConsumerStatefulWidget {
 class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
   final _formKey = GlobalKey<FormState>();
   ClienteModel? _clienteOriginal;
-  bool _cargando = true;
+  late bool _cargando = widget.clienteInicial == null && widget.clienteId != null;
   bool _guardando = false;
 
   final _campos = <String, TextEditingController>{
@@ -83,38 +88,45 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
   @override
   void initState() {
     super.initState();
-    _cargar();
+    if (widget.clienteInicial != null) {
+      // Ya lo teniamos en memoria (lista/resumen) -- se aplica directo,
+      // sin el viaje redondo a Firestore que antes se hacia siempre
+      // antes de poder ver el formulario de edicion.
+      _aplicarCliente(widget.clienteInicial!);
+    } else if (widget.clienteId != null) {
+      _cargar();
+    }
+  }
+
+  void _aplicarCliente(ClienteModel cliente) {
+    _clienteOriginal = cliente;
+    _campos['nombre']!.text = cliente.nombre;
+    _campos['identidad']!.text = cliente.identidad;
+    _campos['telefono']!.text = cliente.telefono;
+    _campos['nombreEmpresa']!.text = cliente.nombreEmpresa;
+    _campos['direccionCasa']!.text = cliente.direccionCasa;
+    _campos['direccionNegocio']!.text = cliente.direccionNegocio;
+    _campos['garantia']!.text = cliente.garantia;
+    _campos['ref1Nombre']!.text = cliente.ref1.nombre;
+    _campos['ref1Identidad']!.text = cliente.ref1.identidad;
+    _campos['ref1Telefono']!.text = cliente.ref1.telefono;
+    _campos['ref1Parentesco']!.text = cliente.ref1.parentesco;
+    _campos['ref1Direccion']!.text = cliente.ref1.direccion;
+    _campos['ref2Nombre']!.text = cliente.ref2.nombre;
+    _campos['ref2Identidad']!.text = cliente.ref2.identidad;
+    _campos['ref2Telefono']!.text = cliente.ref2.telefono;
+    _campos['ref2Parentesco']!.text = cliente.ref2.parentesco;
+    _campos['ref2Direccion']!.text = cliente.ref2.direccion;
+    if (_estadosCiviles.contains(cliente.estadoCivil)) {
+      _estadoCivil = cliente.estadoCivil;
+    }
   }
 
   Future<void> _cargar() async {
-    if (widget.clienteId != null) {
-      final repo = ref.read(clienteRepositoryProvider);
-      final cliente = await repo.obtenerPorId(widget.clienteId!);
-      if (cliente != null) {
-        _clienteOriginal = cliente;
-        _campos['nombre']!.text = cliente.nombre;
-        _campos['identidad']!.text = cliente.identidad;
-        _campos['telefono']!.text = cliente.telefono;
-        _campos['nombreEmpresa']!.text = cliente.nombreEmpresa;
-        _campos['direccionCasa']!.text = cliente.direccionCasa;
-        _campos['direccionNegocio']!.text = cliente.direccionNegocio;
-        _campos['garantia']!.text = cliente.garantia;
-        _campos['ref1Nombre']!.text = cliente.ref1.nombre;
-        _campos['ref1Identidad']!.text = cliente.ref1.identidad;
-        _campos['ref1Telefono']!.text = cliente.ref1.telefono;
-        _campos['ref1Parentesco']!.text = cliente.ref1.parentesco;
-        _campos['ref1Direccion']!.text = cliente.ref1.direccion;
-        _campos['ref2Nombre']!.text = cliente.ref2.nombre;
-        _campos['ref2Identidad']!.text = cliente.ref2.identidad;
-        _campos['ref2Telefono']!.text = cliente.ref2.telefono;
-        _campos['ref2Parentesco']!.text = cliente.ref2.parentesco;
-        _campos['ref2Direccion']!.text = cliente.ref2.direccion;
-        if (_estadosCiviles.contains(cliente.estadoCivil)) {
-          _estadoCivil = cliente.estadoCivil;
-        }
-      }
-    }
-    setState(() => _cargando = false);
+    final repo = ref.read(clienteRepositoryProvider);
+    final cliente = await repo.obtenerPorId(widget.clienteId!);
+    if (cliente != null) _aplicarCliente(cliente);
+    if (mounted) setState(() => _cargando = false);
   }
 
   @override

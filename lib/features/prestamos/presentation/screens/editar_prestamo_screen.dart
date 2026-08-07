@@ -16,8 +16,9 @@ const _estadosPrestamo = ['activo', 'mora', 'saldado'];
 /// arriesgaria desincronizar el saldo real del cliente.
 class EditarPrestamoScreen extends ConsumerStatefulWidget {
   final String prestamoId;
+  final PrestamoModel? prestamoInicial;
 
-  const EditarPrestamoScreen({super.key, required this.prestamoId});
+  const EditarPrestamoScreen({super.key, required this.prestamoId, this.prestamoInicial});
 
   @override
   ConsumerState<EditarPrestamoScreen> createState() => _EditarPrestamoScreenState();
@@ -26,7 +27,7 @@ class EditarPrestamoScreen extends ConsumerStatefulWidget {
 class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
   final _formKey = GlobalKey<FormState>();
   PrestamoModel? _prestamo;
-  bool _cargando = true;
+  late bool _cargando = widget.prestamoInicial == null;
   bool _guardando = false;
 
   final _lugarCtrl = TextEditingController();
@@ -38,24 +39,29 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
   @override
   void initState() {
     super.initState();
-    _cargar();
+    // Si Detalle del Prestamo ya nos paso el modelo por `extra` (el
+    // caso normal, siempre viene de esa pantalla), nos ahorramos el
+    // viaje redondo a Firestore que antes se hacia siempre.
+    if (widget.prestamoInicial != null) {
+      _aplicarPrestamo(widget.prestamoInicial!);
+    } else {
+      _cargar();
+    }
+  }
+
+  void _aplicarPrestamo(PrestamoModel p) {
+    _prestamo = p;
+    _lugarCtrl.text = p.lugar;
+    _garantiaCtrl.text = p.garantia;
+    _observacionesCtrl.text = p.observaciones;
+    if (plazosDisponibles.contains(p.plazo)) _plazo = p.plazo;
+    if (_estadosPrestamo.contains(p.estado)) _estado = p.estado;
   }
 
   Future<void> _cargar() async {
     final p = await ref.read(prestamoRepositoryProvider).obtenerPorId(widget.prestamoId);
-    if (p != null) {
-      _lugarCtrl.text = p.lugar;
-      _garantiaCtrl.text = p.garantia;
-      _observacionesCtrl.text = p.observaciones;
-      if (plazosDisponibles.contains(p.plazo)) _plazo = p.plazo;
-      if (_estadosPrestamo.contains(p.estado)) _estado = p.estado;
-    }
-    if (mounted) {
-      setState(() {
-        _prestamo = p;
-        _cargando = false;
-      });
-    }
+    if (p != null) _aplicarPrestamo(p);
+    if (mounted) setState(() => _cargando = false);
   }
 
   @override

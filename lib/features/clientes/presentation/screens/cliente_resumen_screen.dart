@@ -24,8 +24,9 @@ import '../../providers/clientes_provider.dart';
 /// Asignar Cobrador / Eliminar.
 class ClienteResumenScreen extends ConsumerStatefulWidget {
   final String clienteId;
+  final ClienteModel? clienteInicial;
 
-  const ClienteResumenScreen({super.key, required this.clienteId});
+  const ClienteResumenScreen({super.key, required this.clienteId, this.clienteInicial});
 
   @override
   ConsumerState<ClienteResumenScreen> createState() => _ClienteResumenScreenState();
@@ -51,7 +52,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
   }
 
   Future<void> _cargarCobradores() async {
-    final cobradores = await ref.read(usuarioRepositoryProvider).obtenerCobradores();
+    final cobradores = await ref.read(cobradoresCacheProvider.future);
     if (mounted) setState(() => _cobradores = cobradores);
   }
 
@@ -132,8 +133,13 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
   Widget build(BuildContext context) {
     return StreamBuilder<ClienteModel?>(
       stream: _streamCliente,
+      // Si ya veniamos de la lista/tile con el ClienteModel en mano, se
+      // usa como dato inicial: la pantalla se ve completa en el primer
+      // frame en vez de mostrar una ruedita mientras el stream conecta
+      // (que casi siempre ya tenia el dato en la cache local igual).
+      initialData: widget.clienteInicial,
       builder: (context, clienteSnap) {
-        if (clienteSnap.connectionState == ConnectionState.waiting) {
+        if (clienteSnap.connectionState == ConnectionState.waiting && !clienteSnap.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (clienteSnap.hasError) {
@@ -337,13 +343,13 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                 icono: Icons.edit_outlined,
                 titulo: 'Editar',
                 subtitulo: 'Datos del cliente',
-                onTap: () => context.push('/clientes/${c.id}/editar'),
+                onTap: () => context.push('/clientes/${c.id}/editar', extra: c),
               ),
               CeMenuCard(
                 icono: Icons.badge_outlined,
                 titulo: 'Ver Detalles',
                 subtitulo: 'Datos completos',
-                onTap: () => context.push('/clientes/${c.id}/detalle'),
+                onTap: () => context.push('/clientes/${c.id}/detalle', extra: c),
               ),
               CeMenuCard(
                 icono: Icons.person_pin_circle_outlined,
@@ -366,7 +372,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
             ...prestamos.map((p) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: CeCard(
-                    onTap: () => context.push('/prestamos/${p.prestamoId}'),
+                    onTap: () => context.push('/prestamos/${p.prestamoId}', extra: p),
                     padding: const EdgeInsets.all(14),
                     child: Row(
                       children: [

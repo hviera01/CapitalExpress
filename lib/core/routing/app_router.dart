@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../constants/roles.dart';
+import '../models/cliente_model.dart';
+import '../models/prestamo_model.dart';
+import '../models/usuario_model.dart';
 import '../widgets/splash_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
@@ -79,17 +82,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: ':id',
             builder: (context, state) =>
-                ClienteResumenScreen(clienteId: state.pathParameters['id']!),
+                ClienteResumenScreen(
+                  clienteId: state.pathParameters['id']!,
+                  clienteInicial: state.extra as ClienteModel?,
+                ),
             routes: [
               GoRoute(
                 path: 'editar',
-                builder: (context, state) =>
-                    ClienteFormScreen(clienteId: state.pathParameters['id']),
+                builder: (context, state) => ClienteFormScreen(
+                  clienteId: state.pathParameters['id'],
+                  clienteInicial: state.extra as ClienteModel?,
+                ),
               ),
               GoRoute(
                 path: 'detalle',
-                builder: (context, state) =>
-                    ClienteDetalleScreen(clienteId: state.pathParameters['id']!),
+                builder: (context, state) => ClienteDetalleScreen(
+                  clienteId: state.pathParameters['id']!,
+                  clienteInicial: state.extra as ClienteModel?,
+                ),
               ),
             ],
           ),
@@ -115,12 +125,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: ':id',
             builder: (context, state) =>
-                PrestamoDetalleScreen(prestamoId: state.pathParameters['id']!),
+                PrestamoDetalleScreen(
+                  prestamoId: state.pathParameters['id']!,
+                  prestamoInicial: state.extra as PrestamoModel?,
+                ),
             routes: [
               GoRoute(
                 path: 'editar',
-                builder: (context, state) =>
-                    EditarPrestamoScreen(prestamoId: state.pathParameters['id']!),
+                builder: (context, state) => EditarPrestamoScreen(
+                  prestamoId: state.pathParameters['id']!,
+                  prestamoInicial: state.extra as PrestamoModel?,
+                ),
               ),
               GoRoute(
                 path: 'pagos',
@@ -170,8 +185,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: ':id/editar',
-            builder: (context, state) =>
-                UsuarioFormScreen(usuarioId: state.pathParameters['id']),
+            builder: (context, state) => UsuarioFormScreen(
+              usuarioId: state.pathParameters['id'],
+              usuarioInicial: state.extra as UsuarioModel?,
+            ),
           ),
         ],
       ),

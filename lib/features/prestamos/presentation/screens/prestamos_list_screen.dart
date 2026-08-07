@@ -361,7 +361,7 @@ class _PrestamoCard extends ConsumerWidget {
 
     return CeCard(
       padding: EdgeInsets.zero,
-      onTap: () => context.push('/prestamos/${prestamo.prestamoId}'),
+      onTap: () => context.push('/prestamos/${prestamo.prestamoId}', extra: prestamo),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -449,7 +449,8 @@ class _PrestamoCard extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => context.push('/prestamos/${prestamo.prestamoId}'),
+                        onPressed: () =>
+                            context.push('/prestamos/${prestamo.prestamoId}', extra: prestamo),
                         child: const Text('Ver'),
                       ),
                     ),
@@ -457,7 +458,8 @@ class _PrestamoCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => context.push('/prestamos/${prestamo.prestamoId}/editar'),
+                          onPressed: () => context
+                              .push('/prestamos/${prestamo.prestamoId}/editar', extra: prestamo),
                           child: const Text('Editar'),
                         ),
                       ),

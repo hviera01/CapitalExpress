@@ -11,10 +11,16 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Cache local persistente: sin esto, cada navegacion vuelve a pedirle
-  // todo al servidor (mas lento y se nota, sobre todo en web). Con la
-  // cache, una segunda visita a la misma pantalla se siente instantanea.
-  FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
+  // Cache local persistente SIN limite de tamano: con el limite por
+  // defecto (40MB) Firestore empieza a purgar documentos viejos del
+  // cache una vez lleno, asi que pantallas ya visitadas volvian a pedir
+  // todo al servidor igual. Sin ese limite, una segunda visita a
+  // cualquier pantalla ya cargada se sirve del disco/IndexedDB al
+  // instante mientras se sincroniza en segundo plano con el servidor.
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
   runApp(const ProviderScope(child: CapitalExpressApp()));
 }
 

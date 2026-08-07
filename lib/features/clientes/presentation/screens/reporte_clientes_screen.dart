@@ -70,7 +70,7 @@ class _ReporteClientesScreenState extends ConsumerState<ReporteClientesScreen> {
     final resultados = await Future.wait([
       ref.read(clienteRepositoryProvider).obtenerTodos(cobradorUid: cobradorUid),
       ref.read(prestamoRepositoryProvider).obtenerTodos(cobradorUid: cobradorUid),
-      if (_esAdmin) ref.read(usuarioRepositoryProvider).obtenerCobradores(),
+      if (_esAdmin) ref.read(cobradoresCacheProvider.future),
     ]);
 
     final clientes = resultados[0] as List<ClienteModel>;
