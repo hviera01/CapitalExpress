@@ -58,15 +58,22 @@ class CobradorHomeScreen extends ConsumerWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('¡Bienvenido!',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
-                          const SizedBox(height: 2),
-                          Text(usuario?.nombre ?? '',
-                              style: const TextStyle(color: CEColors.textSecondary, fontSize: 13)),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('¡Bienvenido!',
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+                            const SizedBox(height: 2),
+                            Text(
+                              usuario?.nombre ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(color: CEColors.textSecondary, fontSize: 13),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Container(

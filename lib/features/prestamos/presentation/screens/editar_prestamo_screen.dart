@@ -99,7 +99,8 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
 
     return CeScaffold(
       maxWidth: 720,
-      appBar: AppBar(title: Text('Editar N° ${_prestamo!.numeroPrestamo}')),
+      appBar: AppBar(
+        leading: const BackButton(),title: Text('Editar N° ${_prestamo!.numeroPrestamo}')),
       body: Form(
         key: _formKey,
         child: ListView(

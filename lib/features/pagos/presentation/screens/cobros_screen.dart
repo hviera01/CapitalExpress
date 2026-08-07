@@ -251,6 +251,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     return CeScaffold(
       maxWidth: 900,
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('Cobros'),
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar)],
       ),

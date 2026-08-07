@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive.dart';
 import 'ce_app_bar.dart';
+import 'ce_nav_drawer.dart';
 
 /// Chrome de las pantallas "home" (Panel Admin / Panel Cobrador).
 ///
@@ -98,35 +99,7 @@ class CeAppShell extends StatelessWidget {
           const SizedBox(width: 4),
         ],
       ),
-      drawer: Drawer(
-        backgroundColor: CEColors.primary,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  nombreUsuario,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Divider(color: Colors.white24, height: 1),
-              ListTile(
-                iconColor: Colors.white,
-                textColor: Colors.white,
-                leading: const Icon(Icons.logout),
-                title: const Text('Cerrar sesión'),
-                onTap: onLogout,
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: const CeNavDrawer(),
       body: body,
     );
   }

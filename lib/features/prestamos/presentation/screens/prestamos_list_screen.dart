@@ -124,6 +124,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
     return CeScaffold(
       maxWidth: 900,
       appBar: AppBar(
+        leading: const BackButton(),
         backgroundColor: _verEliminados ? CEColors.danger : null,
         title: Text(_verEliminados ? 'Préstamos eliminados' : 'Préstamos'),
         actions: [
@@ -401,9 +402,13 @@ class _PrestamoCard extends ConsumerWidget {
                   children: [
                     const Icon(Icons.person_outline, size: 14, color: CEColors.textSecondary),
                     const SizedBox(width: 6),
-                    Text(
-                      prestamo.cobrador.isEmpty ? 'Sin asignar' : prestamo.cobrador,
-                      style: const TextStyle(fontSize: 12, color: CEColors.textSecondary),
+                    Expanded(
+                      child: Text(
+                        prestamo.cobrador.isEmpty ? 'Sin asignar' : prestamo.cobrador,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: CEColors.textSecondary),
+                      ),
                     ),
                   ],
                 ),

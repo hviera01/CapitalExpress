@@ -79,6 +79,7 @@ class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPre
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('Historial de Pagos'),
         actions: [
           IconButton(

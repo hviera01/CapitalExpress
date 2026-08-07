@@ -8,6 +8,7 @@ import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/filtro_fecha_rango.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../../core/models/pago_model.dart';
 import '../../../clientes/providers/clientes_provider.dart';
@@ -33,6 +34,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   DateTime? _fechaInicio;
   DateTime? _fechaFin;
   bool _cargando = true;
+  String? _error;
 
   int _totalClientes = 0;
   double _totalPrestado = 0;
@@ -51,44 +53,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _cargar() async {
-    setState(() => _cargando = true);
-
-    final resultados = await Future.wait([
-      ref.read(clienteRepositoryProvider).contar(),
-      ref.read(prestamoRepositoryProvider).sumarMontoEInteres(),
-      ref.read(pagoRepositoryProvider).obtenerConRango(inicio: _fechaInicio, fin: _fechaFin),
-      ref.read(prestamoRepositoryProvider).sumarSaldoPendiente(),
-    ]);
-
-    final totalClientes = resultados[0] as int;
-    final montoEInteres = resultados[1] as ({double monto, double interes});
-    final pagos = resultados[2] as List<PagoModel>;
-    final totalPendiente = resultados[3] as double;
-
-    double totalPagado = 0, totalMoras = 0;
-    var cantidadMoras = 0;
-    final porCobrador = <String, double>{};
-    for (final p in pagos) {
-      totalPagado += p.monto;
-      totalMoras += p.mora;
-      if (p.mora > 0) cantidadMoras++;
-      final nombre = p.nombreCobrador.isEmpty ? 'Desconocido' : p.nombreCobrador;
-      porCobrador[nombre] = (porCobrador[nombre] ?? 0) + p.monto;
-    }
-
-    if (!mounted) return;
     setState(() {
-      _totalClientes = totalClientes;
-      _totalPrestado = montoEInteres.monto;
-      _totalInteres = montoEInteres.interes;
-      _totalPendiente = totalPendiente;
-      _totalCobros = pagos.length;
-      _totalPagado = totalPagado;
-      _totalMoras = totalMoras;
-      _cantidadMoras = cantidadMoras;
-      _porCobrador = porCobrador;
-      _cargando = false;
+      _cargando = true;
+      _error = null;
     });
+
+    try {
+      final resultados = await Future.wait([
+        ref.read(clienteRepositoryProvider).contar(),
+        ref.read(prestamoRepositoryProvider).sumarMontoEInteres(),
+        ref.read(pagoRepositoryProvider).obtenerConRango(inicio: _fechaInicio, fin: _fechaFin),
+        ref.read(prestamoRepositoryProvider).sumarSaldoPendiente(),
+      ]);
+
+      final totalClientes = resultados[0] as int;
+      final montoEInteres = resultados[1] as ({double monto, double interes});
+      final pagos = resultados[2] as List<PagoModel>;
+      final totalPendiente = resultados[3] as double;
+
+      double totalPagado = 0, totalMoras = 0;
+      var cantidadMoras = 0;
+      final porCobrador = <String, double>{};
+      for (final p in pagos) {
+        totalPagado += p.monto;
+        totalMoras += p.mora;
+        if (p.mora > 0) cantidadMoras++;
+        final nombre = p.nombreCobrador.isEmpty ? 'Desconocido' : p.nombreCobrador;
+        porCobrador[nombre] = (porCobrador[nombre] ?? 0) + p.monto;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _totalClientes = totalClientes;
+        _totalPrestado = montoEInteres.monto;
+        _totalInteres = montoEInteres.interes;
+        _totalPendiente = totalPendiente;
+        _totalCobros = pagos.length;
+        _totalPagado = totalPagado;
+        _totalMoras = totalMoras;
+        _cantidadMoras = cantidadMoras;
+        _porCobrador = porCobrador;
+        _cargando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _cargando = false;
+      });
+    }
   }
 
   String get _filtroTexto {
@@ -97,24 +110,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final ini = _fechaInicio != null ? f.format(_fechaInicio!) : '…';
     final fin = _fechaFin != null ? f.format(_fechaFin!) : '…';
     return 'Del $ini al $fin';
-  }
-
-  Future<void> _elegirFecha({required bool esInicio}) async {
-    final f = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 365 * 3)),
-      lastDate: DateTime.now(),
-    );
-    if (f == null) return;
-    setState(() {
-      if (esInicio) {
-        _fechaInicio = f;
-      } else {
-        _fechaFin = f;
-      }
-    });
-    _cargar();
   }
 
   void _exportarPdf() {
@@ -138,11 +133,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final f = DateFormat('dd/MM/yyyy');
-
     return CeScaffold(
       maxWidth: 1100,
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('Dashboard General'),
         actions: [
           IconButton(
@@ -155,40 +149,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, color: CEColors.danger, size: 40),
+                        const SizedBox(height: 12),
+                        const Text('No se pudo cargar el dashboard',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        Text(_error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _cargar,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 CeCard(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _elegirFecha(esInicio: true),
-                          icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                          label: Text(_fechaInicio == null ? 'Fecha Inicio' : f.format(_fechaInicio!)),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _elegirFecha(esInicio: false),
-                          icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                          label: Text(_fechaFin == null ? 'Fecha Fin' : f.format(_fechaFin!)),
-                        ),
-                      ),
-                      if (_fechaInicio != null || _fechaFin != null)
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          tooltip: 'Limpiar fechas',
-                          onPressed: () {
-                            setState(() {
-                              _fechaInicio = null;
-                              _fechaFin = null;
-                            });
-                            _cargar();
-                          },
-                        ),
-                    ],
+                  child: FiltroFechaRango(
+                    fechaInicio: _fechaInicio,
+                    fechaFin: _fechaFin,
+                    onCambio: (inicio, fin) {
+                      setState(() {
+                        _fechaInicio = inicio;
+                        _fechaFin = fin;
+                      });
+                      _cargar();
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),

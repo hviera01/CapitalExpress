@@ -164,6 +164,7 @@ class _ReporteClientesScreenState extends ConsumerState<ReporteClientesScreen> {
     return CeScaffold(
       maxWidth: 1200,
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('Reporte de Clientes'),
         actions: [
           if (_esAdmin)

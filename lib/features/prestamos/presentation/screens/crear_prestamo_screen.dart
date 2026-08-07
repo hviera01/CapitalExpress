@@ -185,7 +185,8 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
 
     return CeScaffold(
       maxWidth: 720,
-      appBar: AppBar(title: const Text('Nuevo Préstamo')),
+      appBar: AppBar(
+        leading: const BackButton(),title: const Text('Nuevo Préstamo')),
       body: Form(
         key: _formKey,
         child: ListView(

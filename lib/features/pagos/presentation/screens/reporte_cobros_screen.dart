@@ -11,14 +11,13 @@ import '../../../../core/utils/normalizar_texto.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/filtro_fecha_rango.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../data/reporte_cobros_pdf_service.dart';
 import '../../providers/pagos_provider.dart';
 import '../widgets/pago_tile.dart';
-
-const _fechasFiltro = ['Hoy', 'Semana', 'Mes', 'Todos'];
 
 /// Historial de Pagos (antes tenia un modo "Saldados" separado -- se
 /// saco, esta pantalla es solo el historial de abonos con Reimprimir/
@@ -39,7 +38,8 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
   List<UsuarioSimple> _cobradores = [];
 
   final _busquedaCtrl = TextEditingController();
-  String _filtroFecha = 'Hoy';
+  DateTime? _fechaInicio;
+  DateTime? _fechaFin;
   String? _filtroCobradorUid;
 
   @override
@@ -54,20 +54,6 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
     super.dispose();
   }
 
-  (DateTime?, DateTime?) get _rango {
-    final hoy = DateTime.now();
-    switch (_filtroFecha) {
-      case 'Hoy':
-        return (DateTime(hoy.year, hoy.month, hoy.day), hoy);
-      case 'Semana':
-        return (hoy.subtract(const Duration(days: 7)), hoy);
-      case 'Mes':
-        return (DateTime(hoy.year, hoy.month, 1), hoy);
-      default:
-        return (null, null);
-    }
-  }
-
   Future<void> _init() async {
     final usuario = ref.read(authProvider).usuario;
     _esAdmin = usuario?.rol == Roles.admin;
@@ -75,16 +61,18 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
     if (_esAdmin) {
       _cobradores = await ref.read(usuarioRepositoryProvider).obtenerCobradores();
     }
+    final hoy = DateTime.now();
+    _fechaInicio = DateTime(hoy.year, hoy.month, hoy.day);
+    _fechaFin = hoy;
     await _cargar();
   }
 
   Future<void> _cargar() async {
     setState(() => _cargando = true);
     final cobradorUid = _filtroCobradorUid ?? _cobradorUid;
-    final (inicio, fin) = _rango;
     final pagos = await ref
         .read(pagoRepositoryProvider)
-        .obtenerConRango(inicio: inicio, fin: fin, cobradorUid: cobradorUid);
+        .obtenerConRango(inicio: _fechaInicio, fin: _fechaFin, cobradorUid: cobradorUid);
     if (!mounted) return;
     setState(() {
       _pagos = pagos;
@@ -116,9 +104,17 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
       nombreArchivo: 'historial_pagos.pdf',
       generar: () => ReporteCobrosPdfService.generarPagos(
         filas: filas,
-        filtroTexto: 'Período: $_filtroFecha',
+        filtroTexto: 'Período: $_filtroTexto',
       ),
     );
+  }
+
+  String get _filtroTexto {
+    final f = DateFormat('dd/MM/yyyy');
+    if (_fechaInicio == null && _fechaFin == null) return 'Todo el período';
+    final ini = _fechaInicio != null ? f.format(_fechaInicio!) : '…';
+    final fin = _fechaFin != null ? f.format(_fechaFin!) : '…';
+    return 'Del $ini al $fin';
   }
 
   @override
@@ -130,6 +126,7 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
     return CeScaffold(
       maxWidth: 1000,
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('Historial de Pagos'),
         actions: [
           IconButton(
@@ -162,19 +159,16 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _fechasFiltro
-                            .map((e) => ChoiceChip(
-                                  label: Text(e),
-                                  selected: _filtroFecha == e,
-                                  onSelected: (_) {
-                                    setState(() => _filtroFecha = e);
-                                    _cargar();
-                                  },
-                                ))
-                            .toList(),
+                      FiltroFechaRango(
+                        fechaInicio: _fechaInicio,
+                        fechaFin: _fechaFin,
+                        onCambio: (inicio, fin) {
+                          setState(() {
+                            _fechaInicio = inicio;
+                            _fechaFin = fin;
+                          });
+                          _cargar();
+                        },
                       ),
                       if (_esAdmin && _cobradores.isNotEmpty) ...[
                         const SizedBox(height: 12),

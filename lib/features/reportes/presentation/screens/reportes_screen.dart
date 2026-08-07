@@ -12,7 +12,8 @@ class ReportesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return CeScaffold(
       maxWidth: 900,
-      appBar: AppBar(title: const Text('Reportes')),
+      appBar: AppBar(
+        leading: const BackButton(),title: const Text('Reportes')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

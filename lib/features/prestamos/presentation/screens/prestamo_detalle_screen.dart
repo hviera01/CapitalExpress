@@ -87,6 +87,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('Detalle del Préstamo'),
         actions: [
           if (esAdmin && !p.eliminado)

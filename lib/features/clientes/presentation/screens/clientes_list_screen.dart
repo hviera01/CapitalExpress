@@ -129,7 +129,8 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
 
     return CeScaffold(
       maxWidth: 900,
-      appBar: AppBar(title: Text(esAdmin ? 'Ver Clientes' : 'Mis Clientes')),
+      appBar: AppBar(
+        leading: const BackButton(),title: Text(esAdmin ? 'Ver Clientes' : 'Mis Clientes')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/clientes/nuevo'),
         icon: const Icon(Icons.person_add_outlined),
@@ -572,7 +573,14 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
         children: [
           Icon(icono, size: 13, color: CEColors.textSecondary),
           const SizedBox(width: 4),
-          Text(texto, style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+          Expanded(
+            child: Text(
+              texto,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: CEColors.textSecondary),
+            ),
+          ),
         ],
       ),
     );

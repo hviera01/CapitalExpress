@@ -12,13 +12,13 @@ import '../../../../core/utils/prestamo_estado_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/filtro_fecha_rango.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/reporte_prestamos_pdf_service.dart';
 import '../../providers/prestamos_provider.dart';
 
 const _estadosFiltro = ['Todos', 'activo', 'vencido', 'saldado'];
-const _fechasFiltro = ['Todos', 'Hoy', 'Semana', 'Mes'];
 
 class ReportePrestamosScreen extends ConsumerStatefulWidget {
   const ReportePrestamosScreen({super.key});
@@ -32,7 +32,8 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
   List<PrestamoModel> _prestamos = [];
   final _busquedaCtrl = TextEditingController();
   String _filtroEstado = 'Todos';
-  String _filtroFecha = 'Todos';
+  DateTime? _fechaInicio;
+  DateTime? _fechaFin;
 
   @override
   void initState() {
@@ -61,20 +62,24 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
   }
 
   bool _pasaFecha(PrestamoModel p) {
-    if (_filtroFecha == 'Todos') return true;
+    if (_fechaInicio == null && _fechaFin == null) return true;
     final fecha = p.fechaCreacion?.toDate();
     if (fecha == null) return false;
-    final hoy = DateTime.now();
-    switch (_filtroFecha) {
-      case 'Hoy':
-        return fecha.year == hoy.year && fecha.month == hoy.month && fecha.day == hoy.day;
-      case 'Semana':
-        return fecha.isAfter(hoy.subtract(const Duration(days: 7)));
-      case 'Mes':
-        return fecha.year == hoy.year && fecha.month == hoy.month;
-      default:
-        return true;
+    if (_fechaInicio != null && fecha.isBefore(_fechaInicio!)) return false;
+    if (_fechaFin != null) {
+      final finInclusive =
+          DateTime(_fechaFin!.year, _fechaFin!.month, _fechaFin!.day, 23, 59, 59);
+      if (fecha.isAfter(finInclusive)) return false;
     }
+    return true;
+  }
+
+  String get _filtroFechaTexto {
+    final f = DateFormat('dd/MM/yyyy');
+    if (_fechaInicio == null && _fechaFin == null) return 'Todo el período';
+    final ini = _fechaInicio != null ? f.format(_fechaInicio!) : '…';
+    final fin = _fechaFin != null ? f.format(_fechaFin!) : '…';
+    return 'Del $ini al $fin';
   }
 
   List<PrestamoModel> get _filtrados {
@@ -114,7 +119,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
       nombreArchivo: 'reporte_prestamos.pdf',
       generar: () => ReportePrestamosPdfService.generar(
         filas: filasPdf,
-        filtroTexto: 'Estado: $_filtroEstado  ·  Fecha: $_filtroFecha',
+        filtroTexto: 'Estado: $_filtroEstado  ·  $_filtroFechaTexto',
       ),
     );
   }
@@ -144,6 +149,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
     return CeScaffold(
       maxWidth: 1000,
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('Reporte de Préstamos'),
         actions: [
           IconButton(
@@ -188,16 +194,13 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                             .toList(),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _fechasFiltro
-                            .map((e) => ChoiceChip(
-                                  label: Text(e),
-                                  selected: _filtroFecha == e,
-                                  onSelected: (_) => setState(() => _filtroFecha = e),
-                                ))
-                            .toList(),
+                      FiltroFechaRango(
+                        fechaInicio: _fechaInicio,
+                        fechaFin: _fechaFin,
+                        onCambio: (inicio, fin) => setState(() {
+                          _fechaInicio = inicio;
+                          _fechaFin = fin;
+                        }),
                       ),
                     ],
                   ),

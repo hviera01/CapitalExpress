@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/services/storage_service.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
@@ -243,49 +242,8 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
-        leading: BackButton(onPressed: () => context.pop()),
+        leading: const BackButton(),
         title: Text(_clienteOriginal == null ? 'Crear Nuevo Cliente' : 'Editar cliente'),
-      ),
-      drawer: Drawer(
-        backgroundColor: CEColors.primary,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  ref.watch(authProvider).usuario?.nombre ?? '',
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const Divider(color: Colors.white24, height: 1),
-              ListTile(
-                iconColor: Colors.white,
-                textColor: Colors.white,
-                leading: const Icon(Icons.close),
-                title: const Text('Cerrar'),
-                onTap: () => context.pop(),
-              ),
-              ListTile(
-                iconColor: Colors.white,
-                textColor: Colors.white,
-                leading: const Icon(Icons.logout),
-                title: const Text('Cerrar sesión'),
-                onTap: () => ref.read(authProvider.notifier).logout(),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: Builder(
-        builder: (context) => FloatingActionButton(
-          backgroundColor: CEColors.primary,
-          onPressed: () => Scaffold.of(context).openDrawer(),
-          child: const Icon(Icons.menu, color: Colors.white),
-        ),
       ),
       body: Form(
         key: _formKey,

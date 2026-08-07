@@ -153,7 +153,8 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
 
     return CeScaffold(
       maxWidth: 720,
-      appBar: AppBar(title: const Text('Resumen del Cliente')),
+      appBar: AppBar(
+        leading: const BackButton(),title: const Text('Resumen del Cliente')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
