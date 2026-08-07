@@ -8,14 +8,18 @@ class CEColors {
   CEColors._();
 
   static const Color primary = Color(0xFF0A192F); // navy
+  static const Color primaryDark = Color(0xFF0B1C30); // navy mas oscuro (hero cards)
   static const Color accent = Color(0xFF007AFF); // blue
   static const Color surface = Color(0xFFF8FAFC);
   static const Color border = Color(0xFFE2E8F0);
   static const Color success = Color(0xFF16A34A);
+  static const Color onlineDot = Color(0xFF64FFDA); // verde-agua, punto "en linea"
   static const Color danger = Color(0xFFDC2626);
+  static const Color pill = Color(0xFFF43F5E); // rosa/rojo de badges "N NUEVAS"
   static const Color warning = Color(0xFFD97706);
   static const Color textPrimary = Color(0xFF0F172A);
   static const Color textSecondary = Color(0xFF64748B);
+  static const Color iconBadgeBg = Color(0xFFF1F5F9); // fondo circular gris claro
 }
 
 class AppTheme {

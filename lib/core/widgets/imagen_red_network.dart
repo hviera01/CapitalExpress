@@ -1,0 +1,148 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import '../theme/app_theme.dart';
+
+/// Imagen cargada por HTTP con timeout y reintentos manuales.
+///
+/// `Image.network` no tiene timeout: si la conexion se cuelga (comun en
+/// Windows/desktop con redes lentas) el widget queda "cargando" para
+/// siempre sin mostrar error ni fallback. Aca se hace el fetch a mano con
+/// `http.get(...).timeout(...)`, reintentando con backoff, y si todo falla
+/// se muestra un icono reintentable con el error real en un tooltip.
+class ImagenRedNetwork extends StatefulWidget {
+  final String url;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final BorderRadius? borderRadius;
+
+  const ImagenRedNetwork({
+    super.key,
+    required this.url,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.borderRadius,
+  });
+
+  static final http.Client _client = http.Client();
+
+  @override
+  State<ImagenRedNetwork> createState() => _ImagenRedNetworkState();
+}
+
+class _ImagenRedNetworkState extends State<ImagenRedNetwork> {
+  Uint8List? _bytes;
+  String? _error;
+  bool _cargando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  @override
+  void didUpdateWidget(covariant ImagenRedNetwork oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _bytes = null;
+      _error = null;
+      _cargar();
+    }
+  }
+
+  Future<void> _cargar() async {
+    if (widget.url.isEmpty) {
+      setState(() {
+        _cargando = false;
+        _error = 'Sin foto';
+      });
+      return;
+    }
+
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+
+    const intentos = 4;
+    for (var i = 0; i < intentos; i++) {
+      try {
+        final resp = await ImagenRedNetwork._client
+            .get(Uri.parse(widget.url))
+            .timeout(const Duration(seconds: 15));
+        if (resp.statusCode == 200) {
+          if (!mounted) return;
+          setState(() {
+            _bytes = resp.bodyBytes;
+            _cargando = false;
+          });
+          return;
+        }
+        _error = 'HTTP ${resp.statusCode}';
+      } on TimeoutException {
+        _error = 'Tiempo de espera agotado';
+      } on SocketException catch (e) {
+        _error = 'Sin conexion (${e.osError?.message ?? e.message})';
+      } catch (e) {
+        _error = e.toString();
+      }
+      if (i < intentos - 1) {
+        await Future.delayed(Duration(seconds: 2 * (i + 1)));
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _cargando = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget contenido;
+
+    if (_cargando) {
+      contenido = const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    } else if (_bytes != null) {
+      contenido = Image.memory(
+        _bytes!,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+      );
+    } else {
+      contenido = Tooltip(
+        message: _error ?? 'Error desconocido',
+        child: InkWell(
+          onTap: _cargar,
+          child: const Center(
+            child: Icon(Icons.refresh, color: CEColors.textSecondary),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: widget.width,
+      height: widget.height,
+      decoration: BoxDecoration(
+        color: CEColors.surface,
+        borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
+        border: Border.all(color: CEColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: contenido,
+    );
+  }
+}

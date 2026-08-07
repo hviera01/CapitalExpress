@@ -28,94 +28,188 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: CEColors.primary,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 48),
-                  const Icon(Icons.account_balance, color: Colors.white, size: 56),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Capital Express',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/fondo_login.jpg', fit: BoxFit.cover),
+          Container(color: Colors.black.withValues(alpha: 0.35)),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  Card(
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _codigoCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Codigo',
-                              prefixIcon: Icon(Icons.badge_outlined),
-                            ),
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: _passwordCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Contrasena',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(_verPassword
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined),
-                                onPressed: () => setState(() => _verPassword = !_verPassword),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.shield_outlined, color: Colors.white, size: 22),
+                            const SizedBox(width: 8),
+                            Text(
+                              'CAPITAL EXPRESS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
                               ),
                             ),
-                            obscureText: !_verPassword,
-                            onSubmitted: (_) => _entrar(),
-                          ),
-                          if (authState.error != null) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              authState.error!,
-                              style: const TextStyle(color: CEColors.danger, fontSize: 13),
-                            ),
                           ],
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            height: 48,
-                            child: ElevatedButton(
-                              onPressed: authState.cargando ? null : _entrar,
-                              child: authState.cargando
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text('Ingresar'),
+                        ),
+                        const SizedBox(height: 28),
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: const BoxDecoration(
+                            color: CEColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.account_balance,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Iniciar Sesión',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tu socio financiero de confianza',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
+                        ),
+                        const SizedBox(height: 28),
+                        _campoOscuro(
+                          label: 'Código de usuario',
+                          controller: _codigoCtrl,
+                          icono: Icons.person_outline,
+                          hint: 'Ingrese su código',
+                        ),
+                        const SizedBox(height: 18),
+                        _campoOscuro(
+                          label: 'Contraseña',
+                          controller: _passwordCtrl,
+                          icono: Icons.lock_outline,
+                          hint: 'Ingrese su contraseña',
+                          obscure: !_verPassword,
+                          onSubmit: (_) => _entrar(),
+                          suffix: IconButton(
+                            icon: Icon(
+                              _verPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: Colors.white70,
+                              size: 20,
                             ),
+                            onPressed: () => setState(() => _verPassword = !_verPassword),
+                          ),
+                        ),
+                        if (authState.error != null) ...[
+                          const SizedBox(height: 14),
+                          Text(
+                            authState.error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Color(0xFFFF8A8A), fontSize: 13),
                           ),
                         ],
-                      ),
+                        const SizedBox(height: 26),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD8E2FF),
+                              foregroundColor: CEColors.primary,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: authState.cargando ? null : _entrar,
+                            child: authState.cargando
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: CEColors.primary,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Iniciar Sesión',
+                                    style: TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 32),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
+    );
+  }
+
+  Widget _campoOscuro({
+    required String label,
+    required TextEditingController controller,
+    required IconData icono,
+    required String hint,
+    bool obscure = false,
+    Widget? suffix,
+    void Function(String)? onSubmit,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          obscureText: obscure,
+          style: const TextStyle(color: Colors.white),
+          onSubmitted: onSubmit,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+            prefixIcon: Icon(icono, color: Colors.white70, size: 20),
+            suffixIcon: suffix,
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.08),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: CEColors.accent, width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
