@@ -151,7 +151,7 @@ class CobradorHomeScreen extends ConsumerWidget {
                 icono: Icons.account_balance_outlined,
                 titulo: 'Ver Préstamos',
                 subtitulo: 'Detalle créditos',
-                onTap: () => _proximamente(context, 'Ver Préstamos'),
+                onTap: () => context.push('/prestamos'),
               ),
               CeMenuCard(
                 icono: Icons.payments_outlined,

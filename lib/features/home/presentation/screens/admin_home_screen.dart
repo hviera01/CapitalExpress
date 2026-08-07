@@ -100,7 +100,7 @@ class AdminHomeScreen extends ConsumerWidget {
                 icono: Icons.add,
                 titulo: 'Crear Préstamo',
                 subtitulo: 'Nueva solicitud',
-                onTap: () => _proximamente(context, 'Crear Préstamo'),
+                onTap: () => context.push('/prestamos/nuevo'),
               ),
               CeMenuCard(
                 icono: Icons.person_add_alt_1_outlined,
@@ -144,7 +144,7 @@ class AdminHomeScreen extends ConsumerWidget {
                 icono: Icons.account_balance_outlined,
                 titulo: 'Ver Préstamos',
                 subtitulo: '',
-                onTap: () => _proximamente(context, 'Ver Préstamos'),
+                onTap: () => context.push('/prestamos'),
               ),
               CeMenuCard(
                 icono: Icons.manage_accounts_outlined,
