@@ -80,7 +80,7 @@ class AdminHomeScreen extends ConsumerWidget {
             titulo: 'Crear Usuario',
             subtitulo: 'Gestión interna',
             chevron: true,
-            onTap: () => _proximamente(context, 'Crear Usuario'),
+            onTap: () => context.push('/usuarios/nuevo'),
           ),
           const CeSectionLabel('Visualizar'),
           GridView.count(
@@ -114,7 +114,7 @@ class AdminHomeScreen extends ConsumerWidget {
                 icono: Icons.manage_accounts_outlined,
                 titulo: 'Ver Usuarios',
                 subtitulo: '',
-                onTap: () => _proximamente(context, 'Ver Usuarios'),
+                onTap: () => context.push('/usuarios'),
               ),
             ],
           ),

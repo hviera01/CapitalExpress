@@ -13,7 +13,6 @@ import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
-import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
@@ -441,20 +440,6 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: 56,
-                      height: 56,
-                      child: c.fotoPersonaUrl.isNotEmpty
-                          ? ImagenRedNetwork(url: c.fotoPersonaUrl)
-                          : const ColoredBox(
-                              color: CEColors.surface,
-                              child: Icon(Icons.person_outline, color: CEColors.textSecondary),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

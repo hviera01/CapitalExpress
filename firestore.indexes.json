@@ -1,0 +1,71 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "clientes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cobradorAsignado", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "eliminado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "eliminado", "order": "ASCENDING" },
+        { "fieldPath": "cobradorAsignado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "cobradorAsignado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eliminado", "order": "ASCENDING" },
+        { "fieldPath": "cobradorAsignado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eliminado", "order": "ASCENDING" },
+        { "fieldPath": "cobradorAsignado", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pagos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "registradoPor", "order": "ASCENDING" },
+        { "fieldPath": "fechaPago", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pagos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "registradoPor", "order": "ASCENDING" },
+        { "fieldPath": "fechaPago", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

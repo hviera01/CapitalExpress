@@ -293,6 +293,37 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                   color: CEColors.success),
             ],
           ),
+          const SizedBox(height: 14),
+          CeCard(
+            onTap: () => _asignarCobrador(c, prestamos),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                      color: CEColors.iconBadgeBg, shape: BoxShape.circle),
+                  child: const Icon(Icons.person_pin_circle_outlined,
+                      color: CEColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Cobrador Asignado',
+                          style: TextStyle(fontSize: 11, color: CEColors.textSecondary)),
+                      const SizedBox(height: 2),
+                      Text(_nombreCobradorAsignado(c),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: CEColors.textSecondary),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
           GridView.count(
             crossAxisCount: 2,

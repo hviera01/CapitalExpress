@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/inactividad_guard.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -29,6 +30,7 @@ class CapitalExpressApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,
+      builder: (context, child) => InactividadGuard(child: child!),
     );
   }
 }

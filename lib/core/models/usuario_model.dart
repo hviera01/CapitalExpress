@@ -10,6 +10,10 @@ class UsuarioModel {
   final String nombre;
   final String rol; // "admin" | "cobrador"
   final String estado; // "activo" | "inactivo"
+  final String direccion;
+  final String identidad;
+  final String telefono;
+  final String fotoUrl;
 
   const UsuarioModel({
     required this.uid,
@@ -18,6 +22,10 @@ class UsuarioModel {
     required this.nombre,
     required this.rol,
     required this.estado,
+    this.direccion = '',
+    this.identidad = '',
+    this.telefono = '',
+    this.fotoUrl = '',
   });
 
   factory UsuarioModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -29,6 +37,10 @@ class UsuarioModel {
       nombre: (data['nombre'] ?? '') as String,
       rol: (data['rol'] ?? '') as String,
       estado: (data['estado'] ?? 'activo') as String,
+      direccion: (data['direccion'] ?? '') as String,
+      identidad: (data['identidad'] ?? '') as String,
+      telefono: (data['telefono'] ?? '') as String,
+      fotoUrl: (data['fotoUrl'] ?? '') as String,
     );
   }
 
@@ -38,5 +50,9 @@ class UsuarioModel {
         'nombre': nombre,
         'rol': rol,
         'estado': estado,
+        'direccion': direccion,
+        'identidad': identidad,
+        'telefono': telefono,
+        'fotoUrl': fotoUrl,
       };
 }

@@ -27,6 +27,8 @@ import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/reportes/presentation/screens/reportes_screen.dart';
 import '../../features/solicitudes/presentation/screens/solicitudes_screen.dart';
 import '../../features/solicitudes/presentation/screens/solicitud_detalle_screen.dart';
+import '../../features/usuarios/presentation/screens/usuarios_list_screen.dart';
+import '../../features/usuarios/presentation/screens/usuario_form_screen.dart';
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
@@ -155,6 +157,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: ':id',
             builder: (context, state) =>
                 SolicitudDetalleScreen(solicitudId: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/usuarios',
+        builder: (context, state) => const UsuariosListScreen(),
+        routes: [
+          GoRoute(
+            path: 'nuevo',
+            builder: (context, state) => const UsuarioFormScreen(),
+          ),
+          GoRoute(
+            path: ':id/editar',
+            builder: (context, state) =>
+                UsuarioFormScreen(usuarioId: state.pathParameters['id']),
           ),
         ],
       ),

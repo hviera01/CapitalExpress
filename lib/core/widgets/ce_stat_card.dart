@@ -25,9 +25,10 @@ class CeStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icono, color: color, size: 20),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -39,9 +40,9 @@ class CeStatCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(etiqueta,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+              style: const TextStyle(fontSize: 11, height: 1.15, color: CEColors.textSecondary)),
         ],
       ),
     );

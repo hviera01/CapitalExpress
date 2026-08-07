@@ -152,6 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           controller: _codigoCtrl,
           icono: Icons.person_outline,
           hint: 'Ingrese su código',
+          keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 18),
         _campoOscuro(
@@ -211,6 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     bool obscure = false,
     Widget? suffix,
     void Function(String)? onSubmit,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,6 +225,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         TextField(
           controller: controller,
           obscureText: obscure,
+          keyboardType: keyboardType,
           style: const TextStyle(color: Colors.white),
           onSubmitted: onSubmit,
           decoration: InputDecoration(

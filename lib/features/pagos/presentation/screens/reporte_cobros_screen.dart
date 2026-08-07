@@ -127,7 +127,7 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
       maxWidth: 1000,
       appBar: AppBar(
         leading: const BackButton(),
-        title: const Text('Historial de Pagos'),
+        title: Text(_esAdmin ? 'Historial de Pagos' : 'Mis Pagos'),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
