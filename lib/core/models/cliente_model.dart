@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/firestore_parse.dart';
+
 /// Espejo del doc `clientes` en Firestore (ui/models/ClienteModel.kt).
 class ClienteModel {
   final String id;
@@ -107,8 +109,8 @@ class ClienteModel {
       estado: d['estado'] == null ? 'activo' : s('estado'),
       tienePrestamo: (d['tienePrestamo'] ?? false) as bool,
       cobradorAsignado: s('cobradorAsignado'),
-      fechaCreacion: d['fechaCreacion'] as Timestamp?,
-      ultimaActividad: d['ultimaActividad'] as Timestamp?,
+      fechaCreacion: asTimestamp(d['fechaCreacion']),
+      ultimaActividad: asTimestamp(d['ultimaActividad']),
     );
   }
 

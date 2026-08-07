@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/firestore_parse.dart';
+
 /// Espejo del doc `prestamos` en Firestore (ui/models/Prestamo.kt +
 /// campos extra escritos por otras pantallas que no estaban en el data
 /// class original pero si en los mapas de escritura: clienteId, plazo,
@@ -22,7 +24,7 @@ class MoraIndividual {
   factory MoraIndividual.fromMap(Map<String, dynamic> m) => MoraIndividual(
         id: (m['id'] ?? '') as String,
         monto: (m['monto'] as num?)?.toDouble() ?? 0.0,
-        fechaAplicada: m['fechaAplicada'] as Timestamp?,
+        fechaAplicada: asTimestamp(m['fechaAplicada']),
         aplicadaPor: (m['aplicadaPor'] ?? '') as String,
         sintetica: (m['sintetica'] ?? false) as bool,
       );
@@ -135,9 +137,9 @@ class PrestamoModel {
       pagos: dOrNull('pagos'),
       firma: (d['firma'] ?? '') as String,
       observaciones: (d['observaciones'] ?? '') as String,
-      fechaCreacion: d['fechaCreacion'] as Timestamp?,
-      fechaUltimaActualizacion: d['fechaUltimaActualizacion'] as Timestamp?,
-      fechaCancelacion: d['fechaCancelacion'] as Timestamp?,
+      fechaCreacion: asTimestamp(d['fechaCreacion']),
+      fechaUltimaActualizacion: asTimestamp(d['fechaUltimaActualizacion']),
+      fechaCancelacion: asTimestamp(d['fechaCancelacion']),
       fotos: (d['fotos'] as List?)?.cast<String>() ?? const [],
       proximoPago: d['proximoPago'],
       morasAplicadas: (d['morasAplicadas'] as List?)?.cast<String>() ?? const [],

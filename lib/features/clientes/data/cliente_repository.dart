@@ -12,10 +12,19 @@ class ClienteRepository {
     if (cobradorUid != null) {
       query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
     }
-    return query.snapshots().map(
-          (snap) => snap.docs.map(ClienteModel.fromDoc).toList()
-            ..sort((a, b) => a.nombre.compareTo(b.nombre)),
-        );
+    return query.snapshots().map((snap) {
+      final clientes = <ClienteModel>[];
+      for (final doc in snap.docs) {
+        try {
+          clientes.add(ClienteModel.fromDoc(doc));
+        } catch (_) {
+          // Un documento con un campo en formato inesperado no debe tumbar
+          // toda la lista de clientes; se omite y siguen los demas.
+        }
+      }
+      clientes.sort((a, b) => a.nombre.compareTo(b.nombre));
+      return clientes;
+    });
   }
 
   Future<ClienteModel?> obtenerPorId(String id) async {

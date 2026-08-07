@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/firestore_parse.dart';
+
 /// Una cuota cubierta por un pago (parte del resultado de la cascada
 /// de distribucion, persistida junto al pago para poder reconstruir
 /// la cobertura de cuotas despues). Cuota 0 = abono aplicado a mora.
@@ -103,7 +105,7 @@ class PagoModel {
       cuota: (d['descripcionCuotas'] ?? d['cuota'] ?? '') as String,
       notas: d['notas'] as String?,
       fechaPago: d['fechaPago'] as String?,
-      timestamp: d['timestamp'] as Timestamp?,
+      timestamp: asTimestamp(d['timestamp']),
       cuotasTotales: (d['cuotasTotales'] as num?)?.toInt() ?? 0,
       cuotasCubiertas: (d['cuotasCubiertas'] as List?)
               ?.map((m) => CuotaCubierta.fromMap(Map<String, dynamic>.from(m as Map)))
