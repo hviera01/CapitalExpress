@@ -27,6 +27,7 @@ class SolicitudModel {
   final String? cobradorUid;
   final String cobradorSolicitante;
   final int diasEfectivos;
+  final Timestamp? fechaCreacion;
 
   const SolicitudModel({
     required this.id,
@@ -52,6 +53,7 @@ class SolicitudModel {
     this.cobradorUid,
     this.cobradorSolicitante = '',
     this.diasEfectivos = 0,
+    this.fechaCreacion,
   });
 
   factory SolicitudModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -81,6 +83,7 @@ class SolicitudModel {
       cobradorUid: d['cobradorUid'] as String?,
       cobradorSolicitante: (d['cobradorSolicitante'] ?? '') as String,
       diasEfectivos: (d['diasEfectivos'] as num?)?.toInt() ?? 0,
+      fechaCreacion: d['fechaCreacion'] as Timestamp?,
     );
   }
 }

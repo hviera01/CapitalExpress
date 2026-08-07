@@ -18,13 +18,21 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
+import '../../../solicitudes/providers/solicitudes_provider.dart';
 import '../../data/recibo_prestamo_service.dart';
 import '../../providers/prestamos_provider.dart';
 
+/// Tambien sirve como "Solicitar Préstamo" (modoSolicitud:true, lo usan
+/// los cobradores): mismo formulario y mismos calculos que Crear
+/// Préstamo, pero escribe a `solicitudes_prestamo` en vez de
+/// `prestamos` directamente -- no genera numeroPrestamo (eso pasa
+/// recien si el admin la aprueba) y no imprime recibo, queda pendiente
+/// de revision.
 class CrearPrestamoScreen extends ConsumerStatefulWidget {
   final String? clienteIdInicial;
+  final bool modoSolicitud;
 
-  const CrearPrestamoScreen({super.key, this.clienteIdInicial});
+  const CrearPrestamoScreen({super.key, this.clienteIdInicial, this.modoSolicitud = false});
 
   @override
   ConsumerState<CrearPrestamoScreen> createState() => _CrearPrestamoScreenState();
@@ -97,14 +105,48 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
       final calculo = _calculo;
       final proximaFecha = calcularProximaFecha(_fechaInicio, _plazo);
 
-      final repo = ref.read(prestamoRepositoryProvider);
-      final numeroPrestamo = await repo.generarNumeroPrestamo(_clienteSeleccionado!.nombre);
-
       final storage = StorageService();
       final urlsFotos = <String>[];
       for (final bytes in _fotos) {
         urlsFotos.add(await storage.subirFoto(bytes: bytes, carpeta: 'prestamos'));
       }
+
+      if (widget.modoSolicitud) {
+        await ref.read(solicitudRepositoryProvider).crear(
+              clienteId: _clienteSeleccionado!.id,
+              clienteNombre: _clienteSeleccionado!.nombre,
+              monto: monto,
+              usarInteresMensual: _usarInteresMensual,
+              interesMensual: double.tryParse(_interesMensualCtrl.text) ?? 0,
+              interesTotalFijo: double.tryParse(_interesTotalCtrl.text) ?? 0,
+              interesCalculado: calculo.interesCalculado,
+              moraDiaria: double.tryParse(_moraCtrl.text) ?? 0,
+              totalAPagar: calculo.totalAPagar,
+              cuotaEstimada: calculo.cuotaEstimada,
+              cuotas: cuotas,
+              plazo: _plazo,
+              fechaInicio: _fechaInicio,
+              lugar: _lugarCtrl.text.trim(),
+              firma: '',
+              garantia: _garantiaCtrl.text.trim(),
+              observaciones: _observacionesCtrl.text.trim(),
+              fotos: urlsFotos,
+              diasEfectivos: diasEfectivos,
+              cobradorNombre: usuario.nombre,
+              cobradorUid: usuario.uid,
+              numeroCobrador: usuario.codigo,
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Solicitud enviada, queda pendiente de aprobación')),
+          );
+          context.pop();
+        }
+        return;
+      }
+
+      final repo = ref.read(prestamoRepositoryProvider);
+      final numeroPrestamo = await repo.generarNumeroPrestamo(_clienteSeleccionado!.nombre);
 
       final prestamoId = await repo.crear({
         'numeroPrestamo': numeroPrestamo,
@@ -167,8 +209,9 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('No se pudo crear el préstamo: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo ${widget.modoSolicitud ? 'enviar la solicitud' : 'crear el préstamo'}: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _guardando = false);
@@ -186,7 +229,9 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
-        leading: const BackButton(),title: const Text('Nuevo Préstamo')),
+        leading: const BackButton(),
+        title: Text(widget.modoSolicitud ? 'Solicitar Préstamo' : 'Nuevo Préstamo'),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -386,8 +431,8 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.print_outlined),
-                label: const Text('Guardar e Imprimir'),
+                    : Icon(widget.modoSolicitud ? Icons.send_outlined : Icons.print_outlined),
+                label: Text(widget.modoSolicitud ? 'Enviar Solicitud' : 'Guardar e Imprimir'),
               ),
             ),
             const SizedBox(height: 24),

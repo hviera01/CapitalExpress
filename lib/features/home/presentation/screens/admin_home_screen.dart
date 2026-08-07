@@ -96,7 +96,7 @@ class AdminHomeScreen extends ConsumerWidget {
                 icono: Icons.forum_outlined,
                 titulo: 'Solicitudes',
                 subtitulo: '',
-                onTap: () => _proximamente(context, 'Solicitudes'),
+                onTap: () => context.push('/solicitudes'),
               ),
               CeMenuCard(
                 icono: Icons.people_outline,

@@ -1,6 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/pago_model.dart';
+import '../../../core/models/prestamo_model.dart';
+import '../../../core/utils/cuotas_calculos.dart';
+
+class PagoRegistrado {
+  final PagoModel pago;
+  final ResultadoDistribucion distribucion;
+
+  const PagoRegistrado({required this.pago, required this.distribucion});
+}
 
 class PagoRepository {
   final _col = FirebaseFirestore.instance.collection('pagos');
@@ -72,40 +81,181 @@ class PagoRepository {
     return pagos;
   }
 
-  /// Borra un pago Y revierte su efecto en el prestamo (montoPagado,
-  /// mora, saldo), para que el saldo pendiente vuelva a ser el correcto
-  /// despues de borrar -- si solo se borrara el doc de `pagos`, el
-  /// prestamo seguiria mostrando ese abono como aplicado aunque el
-  /// registro ya no exista.
+  /// Borra un pago Y recalcula el prestamo (montoPagado/saldo/estado)
+  /// desde cero a partir de los pagos que quedan, en vez de "revertir"
+  /// con una resta puntual -- mismo criterio "recalcular desde la
+  /// fuente" que usa registrarPago, para no acumular errores de
+  /// redondeo/estados intermedios. OJO: `mora` (el doc del prestamo) es
+  /// un total HISTORICO de mora aplicada, no se toca al borrar un pago
+  /// -- la mora pendiente ya se deriva solita de `mora - suma(pagos
+  /// restantes .mora)`, restando el pago borrado de esa suma alcanza.
+  /// Excepcion: si el prestamo ya estaba "saldado" ese historico se
+  /// habia puesto en 0 -- no se puede reconstruir exactamente, queda en
+  /// 0 (limitacion conocida, caso raro: borrar el pago que saldo todo).
   Future<void> eliminarConReversion(PagoModel pago) async {
     final db = FirebaseFirestore.instance;
     final prestamoRef = db.collection('prestamos').doc(pago.prestamoId);
-    final pagoRef = _col.doc(pago.docId);
 
-    await db.runTransaction((tx) async {
-      final prestamoSnap = await tx.get(prestamoRef);
-      if (prestamoSnap.exists) {
-        final d = prestamoSnap.data()!;
-        final montoPagadoActual = (d['montoPagado'] as num?)?.toDouble() ?? 0;
-        final moraActual = (d['mora'] as num?)?.toDouble() ?? 0;
-        final saldoActual = (d['saldo'] as num?)?.toDouble() ?? 0;
-        final estadoActual = (d['estado'] ?? '') as String;
+    await _col.doc(pago.docId).delete();
 
-        final nuevoMontoPagado = (montoPagadoActual - pago.monto).clamp(0, double.infinity);
-        final nuevaMora = moraActual + pago.mora;
-        final nuevoSaldo = saldoActual + pago.monto + pago.mora;
-        final nuevoEstado = nuevoSaldo <= 0.01
-            ? 'saldado'
-            : (nuevaMora > 0.01 ? 'mora' : (estadoActual == 'saldado' ? 'activo' : estadoActual));
+    final prestamoSnap = await prestamoRef.get();
+    if (!prestamoSnap.exists) return;
+    final d = prestamoSnap.data()!;
+    final totalPagar = (d['totalPagar'] as num?)?.toDouble() ?? 0.0;
+    final moraHistorica = (d['mora'] as num?)?.toDouble() ?? 0.0;
 
-        tx.update(prestamoRef, {
-          'montoPagado': nuevoMontoPagado,
-          'mora': nuevaMora,
-          'saldo': nuevoSaldo,
-          'estado': nuevoEstado,
-        });
-      }
-      tx.delete(pagoRef);
+    final restantes = await obtenerPorPrestamo(pago.prestamoId);
+    final totalCuotasPagadas = restantes.fold<double>(0, (a, p) => a + p.monto);
+    final totalMoraPagada = restantes.fold<double>(0, (a, p) => a + p.mora);
+    final moraPendiente = (moraHistorica - totalMoraPagada).clamp(0, double.infinity);
+
+    final nuevoSaldo = (totalPagar - totalCuotasPagadas + moraPendiente).clamp(0, double.infinity);
+    final nuevoMontoPagado = totalCuotasPagadas + totalMoraPagada;
+    final nuevoEstado =
+        nuevoSaldo <= 0.01 ? 'saldado' : (moraPendiente > 0.01 ? 'mora' : 'activo');
+
+    await prestamoRef.update({
+      'montoPagado': nuevoMontoPagado,
+      'saldo': nuevoSaldo,
+      'estado': nuevoEstado,
+      'fechaUltimaActualizacion': Timestamp.now(),
     });
+  }
+
+  /// Registra un abono: reparte el monto entre mora y cuotas (cascada),
+  /// guarda el doc en `pagos`, y actualiza el prestamo -- mismo
+  /// algoritmo y formulas que RegistrarPagoScreen.kt (ver
+  /// core/utils/cuotas_calculos.dart para el detalle de cada formula).
+  /// Devuelve el pago ya guardado (para poder imprimir el recibo sin
+  /// otra lectura) junto con el detalle de la distribucion.
+  Future<PagoRegistrado> registrarPago({
+    required PrestamoModel prestamo,
+    required double montoPagado,
+    required String metodoPago,
+    required String lugar,
+    required String firma,
+    required String registradoPor,
+    required String nombreCobrador,
+  }) async {
+    final db = FirebaseFirestore.instance;
+    final prestamoRef = db.collection('prestamos').doc(prestamo.prestamoId);
+
+    final pagosPrevios = await obtenerPorPrestamo(prestamo.prestamoId);
+    final distribucion = distribuirPagoConMoraYCascada(
+      prestamo: prestamo,
+      pagosPrevios: pagosPrevios,
+      montoPagado: montoPagado,
+    );
+
+    final totalCuotasYaPagadas = pagosPrevios.fold<double>(0, (a, p) => a + p.monto);
+    final totalMoraYaPagada = pagosPrevios.fold<double>(0, (a, p) => a + p.mora);
+    final totalRealmentePagado = totalCuotasYaPagadas + totalMoraYaPagada;
+
+    final totalPagar = prestamo.totalPagar > 0 ? prestamo.totalPagar : (prestamo.monto + prestamo.interes);
+    final nuevoMontoPagado = totalRealmentePagado + montoPagado;
+    final moraYaPagadaTotal = totalMoraYaPagada + distribucion.moraAplicada;
+    final moraNuevamentePendiente =
+        (distribucion.moraHistoricaCorregida - moraYaPagadaTotal).clamp(0.0, double.infinity);
+    final cuotasAcumuladas = totalCuotasYaPagadas + distribucion.montoPagoNormal;
+    final nuevoSaldo =
+        (totalPagar - cuotasAcumuladas + moraNuevamentePendiente).clamp(0.0, double.infinity);
+
+    final moraCubierta = distribucion.cuotasCubiertas.where((c) => c.numeroCuota == 0);
+    final nuevoEstado = nuevoSaldo <= 0.01
+        ? 'saldado'
+        : (moraCubierta.isNotEmpty && !moraCubierta.first.completada ? 'mora' : 'activo');
+
+    final ahora = Timestamp.now();
+    final descripcion = _descripcionPago(distribucion);
+
+    final pagoRef = _col.doc();
+    await pagoRef.set({
+      'clienteId': prestamo.clienteId,
+      'clienteNombre': prestamo.cliente,
+      'prestamoId': prestamo.prestamoId,
+      'numeroPrestamo': prestamo.numeroPrestamo,
+      'monto': distribucion.montoPagoNormal,
+      'mora': distribucion.moraAplicada,
+      'fechaPago': ahora,
+      'registradoPor': registradoPor,
+      'nombreCobrador': nombreCobrador,
+      'saldoRestante': nuevoSaldo,
+      'lugar': lugar,
+      'firma': firma,
+      'metodoPago': metodoPago,
+      'plazo': prestamo.plazo,
+      'proximaFechaProgramada': distribucion.fechaProximoPago != null
+          ? Timestamp.fromDate(distribucion.fechaProximoPago!)
+          : null,
+      'totalCuotasCompletas': distribucion.totalCuotasCompletas,
+      'cuotasCubiertas':
+          distribucion.cuotasCubiertas.where((c) => c.numeroCuota > 0).map((c) => c.toMap()).toList(),
+      'descripcionCuotas': descripcion,
+      'sistemaPagoEnCascada': true,
+    });
+
+    final actualizacionPrestamo = <String, dynamic>{
+      'saldo': nuevoSaldo,
+      'montoPagado': nuevoMontoPagado,
+      'proximoPago': distribucion.fechaProximoPago != null
+          ? Timestamp.fromDate(distribucion.fechaProximoPago!)
+          : 'saldado',
+      'estado': nuevoEstado,
+      'fechaUltimaActualizacion': ahora,
+      'mora': distribucion.moraHistoricaCorregida,
+    };
+    if (nuevoSaldo <= 0.01) {
+      actualizacionPrestamo['fechaSaldado'] = ahora;
+      actualizacionPrestamo['fechaCancelacion'] = ahora;
+      actualizacionPrestamo['mora'] = 0.0;
+    }
+    await prestamoRef.update(actualizacionPrestamo);
+
+    // Best-effort, igual que el runCatching del Kotlin original: si esto
+    // falla no debe tumbar el pago que ya se guardo.
+    try {
+      await db.collection('clientes').doc(prestamo.clienteId).update({
+        'ultimaActividad': ahora,
+        'fechaUltimaActualizacion': ahora,
+      });
+    } catch (_) {}
+
+    final pagoGuardado = PagoModel(
+      docId: pagoRef.id,
+      clienteId: prestamo.clienteId,
+      clienteNombre: prestamo.cliente,
+      prestamoId: prestamo.prestamoId,
+      numeroPrestamo: prestamo.numeroPrestamo,
+      monto: distribucion.montoPagoNormal,
+      mora: distribucion.moraAplicada,
+      fechaPago: ahora,
+      registradoPor: registradoPor,
+      nombreCobrador: nombreCobrador,
+      saldoRestante: nuevoSaldo,
+      lugar: lugar,
+      firma: firma,
+      metodoPago: metodoPago,
+      plazo: prestamo.plazo,
+      proximaFechaProgramada:
+          distribucion.fechaProximoPago != null ? Timestamp.fromDate(distribucion.fechaProximoPago!) : null,
+      totalCuotasCompletas: distribucion.totalCuotasCompletas,
+      descripcionCuotas: descripcion,
+      sistemaPagoEnCascada: true,
+      cuotasCubiertas: distribucion.cuotasCubiertas.where((c) => c.numeroCuota > 0).toList(),
+    );
+
+    return PagoRegistrado(pago: pagoGuardado, distribucion: distribucion);
+  }
+
+  String _descripcionPago(ResultadoDistribucion d) {
+    final partes = <String>[];
+    for (final c in d.cuotasCubiertas) {
+      if (c.numeroCuota == 0) {
+        partes.add('Mora${c.completada ? ' ✓' : ''}');
+      } else {
+        partes.add('Cuota #${c.numeroCuota}${c.completada ? ' ✓' : ' (parcial)'}');
+      }
+    }
+    return partes.isEmpty ? 'Abono' : partes.join(' + ');
   }
 }

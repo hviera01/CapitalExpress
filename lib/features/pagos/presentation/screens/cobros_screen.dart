@@ -371,15 +371,17 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => context.push('/prestamos/${p.prestamoId}'),
+                                    child: ElevatedButton(
+                                      onPressed: () =>
+                                          context.push('/prestamos/${p.prestamoId}/cobrar'),
                                       child: const Text('Pagar'),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed: () => context.push('/prestamos/${p.prestamoId}'),
+                                      onPressed: () =>
+                                          context.push('/prestamos/${p.prestamoId}/cuotas'),
                                       child: const Text('Cuotas'),
                                     ),
                                   ),

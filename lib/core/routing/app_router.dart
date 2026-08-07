@@ -21,8 +21,12 @@ import '../../features/prestamos/presentation/screens/reporte_prestamos_screen.d
 import '../../features/pagos/presentation/screens/historial_pagos_prestamo_screen.dart';
 import '../../features/pagos/presentation/screens/reporte_cobros_screen.dart';
 import '../../features/pagos/presentation/screens/cobros_screen.dart';
+import '../../features/pagos/presentation/screens/cobrar_screen.dart';
+import '../../features/pagos/presentation/screens/ver_cuotas_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/reportes/presentation/screens/reportes_screen.dart';
+import '../../features/solicitudes/presentation/screens/solicitudes_screen.dart';
+import '../../features/solicitudes/presentation/screens/solicitud_detalle_screen.dart';
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
@@ -100,6 +104,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: 'solicitar',
+            builder: (context, state) => CrearPrestamoScreen(
+              clienteIdInicial: state.uri.queryParameters['clienteId'],
+              modoSolicitud: true,
+            ),
+          ),
+          GoRoute(
             path: ':id',
             builder: (context, state) =>
                 PrestamoDetalleScreen(prestamoId: state.pathParameters['id']!),
@@ -116,11 +127,37 @@ final routerProvider = Provider<GoRouter>((ref) {
                   numeroPrestamo: state.uri.queryParameters['numero'] ?? '',
                 ),
               ),
+              GoRoute(
+                path: 'cobrar',
+                builder: (context, state) {
+                  final monto = double.tryParse(state.uri.queryParameters['monto'] ?? '');
+                  return CobrarScreen(
+                    prestamoId: state.pathParameters['id']!,
+                    montoInicial: monto,
+                  );
+                },
+              ),
+              GoRoute(
+                path: 'cuotas',
+                builder: (context, state) =>
+                    VerCuotasScreen(prestamoId: state.pathParameters['id']!),
+              ),
             ],
           ),
         ],
       ),
       GoRoute(path: '/cobros', builder: (context, state) => const CobrosScreen()),
+      GoRoute(
+        path: '/solicitudes',
+        builder: (context, state) => const SolicitudesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) =>
+                SolicitudDetalleScreen(solicitudId: state.pathParameters['id']!),
+          ),
+        ],
+      ),
       GoRoute(
         path: '/reportes',
         builder: (context, state) => const ReportesScreen(),

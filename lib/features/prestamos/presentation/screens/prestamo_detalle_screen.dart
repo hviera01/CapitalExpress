@@ -310,18 +310,30 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             ),
           ],
           const SizedBox(height: 20),
+          if (!p.eliminado && p.estado != 'saldado') ...[
+            SizedBox(
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () => context.push('/prestamos/${p.prestamoId}/cobrar'),
+                style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
+                icon: const Icon(Icons.payments_outlined),
+                label: const Text('Cobrar'),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           SizedBox(
             height: 50,
             child: OutlinedButton.icon(
-              onPressed: () => ReciboPrestamoService.imprimir(p),
-              icon: const Icon(Icons.print_outlined),
-              label: const Text('Reimprimir Recibo del Préstamo'),
+              onPressed: () => context.push('/prestamos/${p.prestamoId}/cuotas'),
+              icon: const Icon(Icons.list_alt_outlined),
+              label: const Text('Ver Cuotas del Préstamo'),
             ),
           ),
           const SizedBox(height: 12),
           SizedBox(
             height: 50,
-            child: ElevatedButton.icon(
+            child: OutlinedButton.icon(
               onPressed: () => context
                   .push('/prestamos/${p.prestamoId}/pagos?numero=${p.numeroPrestamo}'),
               icon: const Icon(Icons.receipt_long_outlined),
@@ -332,11 +344,9 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
           SizedBox(
             height: 50,
             child: OutlinedButton.icon(
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sistema de Cuotas - próximamente')),
-              ),
-              icon: const Icon(Icons.list_alt_outlined),
-              label: const Text('Ver Cuotas del Préstamo'),
+              onPressed: () => ReciboPrestamoService.imprimir(p),
+              icon: const Icon(Icons.print_outlined),
+              label: const Text('Reimprimir Recibo del Préstamo'),
             ),
           ),
           const SizedBox(height: 24),

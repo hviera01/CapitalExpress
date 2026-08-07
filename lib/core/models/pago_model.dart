@@ -2,25 +2,37 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../utils/firestore_parse.dart';
 
-/// Una cuota cubierta por un pago (parte del resultado de la cascada
-/// de distribucion, persistida junto al pago para poder reconstruir
-/// la cobertura de cuotas despues). Cuota 0 = abono aplicado a mora.
+/// Una cuota cubierta por un pago (parte del resultado de la cascada de
+/// distribucion, persistida junto al pago para poder reconstruir la
+/// cobertura de cuotas despues). Cuota 0 = abono aplicado a mora (pero
+/// esa entrada NUNCA se escribe en el array `cuotasCubiertas` del doc,
+/// la mora solo se representa con el campo `mora` de nivel superior --
+/// ver RegistrarPagoScreen.kt linea 1037, `cuotasNormales = ...filter {
+/// it.numeroCuota > 0 }`). Campos verificados contra el sitio real de
+/// escritura: numeroCuota, montoAplicado, completada -- no existe
+/// "totalCuota" en el documento real.
 class CuotaCubierta {
   final int numeroCuota;
   final double montoAplicado;
-  final double totalCuota;
+  final bool completada;
 
   const CuotaCubierta({
     required this.numeroCuota,
     required this.montoAplicado,
-    required this.totalCuota,
+    required this.completada,
   });
 
   factory CuotaCubierta.fromMap(Map<String, dynamic> m) => CuotaCubierta(
         numeroCuota: (m['numeroCuota'] as num?)?.toInt() ?? 0,
         montoAplicado: (m['montoAplicado'] as num?)?.toDouble() ?? 0.0,
-        totalCuota: (m['totalCuota'] as num?)?.toDouble() ?? 0.0,
+        completada: (m['completada'] ?? false) as bool,
       );
+
+  Map<String, dynamic> toMap() => {
+        'numeroCuota': numeroCuota,
+        'montoAplicado': montoAplicado,
+        'completada': completada,
+      };
 }
 
 /// Espejo del doc `pagos` en Firestore -- nombres de campo verificados

@@ -15,12 +15,6 @@ const _colorSubtitulo = Color(0xFF2DD9B8);
 class CobradorHomeScreen extends ConsumerWidget {
   const CobradorHomeScreen({super.key});
 
-  void _proximamente(BuildContext context, String modulo) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$modulo - próximamente')),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
@@ -94,6 +88,14 @@ class CobradorHomeScreen extends ConsumerWidget {
               child: Divider(height: 1, color: CEColors.border),
             ),
           ],
+          // Lo mas usado va arriba de todo.
+          CeMenuRow(
+            icono: Icons.notifications_active_outlined,
+            titulo: 'Cobros',
+            subtitulo: 'Cuotas vencidas y próximas',
+            chevron: true,
+            onTap: () => context.push('/cobros'),
+          ),
           const CeSectionLabel('Opciones principales'),
           GridView.count(
             crossAxisCount: columnas,
@@ -125,7 +127,7 @@ class CobradorHomeScreen extends ConsumerWidget {
                 icono: Icons.payments_outlined,
                 titulo: 'Mis Pagos',
                 subtitulo: 'Recaudación',
-                onTap: () => _proximamente(context, 'Mis Pagos'),
+                onTap: () => context.push('/reportes/cobros'),
               ),
             ],
           ),
@@ -135,15 +137,7 @@ class CobradorHomeScreen extends ConsumerWidget {
             titulo: 'Solicitar Préstamo',
             subtitulo: 'Crear nueva solicitud',
             chevron: true,
-            onTap: () => _proximamente(context, 'Solicitar Préstamo'),
-          ),
-          const SizedBox(height: 12),
-          CeMenuRow(
-            icono: Icons.notifications_outlined,
-            titulo: 'Cobros',
-            subtitulo: 'Cuotas vencidas y próximas',
-            chevron: true,
-            onTap: () => context.push('/cobros'),
+            onTap: () => context.push('/prestamos/solicitar'),
           ),
           const SizedBox(height: 24),
         ],
