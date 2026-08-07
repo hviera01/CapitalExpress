@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -20,12 +22,22 @@ String _fechaHora(DateTime d) => '${_fecha(d)} ${_f2(d.hour)}:${_f2(d.minute)}';
 /// salio impreso quando se registro el pago originalmente.
 class ReciboPagoService {
   static Future<void> imprimir(PagoModel p) async {
+    // IMPORTANTE: Printing.layoutPdf() tiene que ser lo PRIMERO que se
+    // llama, sin ningun `await` antes -- en Web/movil el navegador solo
+    // deja abrir el dialogo de impresion si viene disparado
+    // sincronicamente desde el tap del usuario. Antes se hacia un
+    // `await` a Firestore para traer el prestamo ANTES de llamar esto,
+    // y el navegador bloqueaba el dialogo en silencio (no pasaba nada
+    // al tocar "Reimprimir"). Ahora ese fetch se hace DENTRO de
+    // onLayout, que la libreria de impresion ya maneja de forma async.
+    await Printing.layoutPdf(onLayout: (format) => _generar(p));
+  }
+
+  static Future<Uint8List> _generar(PagoModel p) async {
     PrestamoModel? prestamo;
     if (p.prestamoId.isNotEmpty) {
-      final doc = await FirebaseFirestore.instance
-          .collection('prestamos')
-          .doc(p.prestamoId)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance.collection('prestamos').doc(p.prestamoId).get();
       if (doc.exists) prestamo = PrestamoModel.fromDoc(doc);
     }
 
@@ -167,7 +179,7 @@ class ReciboPagoService {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+    return pdf.save();
   }
 
   static pw.Widget _fila(String label, String valor) {

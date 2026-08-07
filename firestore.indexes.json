@@ -51,6 +51,23 @@
       ]
     },
     {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eliminado", "order": "ASCENDING" },
+        { "fieldPath": "saldo", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eliminado", "order": "ASCENDING" },
+        { "fieldPath": "cobradorAsignado", "order": "ASCENDING" },
+        { "fieldPath": "saldo", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "pagos",
       "queryScope": "COLLECTION",
       "fields": [

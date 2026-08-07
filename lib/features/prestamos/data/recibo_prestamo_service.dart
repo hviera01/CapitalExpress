@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -19,6 +21,14 @@ String _fecha(DateTime d) => '${_f2(d.day)}/${_f2(d.month)}/${d.year}';
 /// firma).
 class ReciboPrestamoService {
   static Future<void> imprimir(PrestamoModel p) async {
+    // Igual que ReciboPagoService: Printing.layoutPdf() va primero, sin
+    // ningun await antes, para que el navegador no bloquee el dialogo
+    // de impresion (solo lo permite si sale disparado directo del tap
+    // del usuario, sin un `await` a Firestore de por medio).
+    await Printing.layoutPdf(onLayout: (format) => _generar(p));
+  }
+
+  static Future<Uint8List> _generar(PrestamoModel p) async {
     ClienteModel? cliente;
     if (p.clienteId.isNotEmpty) {
       final doc = await FirebaseFirestore.instance.collection('clientes').doc(p.clienteId).get();
@@ -135,7 +145,7 @@ class ReciboPrestamoService {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+    return pdf.save();
   }
 
   static pw.Widget _fila(String label, String valor) {
