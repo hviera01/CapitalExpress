@@ -18,6 +18,7 @@ import '../../features/prestamos/presentation/screens/crear_prestamo_screen.dart
 import '../../features/prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../features/prestamos/presentation/screens/editar_prestamo_screen.dart';
 import '../../features/prestamos/presentation/screens/reporte_prestamos_screen.dart';
+import '../../features/pagos/presentation/screens/historial_pagos_prestamo_screen.dart';
 import '../../features/pagos/presentation/screens/reporte_cobros_screen.dart';
 import '../../features/pagos/presentation/screens/cobros_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
@@ -107,6 +108,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'editar',
                 builder: (context, state) =>
                     EditarPrestamoScreen(prestamoId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: 'pagos',
+                builder: (context, state) => HistorialPagosPrestamoScreen(
+                  prestamoId: state.pathParameters['id']!,
+                  numeroPrestamo: state.uri.queryParameters['numero'] ?? '',
+                ),
               ),
             ],
           ),

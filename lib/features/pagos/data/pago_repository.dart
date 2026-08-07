@@ -58,7 +58,40 @@ class PagoRepository {
     return pagos;
   }
 
-  Future<void> eliminar(String id) async {
-    await _col.doc(id).delete();
+  /// Borra un pago Y revierte su efecto en el prestamo (montoPagado,
+  /// mora, saldo), para que el saldo pendiente vuelva a ser el correcto
+  /// despues de borrar -- si solo se borrara el doc de `pagos`, el
+  /// prestamo seguiria mostrando ese abono como aplicado aunque el
+  /// registro ya no exista.
+  Future<void> eliminarConReversion(PagoModel pago) async {
+    final db = FirebaseFirestore.instance;
+    final prestamoRef = db.collection('prestamos').doc(pago.prestamoId);
+    final pagoRef = _col.doc(pago.docId);
+
+    await db.runTransaction((tx) async {
+      final prestamoSnap = await tx.get(prestamoRef);
+      if (prestamoSnap.exists) {
+        final d = prestamoSnap.data()!;
+        final montoPagadoActual = (d['montoPagado'] as num?)?.toDouble() ?? 0;
+        final moraActual = (d['mora'] as num?)?.toDouble() ?? 0;
+        final saldoActual = (d['saldo'] as num?)?.toDouble() ?? 0;
+        final estadoActual = (d['estado'] ?? '') as String;
+
+        final nuevoMontoPagado = (montoPagadoActual - pago.monto).clamp(0, double.infinity);
+        final nuevaMora = moraActual + pago.mora;
+        final nuevoSaldo = saldoActual + pago.monto + pago.mora;
+        final nuevoEstado = nuevoSaldo <= 0.01
+            ? 'saldado'
+            : (nuevaMora > 0.01 ? 'mora' : (estadoActual == 'saldado' ? 'activo' : estadoActual));
+
+        tx.update(prestamoRef, {
+          'montoPagado': nuevoMontoPagado,
+          'mora': nuevaMora,
+          'saldo': nuevoSaldo,
+          'estado': nuevoEstado,
+        });
+      }
+      tx.delete(pagoRef);
+    });
   }
 }

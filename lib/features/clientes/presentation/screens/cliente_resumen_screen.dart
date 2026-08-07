@@ -14,6 +14,7 @@ import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
+import '../../../../core/widgets/visor_foto_zoom.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../providers/clientes_provider.dart';
@@ -165,7 +166,10 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                     width: 96,
                     height: 96,
                     child: c.fotoPersonaUrl.isNotEmpty
-                        ? ImagenRedNetwork(url: c.fotoPersonaUrl)
+                        ? GestureDetector(
+                            onTap: () => abrirFotoZoom(context, c.fotoPersonaUrl),
+                            child: ImagenRedNetwork(url: c.fotoPersonaUrl),
+                          )
                         : const ColoredBox(
                             color: CEColors.surface,
                             child: Icon(Icons.person_outline,

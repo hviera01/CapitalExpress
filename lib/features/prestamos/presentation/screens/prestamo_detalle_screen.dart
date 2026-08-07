@@ -328,6 +328,16 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
           SizedBox(
             height: 50,
             child: ElevatedButton.icon(
+              onPressed: () => context
+                  .push('/prestamos/${p.prestamoId}/pagos?numero=${p.numeroPrestamo}'),
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Historial de Pagos'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Sistema de Cuotas - próximamente')),
               ),

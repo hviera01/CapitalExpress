@@ -1,0 +1,144 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../core/models/pago_model.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/pdf_preview_screen.dart';
+import '../../data/reporte_cobros_pdf_service.dart';
+import '../../providers/pagos_provider.dart';
+import '../widgets/pago_tile.dart';
+
+/// Historial de Pagos de UN prestamo puntual (desde Ver Préstamo).
+class HistorialPagosPrestamoScreen extends ConsumerStatefulWidget {
+  final String prestamoId;
+  final String numeroPrestamo;
+
+  const HistorialPagosPrestamoScreen({
+    super.key,
+    required this.prestamoId,
+    required this.numeroPrestamo,
+  });
+
+  @override
+  ConsumerState<HistorialPagosPrestamoScreen> createState() =>
+      _HistorialPagosPrestamoScreenState();
+}
+
+class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPrestamoScreen> {
+  bool _cargando = true;
+  List<PagoModel> _pagos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    setState(() => _cargando = true);
+    final pagos = await ref.read(pagoRepositoryProvider).obtenerPorPrestamo(widget.prestamoId);
+    if (!mounted) return;
+    setState(() {
+      _pagos = pagos;
+      _cargando = false;
+    });
+  }
+
+  void _exportarPdf() {
+    final f = DateFormat('dd/MM/yyyy HH:mm');
+    final filas = _pagos
+        .map((p) => FilaReporteCobro(
+              cliente: p.clienteNombre,
+              numeroPrestamo: p.numeroPrestamo,
+              fechaPago: p.fechaPago != null ? f.format(p.fechaPago!.toDate()) : '—',
+              abono: p.monto,
+              mora: p.mora,
+              cobrador: p.nombreCobrador.isEmpty ? 'N/D' : p.nombreCobrador,
+            ))
+        .toList();
+    abrirVistaPreviaPdf(
+      context,
+      titulo: 'Historial de Pagos',
+      nombreArchivo: 'historial_pagos_${widget.numeroPrestamo}.pdf',
+      generar: () => ReporteCobrosPdfService.generarPagos(
+        filas: filas,
+        filtroTexto: 'Préstamo N° ${widget.numeroPrestamo}',
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalAbonado = _pagos.fold<double>(0, (a, p) => a + p.monto);
+    final totalMora = _pagos.fold<double>(0, (a, p) => a + p.mora);
+
+    return CeScaffold(
+      maxWidth: 720,
+      appBar: AppBar(
+        title: const Text('Historial de Pagos'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Exportar PDF',
+            onPressed: _cargando ? null : _exportarPdf,
+          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
+        ],
+      ),
+      body: _cargando
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text('Préstamo N° ${widget.numeroPrestamo}',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 3,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 1.15,
+                  children: [
+                    CeStatCard(
+                        icono: Icons.receipt_long_outlined,
+                        valor: '${_pagos.length}',
+                        etiqueta: 'Pagos'),
+                    CeStatCard(
+                        icono: Icons.savings_outlined,
+                        valor: formatearLempiras(totalAbonado),
+                        etiqueta: 'Abonado',
+                        color: CEColors.success),
+                    CeStatCard(
+                        icono: Icons.report_gmailerrorred_outlined,
+                        valor: formatearLempiras(totalMora),
+                        etiqueta: 'Mora',
+                        color: CEColors.danger),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (_pagos.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 24),
+                    child: Center(child: Text('Este préstamo todavía no tiene pagos')),
+                  )
+                else
+                  ..._pagos.map((p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: PagoTile(
+                          pago: p,
+                          mostrarPrestamo: false,
+                          onEliminado: () =>
+                              setState(() => _pagos.removeWhere((x) => x.docId == p.docId)),
+                        ),
+                      )),
+              ],
+            ),
+    );
+  }
+}
