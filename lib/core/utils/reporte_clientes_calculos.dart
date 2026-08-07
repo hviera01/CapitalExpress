@@ -10,22 +10,34 @@ import '../models/prestamo_model.dart';
 class TotalesCliente {
   final double prestado;
   final double abonado;
-  final double pendiente;
+  final double pendiente; // saldo total, YA incluye la mora
+  final double mora; // mora sola, para mostrarla desglosada aparte
 
-  const TotalesCliente({this.prestado = 0, this.abonado = 0, this.pendiente = 0});
+  const TotalesCliente({
+    this.prestado = 0,
+    this.abonado = 0,
+    this.pendiente = 0,
+    this.mora = 0,
+  });
 }
 
 double _prestadoDe(PrestamoModel p) => p.totalPagar > 0 ? p.totalPagar : (p.monto + p.interes);
 
 TotalesCliente totalesCliente(List<PrestamoModel> prestamos) {
-  var prestado = 0.0, abonado = 0.0, pendiente = 0.0;
+  var prestado = 0.0, abonado = 0.0, pendiente = 0.0, mora = 0.0;
   for (final p in prestamos) {
-    final total = _prestadoDe(p);
-    prestado += total;
+    prestado += _prestadoDe(p);
     abonado += p.montoPagado;
-    pendiente += (total - p.montoPagado).clamp(0, double.infinity);
+    // "pendiente" es siempre el campo `saldo` del prestamo (no un
+    // total-montoPagado recalculado): `saldo` es el que se actualiza
+    // cuando se aplica una mora (Cobros -> Aplicar Mora se la suma), asi
+    // que ya viene con la mora incluida. Ademas se expone `mora` sola
+    // para poder mostrar el desglose (cuanto es capital+interes vs.
+    // cuanto es mora) sin perder el total combinado.
+    pendiente += p.saldo;
+    mora += p.mora;
   }
-  return TotalesCliente(prestado: prestado, abonado: abonado, pendiente: pendiente);
+  return TotalesCliente(prestado: prestado, abonado: abonado, pendiente: pendiente, mora: mora);
 }
 
 /// 'saldado' si no le queda nada pendiente en ningun prestamo (o el

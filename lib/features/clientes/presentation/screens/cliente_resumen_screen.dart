@@ -8,6 +8,7 @@ import '../../../../core/models/usuario_simple.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/reporte_clientes_calculos.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
@@ -132,13 +133,16 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
       return const Scaffold(body: Center(child: Text('Cliente no encontrado')));
     }
 
-    double totalPrestado = 0, totalAbonado = 0, saldoPendiente = 0;
+    // Misma funcion que Reporte de Clientes / Reporte de Prestamos usan
+    // para "pendiente" (el campo `saldo`, no un total-pagado recalculado)
+    // -- para que el numero de "Pendiente" sea siempre el mismo sin
+    // importar desde que pantalla se mire.
+    final totales = totalesCliente(_prestamos);
+    final totalPrestado = totales.prestado;
+    final totalAbonado = totales.abonado;
+    final saldoPendiente = totales.pendiente;
     var activos = 0, saldados = 0;
     for (final p in _prestamos) {
-      final prestado = p.totalPagar > 0 ? p.totalPagar : (p.monto + p.interes);
-      totalPrestado += prestado;
-      totalAbonado += p.montoPagado;
-      saldoPendiente += (prestado - p.montoPagado).clamp(0, double.infinity);
       if (p.estado == 'saldado') {
         saldados++;
       } else {
@@ -232,6 +236,12 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                   valor: formatearLempiras(totalAbonado),
                   etiqueta: 'Abonado',
                   color: CEColors.success),
+              if (totales.mora > 0)
+                CeStatCard(
+                    icono: Icons.report_gmailerrorred_outlined,
+                    valor: formatearLempiras(totales.mora),
+                    etiqueta: 'Mora',
+                    color: CEColors.danger),
               CeStatCard(
                   icono: Icons.warning_amber_outlined,
                   valor: formatearLempiras(saldoPendiente),

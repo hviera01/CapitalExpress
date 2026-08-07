@@ -17,6 +17,7 @@ class FilaReportePrestamo {
   final String estado;
   final double monto;
   final double montoPagado;
+  final double mora;
   final double saldo;
   final String fecha;
 
@@ -26,6 +27,7 @@ class FilaReportePrestamo {
     required this.estado,
     required this.monto,
     required this.montoPagado,
+    required this.mora,
     required this.saldo,
     required this.fecha,
   });
@@ -40,6 +42,7 @@ class ReportePrestamosPdfService {
     final activos = filas.where((f) => f.estado != 'saldado').length;
     final montoPrestado = filas.fold<double>(0, (a, f) => a + f.monto);
     final montoPagado = filas.fold<double>(0, (a, f) => a + f.montoPagado);
+    final mora = filas.fold<double>(0, (a, f) => a + f.mora);
     final pendiente = filas.fold<double>(0, (a, f) => a + f.saldo);
 
     pdf.addPage(
@@ -67,7 +70,8 @@ class ReportePrestamosPdfService {
                 _stat('Activos', '$activos'),
                 _stat('Prestado', formatearLempiras(montoPrestado)),
                 _stat('Pagado', formatearLempiras(montoPagado)),
-                _stat('Pendiente', formatearLempiras(pendiente)),
+                _stat('Mora', formatearLempiras(mora)),
+                _stat('Pendiente (con mora)', formatearLempiras(pendiente)),
               ],
             ),
           ),
@@ -83,6 +87,7 @@ class ReportePrestamosPdfService {
                   _th('Estado'),
                   _th('Prestado'),
                   _th('Pagado'),
+                  _th('Mora'),
                   _th('Saldo'),
                   _th('Fecha'),
                 ],
@@ -96,6 +101,7 @@ class ReportePrestamosPdfService {
                     _td(filas[i].estado),
                     _td(formatearLempiras(filas[i].monto)),
                     _td(formatearLempiras(filas[i].montoPagado)),
+                    _td(filas[i].mora > 0 ? formatearLempiras(filas[i].mora) : '—'),
                     _td(formatearLempiras(filas[i].saldo), color: _accent),
                     _td(filas[i].fecha),
                   ],

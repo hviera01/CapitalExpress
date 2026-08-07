@@ -15,10 +15,13 @@ import '../../../pagos/providers/pagos_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../data/dashboard_pdf_service.dart';
 
-/// Igual que DashboardScreen.kt: Clientes/Prestado/Interes son SIEMPRE
-/// sobre el universo completo (no se filtran por fecha); solo
-/// Cobros/Pagado/Moras salen del rango de fechas elegido. Pendiente es
-/// un numero derivado (prestado+interes-pagado), no un campo real.
+/// Clientes/Prestado/Interes/Pendiente son SIEMPRE sobre el universo
+/// completo (no se filtran por fecha, son un saldo actual, no algo que
+/// tenga sentido acotar a un periodo); solo Cobros/Pagado/Moras
+/// Cobradas salen del rango de fechas elegido. "Pendiente" usa el
+/// mismo campo `saldo` que Reporte de Clientes y Reporte de Prestamos
+/// (ver core/utils/reporte_clientes_calculos.dart) para que el numero
+/// sea siempre el mismo en toda la app.
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -34,6 +37,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _totalClientes = 0;
   double _totalPrestado = 0;
   double _totalInteres = 0;
+  double _totalPendiente = 0;
   int _totalCobros = 0;
   double _totalPagado = 0;
   double _totalMoras = 0;
@@ -53,11 +57,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ref.read(clienteRepositoryProvider).contar(),
       ref.read(prestamoRepositoryProvider).sumarMontoEInteres(),
       ref.read(pagoRepositoryProvider).obtenerConRango(inicio: _fechaInicio, fin: _fechaFin),
+      ref.read(prestamoRepositoryProvider).sumarSaldoPendiente(),
     ]);
 
     final totalClientes = resultados[0] as int;
     final montoEInteres = resultados[1] as ({double monto, double interes});
     final pagos = resultados[2] as List<PagoModel>;
+    final totalPendiente = resultados[3] as double;
 
     double totalPagado = 0, totalMoras = 0;
     var cantidadMoras = 0;
@@ -75,6 +81,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _totalClientes = totalClientes;
       _totalPrestado = montoEInteres.monto;
       _totalInteres = montoEInteres.interes;
+      _totalPendiente = totalPendiente;
       _totalCobros = pagos.length;
       _totalPagado = totalPagado;
       _totalMoras = totalMoras;
@@ -83,8 +90,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _cargando = false;
     });
   }
-
-  double get _totalPendiente => _totalPrestado + _totalInteres - _totalPagado;
 
   String get _filtroTexto {
     final f = DateFormat('dd/MM/yyyy');

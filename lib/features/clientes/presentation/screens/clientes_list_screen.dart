@@ -8,6 +8,7 @@ import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/reporte_clientes_calculos.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
@@ -443,13 +444,12 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
       );
     }
 
-    double prestado = 0, abonado = 0, pendiente = 0;
+    // Misma funcion que Reporte de Clientes / Resumen del Cliente, para
+    // que "Pendiente" sea siempre el mismo numero (el campo `saldo`,
+    // que ya incluye mora) sin importar desde donde se mire.
+    final totales = totalesCliente(prestamos);
     var activos = 0, completados = 0;
     for (final p in prestamos) {
-      final total = p.totalPagar > 0 ? p.totalPagar : (p.monto + p.interes);
-      prestado += total;
-      abonado += p.montoPagado;
-      pendiente += (total - p.montoPagado).clamp(0, double.infinity);
       if (p.estado == 'saldado') {
         completados++;
       } else {
@@ -484,9 +484,11 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
             ],
           ),
           const Divider(height: 24),
-          _filaMonto('Prestado', formatearLempiras(prestado)),
-          _filaMonto('Abonado', formatearLempiras(abonado), color: CEColors.success),
-          _filaMonto('Pendiente', formatearLempiras(pendiente), color: CEColors.danger),
+          _filaMonto('Prestado', formatearLempiras(totales.prestado)),
+          _filaMonto('Abonado', formatearLempiras(totales.abonado), color: CEColors.success),
+          if (totales.mora > 0)
+            _filaMonto('Mora', formatearLempiras(totales.mora), color: CEColors.danger),
+          _filaMonto('Pendiente', formatearLempiras(totales.pendiente), color: CEColors.danger),
         ],
       ),
     );

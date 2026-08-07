@@ -102,6 +102,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
               estado: estadoEfectivoPrestamo(p),
               monto: p.monto,
               montoPagado: p.montoPagado,
+              mora: p.mora,
               saldo: p.saldo,
               fecha: p.fechaCreacion != null ? f.format(p.fechaCreacion!.toDate()) : '—',
             ))
@@ -136,6 +137,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
     final vencidos = filas.where((p) => estadoEfectivoPrestamo(p) == 'vencido').length;
     final montoPrestado = filas.fold<double>(0, (a, p) => a + p.monto);
     final montoPagado = filas.fold<double>(0, (a, p) => a + p.montoPagado);
+    final mora = filas.fold<double>(0, (a, p) => a + p.mora);
     final pendiente = filas.fold<double>(0, (a, p) => a + p.saldo);
     final formatoFecha = DateFormat('dd/MM/yyyy');
 
@@ -230,9 +232,14 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                         etiqueta: 'Pagado',
                         color: CEColors.success),
                     CeStatCard(
+                        icono: Icons.report_gmailerrorred_outlined,
+                        valor: formatearLempiras(mora),
+                        etiqueta: 'Mora',
+                        color: CEColors.danger),
+                    CeStatCard(
                         icono: Icons.account_balance_wallet_outlined,
                         valor: formatearLempiras(pendiente),
-                        etiqueta: 'Pendiente',
+                        etiqueta: 'Pendiente (con mora)',
                         color: CEColors.danger),
                   ],
                 ),

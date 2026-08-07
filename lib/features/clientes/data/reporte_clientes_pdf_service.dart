@@ -46,6 +46,7 @@ class ReporteClientesPdfService {
     final saldados = filas.where((f) => f.estado == 'saldado').length;
     final prestado = filas.fold<double>(0, (a, f) => a + f.totales.prestado);
     final abonado = filas.fold<double>(0, (a, f) => a + f.totales.abonado);
+    final mora = filas.fold<double>(0, (a, f) => a + f.totales.mora);
     final pendiente = filas.fold<double>(0, (a, f) => a + f.totales.pendiente);
     final generadoEl = DateTime.now();
     final formatoFecha = '${generadoEl.day.toString().padLeft(2, '0')}/'
@@ -122,7 +123,8 @@ class ReporteClientesPdfService {
                     _statChip('Saldados', '$saldados'),
                     _statChip('Prestado', formatearLempiras(prestado)),
                     _statChip('Abonado', formatearLempiras(abonado)),
-                    _statChip('Pendiente', formatearLempiras(pendiente)),
+                    _statChip('Mora', formatearLempiras(mora)),
+                    _statChip('Pendiente (con mora)', formatearLempiras(pendiente)),
                   ],
                 ),
               ],
@@ -134,14 +136,15 @@ class ReporteClientesPdfService {
               horizontalInside: pw.BorderSide(color: _border, width: 0.5),
             ),
             columnWidths: const {
-              0: pw.FlexColumnWidth(2.2),
-              1: pw.FlexColumnWidth(1.3),
-              2: pw.FlexColumnWidth(1.8),
-              3: pw.FlexColumnWidth(1.1),
-              4: pw.FlexColumnWidth(1.3),
-              5: pw.FlexColumnWidth(1.3),
-              6: pw.FlexColumnWidth(1.3),
+              0: pw.FlexColumnWidth(2.0),
+              1: pw.FlexColumnWidth(1.2),
+              2: pw.FlexColumnWidth(1.6),
+              3: pw.FlexColumnWidth(1.0),
+              4: pw.FlexColumnWidth(1.2),
+              5: pw.FlexColumnWidth(1.2),
+              6: pw.FlexColumnWidth(1.0),
               7: pw.FlexColumnWidth(1.3),
+              8: pw.FlexColumnWidth(1.3),
             },
             children: [
               pw.TableRow(
@@ -153,6 +156,7 @@ class ReporteClientesPdfService {
                   _th('Estado'),
                   _th('Prestado'),
                   _th('Abonado'),
+                  _th('Mora'),
                   _th('Pendiente'),
                   _th('Próximo pago'),
                 ],
@@ -167,6 +171,7 @@ class ReporteClientesPdfService {
                     _td(filas[i].estado[0].toUpperCase() + filas[i].estado.substring(1)),
                     _td(formatearLempiras(filas[i].totales.prestado)),
                     _td(formatearLempiras(filas[i].totales.abonado)),
+                    _td(filas[i].totales.mora > 0 ? formatearLempiras(filas[i].totales.mora) : '—'),
                     _td(formatearLempiras(filas[i].totales.pendiente), color: _accent),
                     _td(filas[i].proximoPago == null
                         ? '—'
