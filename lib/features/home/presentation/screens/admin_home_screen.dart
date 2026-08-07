@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/ce_app_bar.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_dashed_card.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_menu_row.dart';
 import '../../../../core/widgets/ce_section_label.dart';
+import '../../../../core/widgets/ce_shell.dart';
 import '../../../auth/providers/auth_provider.dart';
 
 const _colorSubtitulo = Color(0xFF2DD9B8);
@@ -23,62 +24,25 @@ class AdminHomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: CEColors.surface,
-      appBar: CeAppBar(
-        titulo: 'Capital Express',
-        subtitulo: 'ADMIN PANEL',
-        colorSubtitulo: _colorSubtitulo,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () => _proximamente(context, 'Notificaciones'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Cerrar sesión',
-            onPressed: () => ref.read(authProvider.notifier).logout(),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      drawer: Drawer(
-        backgroundColor: CEColors.primary,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  ref.watch(authProvider).usuario?.nombre ?? '',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Divider(color: Colors.white24, height: 1),
-              ListTile(
-                iconColor: Colors.white,
-                textColor: Colors.white,
-                leading: const Icon(Icons.logout),
-                title: const Text('Cerrar sesión'),
-                onTap: () => ref.read(authProvider.notifier).logout(),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final usuario = ref.watch(authProvider).usuario;
+    final escritorio = esEscritorio(context);
+    final columnas = escritorio ? 4 : 2;
+
+    return CeAppShell(
+      subtituloApp: 'ADMIN PANEL',
+      colorSubtitulo: _colorSubtitulo,
+      tituloPagina: 'Panel Administrador',
+      nombreUsuario: usuario?.nombre ?? '',
+      rolUsuario: 'Administrador',
+      onLogout: () => ref.read(authProvider.notifier).logout(),
+      onNotificaciones: () => _proximamente(context, 'Notificaciones'),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          escritorio ? 32 : 16,
+          escritorio ? 0 : 16,
+          escritorio ? 32 : 16,
+          32,
+        ),
         children: [
           CeMenuRow(
             icono: Icons.notifications_outlined,
@@ -89,7 +53,7 @@ class AdminHomeScreen extends ConsumerWidget {
           ),
           const CeSectionLabel('Crear'),
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: columnas,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,
@@ -120,7 +84,7 @@ class AdminHomeScreen extends ConsumerWidget {
           ),
           const CeSectionLabel('Visualizar'),
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: columnas,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,

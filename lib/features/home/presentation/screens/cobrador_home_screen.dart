@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/ce_app_bar.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_menu_row.dart';
 import '../../../../core/widgets/ce_section_label.dart';
+import '../../../../core/widgets/ce_shell.dart';
 import '../../../auth/providers/auth_provider.dart';
 
 const _colorSubtitulo = Color(0xFF2DD9B8);
@@ -23,112 +24,72 @@ class CobradorHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
+    final escritorio = esEscritorio(context);
+    final columnas = escritorio ? 4 : 2;
 
-    return Scaffold(
-      backgroundColor: CEColors.surface,
-      appBar: CeAppBar(
-        titulo: 'Capital Express',
-        subtitulo: 'PANEL DE COBRANZA',
-        colorSubtitulo: _colorSubtitulo,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+    return CeAppShell(
+      subtituloApp: 'PANEL DE COBRANZA',
+      colorSubtitulo: _colorSubtitulo,
+      tituloPagina: 'Panel de Cobranza',
+      nombreUsuario: usuario?.nombre ?? '',
+      rolUsuario: 'Cobrador',
+      onLogout: () => ref.read(authProvider.notifier).logout(),
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(
+          escritorio ? 32 : 16,
+          escritorio ? 0 : 16,
+          escritorio ? 32 : 16,
+          32,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {},
-          ),
-          const Padding(
-            padding: EdgeInsets.only(right: 16, left: 4),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: CEColors.iconBadgeBg,
-              child: Icon(Icons.person, color: CEColors.primary, size: 18),
-            ),
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        backgroundColor: CEColors.primary,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  usuario?.nombre ?? '',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+        children: [
+          if (!escritorio) ...[
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: CEColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('¡Bienvenido!',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+                          const SizedBox(height: 2),
+                          Text(usuario?.nombre ?? '',
+                              style: const TextStyle(color: CEColors.textSecondary, fontSize: 13)),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration: const BoxDecoration(
+                          color: CEColors.onlineDot,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const Divider(color: Colors.white24, height: 1),
-              ListTile(
-                iconColor: Colors.white,
-                textColor: Colors.white,
-                leading: const Icon(Icons.logout),
-                title: const Text('Cerrar sesión'),
-                onTap: () => ref.read(authProvider.notifier).logout(),
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: CEColors.primary,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('¡Bienvenido!',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
-                        const SizedBox(height: 2),
-                        Text(usuario?.nombre ?? '',
-                            style: const TextStyle(color: CEColors.textSecondary, fontSize: 13)),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(
-                        color: CEColors.onlineDot,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(height: 1, color: CEColors.border),
-          ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Divider(height: 1, color: CEColors.border),
+            ),
+          ],
           const CeSectionLabel('Opciones principales'),
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: columnas,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,

@@ -33,6 +33,7 @@ final prestamosStreamProvider =
 
 final busquedaPrestamosProvider = StateProvider.autoDispose<String>((ref) => '');
 final verEliminadosProvider = StateProvider.autoDispose<bool>((ref) => false);
+final filtroEstadoPrestamosProvider = StateProvider.autoDispose<String>((ref) => 'Todos');
 
 List<PrestamoModel> filtrarPrestamos(List<PrestamoModel> prestamos, String busqueda) {
   if (busqueda.trim().isEmpty) return prestamos;

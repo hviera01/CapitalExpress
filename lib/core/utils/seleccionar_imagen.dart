@@ -29,6 +29,10 @@ Future<Uint8List?> seleccionarImagen(BuildContext context) async {
 
   if (origen == null) return null;
 
+  return seleccionarImagenDeFuente(origen);
+}
+
+Future<Uint8List?> seleccionarImagenDeFuente(ImageSource origen) async {
   final picker = ImagePicker();
   final archivo = await picker.pickImage(
     source: origen,

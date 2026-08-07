@@ -6,6 +6,8 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/prestamos_provider.dart';
@@ -41,16 +43,26 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
 
   Future<void> _eliminar() async {
     final usuario = ref.read(authProvider).usuario!;
-    await ref.read(prestamoRepositoryProvider).marcarEliminado(
-          widget.prestamoId,
-          eliminadoPor: usuario.nombre,
-        );
+    await ref
+        .read(prestamoRepositoryProvider)
+        .marcarEliminado(widget.prestamoId, eliminadoPor: usuario.nombre);
     await _cargar();
   }
 
   Future<void> _restaurar() async {
     await ref.read(prestamoRepositoryProvider).restaurar(widget.prestamoId);
     await _cargar();
+  }
+
+  Color _colorEstado(String estado) {
+    switch (estado) {
+      case 'saldado':
+        return CEColors.success;
+      case 'mora':
+        return CEColors.danger;
+      default:
+        return CEColors.accent;
+    }
   }
 
   @override
@@ -67,10 +79,12 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
     }
 
     final formatoFecha = DateFormat('dd/MM/yyyy');
+    final colorEstado = _colorEstado(p.estado);
 
-    return Scaffold(
+    return CeScaffold(
+      maxWidth: 720,
       appBar: AppBar(
-        title: Text('N° ${p.numeroPrestamo}'),
+        title: const Text('Detalle del Préstamo'),
         actions: [
           if (esAdmin)
             IconButton(
@@ -78,6 +92,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
               tooltip: p.eliminado ? 'Restaurar' : 'Eliminar',
               onPressed: p.eliminado ? _restaurar : _eliminar,
             ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
         ],
       ),
       body: ListView(
@@ -92,39 +107,187 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text('Eliminado por ${p.eliminadoPor ?? ''}',
-                  style: const TextStyle(color: CEColors.danger)),
+                  style: const TextStyle(color: CEColors.danger, fontWeight: FontWeight.w600)),
             ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(p.cliente, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(p.estado.toUpperCase(),
-                      style: const TextStyle(color: CEColors.textSecondary, fontSize: 12)),
-                  const Divider(height: 24),
-                  _fila('Monto', formatearLempiras(p.monto)),
-                  _fila('Interés', formatearLempiras(p.interes)),
-                  _fila('Total a pagar', formatearLempiras(p.totalPagar)),
-                  _fila('Pagado', formatearLempiras(p.montoPagado)),
-                  _fila('Saldo', formatearLempiras(p.saldo)),
-                  _fila('Mora adeudada', formatearLempiras(p.mora)),
-                  _fila('Cuota', formatearLempiras(p.cuota)),
-                  _fila('Cuotas', '${p.cuotas}'),
-                  _fila('Plazo', p.plazo),
-                  if (p.fecha != null) _fila('Fecha inicio', formatoFecha.format(p.fecha!.toDate())),
-                  _fila('Cobrador', p.cobrador),
-                  _fila('Lugar', p.lugar),
-                  if (p.garantia.isNotEmpty) _fila('Garantía', p.garantia),
-                  if (p.observaciones.isNotEmpty) _fila('Observaciones', p.observaciones),
-                ],
-              ),
+          // Hero: numero de prestamo
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: CEColors.accent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Icon(Icons.tag, color: Colors.white.withValues(alpha: 0.35), size: 40),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'NÚMERO DE PRÉSTAMO',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      p.numeroPrestamo,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          CeCard(
+            child: Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('ESTADO DEL PRÉSTAMO',
+                        style: TextStyle(fontSize: 11, color: CEColors.textSecondary)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(color: colorEstado, shape: BoxShape.circle),
+                        ),
+                        Text(
+                          p.estado.toUpperCase(),
+                          style: TextStyle(
+                              color: colorEstado, fontWeight: FontWeight.w800, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Icon(Icons.check_circle_outline, color: colorEstado),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          CeCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.person_outline, size: 18, color: CEColors.primary),
+                    SizedBox(width: 8),
+                    Text('INFORMACIÓN DEL CLIENTE',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Text('Nombre', style: TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+                const SizedBox(height: 4),
+                Text(p.cliente.toUpperCase(),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          CeCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.credit_card_outlined, size: 18, color: CEColors.primary),
+                    SizedBox(width: 8),
+                    Text('INFORMACIÓN FINANCIERA',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _filaFinanciera('Monto prestado', formatearLempiras(p.monto)),
+                if (p.usarInteresMensual)
+                  _filaFinanciera('Interés mensual', '${p.interesMensual}%'),
+                _filaFinanciera('Interés total', formatearLempiras(p.interes)),
+                _filaFinanciera('Total a pagar', formatearLempiras(p.totalPagar)),
+                _filaFinanciera('Monto pagado', formatearLempiras(p.montoPagado),
+                    color: CEColors.success),
+                const Divider(height: 24),
+                _filaFinanciera('Saldo pendiente', formatearLempiras(p.saldo),
+                    color: CEColors.danger, negrita: true),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          CeCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.calendar_today_outlined, size: 18, color: CEColors.primary),
+                    SizedBox(width: 8),
+                    Text('INFORMACIÓN DE CUOTAS',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(child: _cajaCuota('CUOTAS', '${p.cuotas}')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _cajaCuota('PLAZO', p.plazo)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _cajaCuota('MONTO CUOTA', formatearLempiras(p.cuota),
+                            color: CEColors.accent)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _cajaCuota('DÍAS EFECTIVOS', '${p.diasEfectivos}')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          CeCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: CEColors.primary),
+                    SizedBox(width: 8),
+                    Text('INFORMACIÓN ADICIONAL',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _filaFinanciera('ID Sistema', p.prestamoId),
+                _filaFinanciera('Cobrador Asignado',
+                    p.cobrador.isEmpty ? 'Sin asignar' : p.cobrador),
+                if (p.fecha != null)
+                  _filaFinanciera('Fecha inicio', formatoFecha.format(p.fecha!.toDate())),
+                if (p.lugar.isNotEmpty) _filaFinanciera('Lugar', p.lugar),
+                if (p.garantia.isNotEmpty) _filaFinanciera('Garantía', p.garantia),
+                if (p.observaciones.isNotEmpty) _filaFinanciera('Observaciones', p.observaciones),
+              ],
             ),
           ),
           if (p.fotos.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             const Text('Fotos', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Wrap(
@@ -133,31 +296,64 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
               children: p.fotos
                   .map((url) => ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: SizedBox(
-                          width: 90,
-                          height: 90,
-                          child: ImagenRedNetwork(url: url),
-                        ),
+                        child: SizedBox(width: 90, height: 90, child: ImagenRedNetwork(url: url)),
                       ))
                   .toList(),
             ),
           ],
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sistema de Cuotas - próximamente')),
+              ),
+              icon: const Icon(Icons.list_alt_outlined),
+              label: const Text('Ver Cuotas del Préstamo'),
+            ),
+          ),
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _fila(String label, String valor) {
+  Widget _filaFinanciera(String label, String valor, {Color? color, bool negrita = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: CEColors.textSecondary)),
+          Text(label, style: const TextStyle(color: CEColors.textSecondary, fontSize: 13)),
           Flexible(
-            child: Text(valor, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(
+              valor,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontWeight: negrita ? FontWeight.w800 : FontWeight.w600,
+                fontSize: negrita ? 16 : 13,
+                color: color ?? CEColors.textPrimary,
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cajaCuota(String label, String valor, {Color color = CEColors.textPrimary}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: CEColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 10, color: CEColors.textSecondary)),
+          const SizedBox(height: 4),
+          Text(valor, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: color)),
         ],
       ),
     );

@@ -13,6 +13,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
 import '../../../../core/utils/seleccionar_imagen.dart';
+import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../providers/prestamos_provider.dart';
@@ -31,6 +33,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
   final _formatoFecha = DateFormat('dd/MM/yyyy');
 
   ClienteModel? _clienteSeleccionado;
+  final _busquedaClienteCtrl = TextEditingController();
   final _montoCtrl = TextEditingController();
   final _interesMensualCtrl = TextEditingController();
   final _interesTotalCtrl = TextEditingController();
@@ -47,6 +50,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
 
   @override
   void dispose() {
+    _busquedaClienteCtrl.dispose();
     _montoCtrl.dispose();
     _interesMensualCtrl.dispose();
     _interesTotalCtrl.dispose();
@@ -157,129 +161,203 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
         ref.watch(clientesStreamProvider(esAdmin ? null : usuario?.uid));
     final calculo = _calculo;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Crear Préstamo')),
+    return CeScaffold(
+      maxWidth: 720,
+      appBar: AppBar(title: const Text('Nuevo Préstamo')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            clientesAsync.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (e, st) => Text('Error al cargar clientes: $e'),
-              data: (clientes) {
-                if (_clienteSeleccionado == null && widget.clienteIdInicial != null) {
-                  final match = clientes.where((c) => c.id == widget.clienteIdInicial);
-                  if (match.isNotEmpty) _clienteSeleccionado = match.first;
-                }
-                return DropdownButtonFormField<ClienteModel>(
-                  initialValue: _clienteSeleccionado,
-                  decoration: const InputDecoration(labelText: 'Cliente'),
-                  isExpanded: true,
-                  items: clientes
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c.nombre)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _clienteSeleccionado = v),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _montoCtrl,
-              decoration: const InputDecoration(labelText: 'Monto (L.)'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => setState(() {}),
-              validator: (v) =>
-                  (double.tryParse(v ?? '') ?? 0) > 0 ? null : 'Ingresá un monto válido',
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _cuotasCtrl,
-              decoration: const InputDecoration(labelText: 'Número de cuotas'),
-              keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
-              validator: (v) => (int.tryParse(v ?? '') ?? 0) > 0 ? null : 'Ingresá las cuotas',
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _plazo,
-              decoration: const InputDecoration(labelText: 'Plazo'),
-              items:
-                  plazosDisponibles.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-              onChanged: (v) => setState(() => _plazo = v ?? _plazo),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Fecha de inicio'),
-              subtitle: Text(_formatoFecha.format(_fechaInicio)),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap: () async {
-                final f = await showDatePicker(
-                  context: context,
-                  initialDate: _fechaInicio,
-                  firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                );
-                if (f != null) setState(() => _fechaInicio = f);
-              },
-            ),
-            const Divider(height: 32),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: true, label: Text('Interés mensual %')),
-                ButtonSegment(value: false, label: Text('Interés total fijo')),
-              ],
-              selected: {_usarInteresMensual},
-              onSelectionChanged: (s) => setState(() => _usarInteresMensual = s.first),
-            ),
-            const SizedBox(height: 16),
-            if (_usarInteresMensual)
-              TextFormField(
-                controller: _interesMensualCtrl,
-                decoration: const InputDecoration(labelText: 'Porcentaje mensual (%)'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (_) => setState(() {}),
-              )
-            else
-              TextFormField(
-                controller: _interesTotalCtrl,
-                decoration: const InputDecoration(labelText: 'Interés total (L.)'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (_) => setState(() {}),
+            CeSectionCard(
+              numero: 1,
+              icono: Icons.person_outline,
+              titulo: 'Cliente',
+              child: clientesAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (e, st) => Text('Error al cargar clientes: $e'),
+                data: (clientes) {
+                  if (_clienteSeleccionado == null && widget.clienteIdInicial != null) {
+                    final match = clientes.where((c) => c.id == widget.clienteIdInicial);
+                    if (match.isNotEmpty) _clienteSeleccionado = match.first;
+                  }
+                  return _buscadorCliente(clientes);
+                },
               ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _lugarCtrl,
-              decoration: const InputDecoration(labelText: 'Lugar'),
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _garantiaCtrl,
-              decoration: const InputDecoration(labelText: 'Garantía'),
+            CeSectionCard(
+              numero: 2,
+              icono: Icons.payments_outlined,
+              titulo: 'Monto y Plazo',
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _montoCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Monto del préstamo', prefixIcon: Icon(Icons.attach_money)),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
+                    validator: (v) =>
+                        (double.tryParse(v ?? '') ?? 0) > 0 ? null : 'Ingresá un monto válido',
+                  ),
+                  const SizedBox(height: 16),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Frecuencia de pago',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                  const SizedBox(height: 8),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 2.6,
+                    children: plazosDisponibles.map((p) {
+                      final seleccionado = _plazo == p;
+                      return OutlinedButton(
+                        onPressed: () => setState(() => _plazo = p),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: seleccionado ? CEColors.accent : null,
+                          foregroundColor: seleccionado ? Colors.white : CEColors.textPrimary,
+                          side: BorderSide(
+                              color: seleccionado ? CEColors.accent : CEColors.border),
+                        ),
+                        child: Text(p, textAlign: TextAlign.center),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _cuotasCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Número de cuotas', prefixIcon: Icon(Icons.format_list_numbered)),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                    validator: (v) =>
+                        (int.tryParse(v ?? '') ?? 0) > 0 ? null : 'Ingresá las cuotas',
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () async {
+                      final f = await showDatePicker(
+                        context: context,
+                        initialDate: _fechaInicio,
+                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (f != null) setState(() => _fechaInicio = f);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: CEColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today_outlined,
+                              size: 18, color: CEColors.accent),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Fecha de inicio: ${_formatoFecha.format(_fechaInicio)}',
+                            style: const TextStyle(
+                                color: CEColors.accent, fontWeight: FontWeight.w600),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.edit_outlined, size: 16, color: CEColors.textSecondary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _observacionesCtrl,
-              decoration: const InputDecoration(labelText: 'Observaciones'),
-              maxLines: 3,
+            CeSectionCard(
+              numero: 3,
+              icono: Icons.percent_outlined,
+              titulo: 'Interés',
+              child: Column(
+                children: [
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('% mensual')),
+                      ButtonSegment(value: false, label: Text('Total fijo')),
+                    ],
+                    selected: {_usarInteresMensual},
+                    onSelectionChanged: (s) => setState(() => _usarInteresMensual = s.first),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_usarInteresMensual)
+                    TextFormField(
+                      controller: _interesMensualCtrl,
+                      decoration: const InputDecoration(labelText: 'Porcentaje mensual'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) => setState(() {}),
+                    )
+                  else
+                    TextFormField(
+                      controller: _interesTotalCtrl,
+                      decoration: const InputDecoration(labelText: 'Interés total (L.)'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-            _seccionFotos(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            CeSectionCard(
+              numero: 4,
+              icono: Icons.notes_outlined,
+              titulo: 'Detalles adicionales',
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _lugarCtrl,
+                    decoration: const InputDecoration(labelText: 'Lugar'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _garantiaCtrl,
+                    decoration: const InputDecoration(labelText: 'Garantía'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _observacionesCtrl,
+                    decoration: const InputDecoration(labelText: 'Observaciones'),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            CeSectionCard(
+              numero: 5,
+              icono: Icons.photo_library_outlined,
+              titulo: 'Documentos / Fotos',
+              child: _seccionFotos(),
+            ),
+            const SizedBox(height: 16),
             _resumen(calculo),
             const SizedBox(height: 24),
             SizedBox(
-              height: 48,
-              child: ElevatedButton(
+              height: 52,
+              child: ElevatedButton.icon(
                 onPressed: _guardando ? null : _guardar,
-                child: _guardando
+                style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
+                icon: _guardando
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
+                        height: 18,
+                        width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Crear préstamo'),
+                    : const Icon(Icons.save_outlined),
+                label: const Text('Guardar'),
               ),
             ),
             const SizedBox(height: 24),
@@ -289,51 +367,116 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
     );
   }
 
-  Widget _seccionFotos() {
+  Widget _buscadorCliente(List<ClienteModel> clientes) {
+    if (_clienteSeleccionado != null) {
+      final c = _clienteSeleccionado!;
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: CEColors.accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: CEColors.accent.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: CEColors.accent, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(c.nombre, style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => setState(() => _clienteSeleccionado = null),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final query = _busquedaClienteCtrl.text.trim().toLowerCase();
+    final resultados = query.length < 2
+        ? const <ClienteModel>[]
+        : clientes.where((c) => c.nombre.toLowerCase().contains(query)).take(6).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Fotos', style: TextStyle(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (var i = 0; i < _fotos.length; i++)
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(_fotos[i], width: 84, height: 84, fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    top: -6,
-                    right: -6,
-                    child: IconButton(
-                      icon: const Icon(Icons.cancel, color: CEColors.danger, size: 20),
-                      onPressed: () => setState(() => _fotos.removeAt(i)),
-                    ),
-                  ),
-                ],
-              ),
-            InkWell(
+        TextField(
+          controller: _busquedaClienteCtrl,
+          decoration: const InputDecoration(
+            hintText: 'Buscar cliente',
+            prefixIcon: Icon(Icons.search),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          query.length < 2 ? 'Escriba al menos 2 caracteres' : '${resultados.length} resultados',
+          style: const TextStyle(fontSize: 12, color: CEColors.textSecondary),
+        ),
+        if (resultados.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            decoration: BoxDecoration(
+              border: Border.all(color: CEColors.border),
               borderRadius: BorderRadius.circular(12),
-              onTap: () async {
-                final bytes = await seleccionarImagen(context);
-                if (bytes != null) setState(() => _fotos.add(bytes));
-              },
-              child: Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  color: CEColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: CEColors.border),
-                ),
-                child: const Icon(Icons.add_a_photo_outlined, color: CEColors.textSecondary),
-              ),
             ),
-          ],
+            child: Column(
+              children: resultados
+                  .map((c) => ListTile(
+                        dense: true,
+                        title: Text(c.nombre),
+                        subtitle: c.telefono.isNotEmpty ? Text(c.telefono) : null,
+                        onTap: () => setState(() {
+                          _clienteSeleccionado = c;
+                          _busquedaClienteCtrl.clear();
+                        }),
+                      ))
+                  .toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _seccionFotos() {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (var i = 0; i < _fotos.length; i++)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(_fotos[i], width: 84, height: 84, fit: BoxFit.cover),
+              ),
+              Positioned(
+                top: -6,
+                right: -6,
+                child: IconButton(
+                  icon: const Icon(Icons.cancel, color: CEColors.danger, size: 20),
+                  onPressed: () => setState(() => _fotos.removeAt(i)),
+                ),
+              ),
+            ],
+          ),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            final bytes = await seleccionarImagen(context);
+            if (bytes != null) setState(() => _fotos.add(bytes));
+          },
+          child: Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+              color: CEColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: CEColors.border),
+            ),
+            child: const Icon(Icons.add_a_photo_outlined, color: CEColors.textSecondary),
+          ),
         ),
       ],
     );
@@ -341,13 +484,23 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
 
   Widget _resumen(ResultadoCalculoPrestamo c) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: CEColors.primary,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Row(
+            children: [
+              Icon(Icons.summarize_outlined, color: Colors.white70, size: 18),
+              SizedBox(width: 8),
+              Text('Resumen',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 12),
           _filaResumen('Interés', formatearLempiras(c.interesCalculado)),
           _filaResumen('Total a pagar', formatearLempiras(c.totalAPagar)),
           _filaResumen('Cuota estimada', formatearLempiras(c.cuotaEstimada)),

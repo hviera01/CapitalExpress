@@ -1,0 +1,277 @@
+import 'package:flutter/material.dart';
+
+import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
+import 'ce_app_bar.dart';
+
+/// Chrome de las pantallas "home" (Panel Admin / Panel Cobrador).
+///
+/// Mobile: barra navy arriba + drawer, igual que antes.
+/// Escritorio: rail lateral navy fijo (marca + usuario + salir) y el
+/// contenido centrado con un encabezado propio, en vez de la barra
+/// angosta de telefono estirada de punta a punta.
+class CeAppShell extends StatelessWidget {
+  final String subtituloApp;
+  final Color colorSubtitulo;
+  final String tituloPagina;
+  final String nombreUsuario;
+  final String rolUsuario;
+  final VoidCallback onLogout;
+  final VoidCallback? onNotificaciones;
+  final Widget body;
+
+  const CeAppShell({
+    super.key,
+    required this.subtituloApp,
+    required this.colorSubtitulo,
+    required this.tituloPagina,
+    required this.nombreUsuario,
+    required this.rolUsuario,
+    required this.onLogout,
+    required this.body,
+    this.onNotificaciones,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (esEscritorio(context)) {
+      return Scaffold(
+        backgroundColor: CEColors.surface,
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Sidebar(
+              subtituloApp: subtituloApp,
+              colorSubtitulo: colorSubtitulo,
+              nombreUsuario: nombreUsuario,
+              rolUsuario: rolUsuario,
+              onLogout: onLogout,
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _HeaderEscritorio(
+                    titulo: tituloPagina,
+                    onNotificaciones: onNotificaciones,
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1180),
+                        child: body,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: CEColors.surface,
+      appBar: CeAppBar(
+        titulo: 'Capital Express',
+        subtitulo: subtituloApp,
+        colorSubtitulo: colorSubtitulo,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        actions: [
+          if (onNotificaciones != null)
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+              onPressed: onNotificaciones,
+            ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Cerrar sesión',
+            onPressed: onLogout,
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      drawer: Drawer(
+        backgroundColor: CEColors.primary,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  nombreUsuario,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Divider(color: Colors.white24, height: 1),
+              ListTile(
+                iconColor: Colors.white,
+                textColor: Colors.white,
+                leading: const Icon(Icons.logout),
+                title: const Text('Cerrar sesión'),
+                onTap: onLogout,
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: body,
+    );
+  }
+}
+
+class _Sidebar extends StatelessWidget {
+  final String subtituloApp;
+  final Color colorSubtitulo;
+  final String nombreUsuario;
+  final String rolUsuario;
+  final VoidCallback onLogout;
+
+  const _Sidebar({
+    required this.subtituloApp,
+    required this.colorSubtitulo,
+    required this.nombreUsuario,
+    required this.rolUsuario,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 260,
+      color: CEColors.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.shield_outlined, color: Colors.white, size: 22),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'CAPITAL EXPRESS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 32),
+            child: Text(
+              subtituloApp,
+              style: TextStyle(
+                color: colorSubtitulo,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+          const Spacer(),
+          Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_outline, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nombreUsuario,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      rolUsuario,
+                      style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onLogout,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.24)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.logout, size: 16),
+              label: const Text('Cerrar sesión'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderEscritorio extends StatelessWidget {
+  final String titulo;
+  final VoidCallback? onNotificaciones;
+
+  const _HeaderEscritorio({required this.titulo, this.onNotificaciones});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(32, 28, 32, 12),
+      child: Row(
+        children: [
+          Text(
+            titulo,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: CEColors.textPrimary,
+            ),
+          ),
+          const Spacer(),
+          if (onNotificaciones != null)
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined, color: CEColors.textPrimary),
+              onPressed: onNotificaciones,
+            ),
+        ],
+      ),
+    );
+  }
+}

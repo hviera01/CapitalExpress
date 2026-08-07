@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/services/storage_service.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_section_card.dart';
 import '../../../../core/widgets/selector_foto.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/clientes_provider.dart';
@@ -63,14 +65,14 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     'garantiaFotoUrl': null,
   };
 
-  static const _labelsFoto = {
-    'fotoCasaUrl': 'Foto de la casa',
-    'fotoNegocioUrl': 'Foto del negocio',
-    'fotoClienteUrl': 'Foto del cliente',
-    'fotoIdentidadFrenteUrl': 'Identidad (frente)',
-    'fotoIdentidadReversoUrl': 'Identidad (reverso)',
-    'garantiaFotoUrl': 'Foto de la garantia',
-  };
+  static const _fotosInfo = [
+    ('fotoClienteUrl', 'Foto del cliente', Icons.person_outline),
+    ('fotoCasaUrl', 'Foto de la casa', Icons.home_outlined),
+    ('fotoNegocioUrl', 'Foto del negocio', Icons.storefront_outlined),
+    ('fotoIdentidadFrenteUrl', 'Identidad (frente)', Icons.badge_outlined),
+    ('fotoIdentidadReversoUrl', 'Identidad (reverso)', Icons.badge_outlined),
+    ('garantiaFotoUrl', 'Foto de la garantía', Icons.description_outlined),
+  ];
 
   @override
   void initState() {
@@ -219,80 +221,140 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
+    return CeScaffold(
+      maxWidth: 720,
       appBar: AppBar(
-        title: Text(_clienteOriginal == null ? 'Nuevo cliente' : 'Editar cliente'),
+        title: Text(_clienteOriginal == null ? 'Crear Nuevo Cliente' : 'Editar cliente'),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _seccion('Datos personales'),
-            _campo('nombre', 'Nombre completo', requerido: true),
-            _campo('identidad', 'Numero de identidad', requerido: true),
-            _campo('telefono', 'Telefono', requerido: true, tipo: TextInputType.phone),
-            _campo('direccionCasa', 'Direccion de la casa'),
-            _campo('direccionNegocio', 'Direccion del negocio'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _estadoCivil,
-              decoration: const InputDecoration(labelText: 'Estado civil'),
-              items: _estadosCiviles
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() => _estadoCivil = v ?? _estadoCivil),
+            CeSectionCard(
+              icono: Icons.badge_outlined,
+              titulo: 'Datos Personales',
+              child: Column(
+                children: [
+                  _campo('nombre', 'Nombre *', requerido: true),
+                  _campo('identidad', 'Identidad *', requerido: true),
+                  _campo('telefono', 'Teléfono *', requerido: true, tipo: TextInputType.phone),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
-            _seccion('Conyuge'),
-            _campo('nombreConyuge', 'Nombre del conyuge'),
-            _campo('identidadConyuge', 'Identidad del conyuge'),
-            _campo('telefonoConyuge', 'Telefono del conyuge', tipo: TextInputType.phone),
-            _seccion('Referencia 1'),
-            _campo('referencia1Nombre', 'Nombre'),
-            _campo('referencia1Identidad', 'Identidad'),
-            _campo('referencia1Telefono', 'Telefono', tipo: TextInputType.phone),
-            _campo('referencia1Parentesco', 'Parentesco'),
-            _campo('referencia1Direccion', 'Direccion'),
-            _seccion('Referencia 2'),
-            _campo('referencia2Nombre', 'Nombre'),
-            _campo('referencia2Identidad', 'Identidad'),
-            _campo('referencia2Telefono', 'Telefono', tipo: TextInputType.phone),
-            _campo('referencia2Parentesco', 'Parentesco'),
-            _campo('referencia2Direccion', 'Direccion'),
-            _seccion('Garantia'),
-            _campo('garantiaTexto', 'Descripcion de la garantia', lineas: 3),
-            const SizedBox(height: 16),
-            _seccion('Fotos'),
-            GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              children: _labelsFoto.entries
-                  .map(
-                    (e) => SelectorFoto(
-                      label: e.value,
-                      urlActual: _urlExistente(e.key),
-                      bytesNuevos: _fotos[e.key],
-                      onSeleccionar: (bytes) => setState(() => _fotos[e.key] = bytes),
-                    ),
-                  )
-                  .toList(),
+            CeSectionCard(
+              icono: Icons.work_outline,
+              titulo: 'Datos de Trabajo',
+              child: Column(
+                children: [
+                  _campo('garantiaTexto', 'Garantía', lineas: 2),
+                  _campo('direccionCasa', 'Dirección Casa'),
+                  _campo('direccionNegocio', 'Dirección Negocio', ultimo: true),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+            CeSectionCard(
+              icono: Icons.favorite_outline,
+              titulo: 'Estado Civil',
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _estadosCiviles
+                    .map((e) => ChoiceChip(
+                          label: Text(e),
+                          selected: _estadoCivil == e,
+                          onSelected: (_) => setState(() => _estadoCivil = e),
+                        ))
+                    .toList(),
+              ),
+            ),
+            if (_estadoCivil != 'Soltero/a') ...[
+              const SizedBox(height: 16),
+              CeSectionCard(
+                icono: Icons.people_outline,
+                titulo: 'Cónyuge',
+                child: Column(
+                  children: [
+                    _campo('nombreConyuge', 'Nombre del cónyuge'),
+                    _campo('identidadConyuge', 'Identidad del cónyuge'),
+                    _campo('telefonoConyuge', 'Teléfono del cónyuge',
+                        tipo: TextInputType.phone, ultimo: true),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            CeSectionCard(
+              icono: Icons.contacts_outlined,
+              titulo: 'Referencias Personales',
+              child: Column(
+                children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Referencia 1',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                  const SizedBox(height: 8),
+                  _campo('referencia1Nombre', 'Nombre'),
+                  _campo('referencia1Identidad', 'Identidad'),
+                  _campo('referencia1Telefono', 'Teléfono', tipo: TextInputType.phone),
+                  _campo('referencia1Parentesco', 'Parentesco'),
+                  _campo('referencia1Direccion', 'Dirección'),
+                  const Divider(height: 28),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Referencia 2',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                  const SizedBox(height: 8),
+                  _campo('referencia2Nombre', 'Nombre'),
+                  _campo('referencia2Identidad', 'Identidad'),
+                  _campo('referencia2Telefono', 'Teléfono', tipo: TextInputType.phone),
+                  _campo('referencia2Parentesco', 'Parentesco'),
+                  _campo('referencia2Direccion', 'Dirección', ultimo: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            CeSectionCard(
+              icono: Icons.photo_library_outlined,
+              titulo: 'Documentos y Fotos',
+              child: GridView.count(
+                crossAxisCount: esEscritorio(context) ? 3 : 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 18,
+                childAspectRatio: 0.82,
+                children: _fotosInfo
+                    .map(
+                      (f) => SelectorFoto(
+                        icono: f.$3,
+                        label: f.$2,
+                        urlActual: _urlExistente(f.$1),
+                        bytesNuevos: _fotos[f.$1],
+                        onSeleccionar: (bytes) => setState(() => _fotos[f.$1] = bytes),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 28),
             SizedBox(
-              height: 48,
-              child: ElevatedButton(
+              height: 52,
+              child: ElevatedButton.icon(
                 onPressed: _guardando ? null : _guardar,
-                child: _guardando
+                style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
+                icon: _guardando
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
+                        height: 18,
+                        width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Guardar cliente'),
+                    : const Icon(Icons.save_outlined),
+                label: Text(_clienteOriginal == null ? 'Guardar Cliente' : 'Guardar Cambios'),
               ),
             ),
             const SizedBox(height: 24),
@@ -302,27 +364,16 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     );
   }
 
-  Widget _seccion(String titulo) => Padding(
-        padding: const EdgeInsets.only(top: 16, bottom: 8),
-        child: Text(
-          titulo,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
-            color: CEColors.primary,
-          ),
-        ),
-      );
-
   Widget _campo(
     String key,
     String label, {
     bool requerido = false,
     TextInputType tipo = TextInputType.text,
     int lineas = 1,
+    bool ultimo = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: ultimo ? 0 : 12),
       child: TextFormField(
         controller: _campos[key],
         decoration: InputDecoration(labelText: label),

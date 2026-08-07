@@ -14,6 +14,7 @@ final clientesStreamProvider =
 });
 
 final busquedaClientesProvider = StateProvider.autoDispose<String>((ref) => '');
+final filtroEstadoClientesProvider = StateProvider.autoDispose<String>((ref) => 'Todos');
 
 List<ClienteModel> filtrarClientes(List<ClienteModel> clientes, String busqueda) {
   if (busqueda.trim().isEmpty) return clientes;
