@@ -163,6 +163,16 @@ class PrestamoRepository {
     return prestamos;
   }
 
+  /// El campo `tienePrestamo` guardado en el doc del cliente puede quedar
+  /// obsoleto (se prende al crear el prestamo pero nunca se apaga cuando
+  /// se salda) -- esto verifica el estado real contra `prestamos` en vez
+  /// de confiar en esa bandera, para no mostrar "Con préstamo" en un
+  /// cliente que ya no debe nada.
+  Future<bool> tienePrestamoActivo(String clienteId) async {
+    final prestamos = await obtenerPorCliente(clienteId);
+    return prestamos.any((p) => p.saldo > 0.01);
+  }
+
   /// Reasigna el cobrador del prestamo (usado al "Asignar Cobrador" a un
   /// cliente, que cascadea a todos sus prestamos activos).
   Future<void> reasignarCobrador(String id, String cobradorUid) async {

@@ -45,6 +45,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   bool _buscando = false;
   bool _seBusco = false;
   List<ClienteModel> _resultados = [];
+  final Map<String, bool> _tienePrestamoReal = {};
 
   String? _cobradorUid;
   bool _esAdmin = true;
@@ -104,6 +105,20 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       _resultados = resultados;
       _buscando = false;
       _seBusco = true;
+    });
+
+    // El campo `tienePrestamo` del doc del cliente puede estar
+    // desactualizado (ver PrestamoRepository.tienePrestamoActivo); se
+    // verifica el real aparte, sin bloquear que la lista ya se muestre.
+    final prestamoRepo = ref.read(prestamoRepositoryProvider);
+    final verificaciones = await Future.wait(
+      resultados.map((c) => prestamoRepo.tienePrestamoActivo(c.id)),
+    );
+    if (!mounted) return;
+    setState(() {
+      for (var i = 0; i < resultados.length; i++) {
+        _tienePrestamoReal[resultados[i].id] = verificaciones[i];
+      }
     });
   }
 
@@ -232,7 +247,14 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
             else
               ..._resultados.map((c) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _ClienteTile(cliente: c),
+                    child: _ClienteTile(
+                      cliente: c,
+                      tienePrestamo: _tienePrestamoReal[c.id] ?? c.tienePrestamo,
+                      onEliminado: () {
+                        setState(() => _resultados.removeWhere((r) => r.id == c.id));
+                        _cargarStats();
+                      },
+                    ),
                   )),
           ],
         ],
@@ -243,8 +265,14 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
 
 class _ClienteTile extends ConsumerStatefulWidget {
   final ClienteModel cliente;
+  final bool tienePrestamo;
+  final VoidCallback onEliminado;
 
-  const _ClienteTile({required this.cliente});
+  const _ClienteTile({
+    required this.cliente,
+    required this.tienePrestamo,
+    required this.onEliminado,
+  });
 
   @override
   ConsumerState<_ClienteTile> createState() => _ClienteTileState();
@@ -298,7 +326,21 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
           ),
         );
         if (ok == true) {
-          await ref.read(clienteRepositoryProvider).eliminar(c.id);
+          try {
+            await ref.read(clienteRepositoryProvider).eliminar(c.id);
+            widget.onEliminado();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${c.nombre} fue eliminado')),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('No se pudo eliminar: $e')),
+              );
+            }
+          }
         }
         break;
     }
@@ -345,7 +387,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                           _filaIcono(Icons.storefront_outlined, c.nombreEmpresa),
                         if (c.identidad.isNotEmpty)
                           _filaIcono(Icons.badge_outlined, c.identidad),
-                        if (c.tienePrestamo) ...[
+                        if (widget.tienePrestamo) ...[
                           const SizedBox(height: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -486,9 +528,13 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
           const Divider(height: 24),
           _filaMonto('Prestado', formatearLempiras(totales.prestado)),
           _filaMonto('Abonado', formatearLempiras(totales.abonado), color: CEColors.success),
-          if (totales.mora > 0)
+          _filaMonto('Pendiente sin mora', formatearLempiras(totales.pendienteSinMora),
+              color: CEColors.danger),
+          if (totales.mora > 0) ...[
             _filaMonto('Mora', formatearLempiras(totales.mora), color: CEColors.danger),
-          _filaMonto('Pendiente', formatearLempiras(totales.pendiente), color: CEColors.danger),
+            _filaMonto('Pendiente con mora', formatearLempiras(totales.pendiente),
+                color: CEColors.danger),
+          ],
         ],
       ),
     );

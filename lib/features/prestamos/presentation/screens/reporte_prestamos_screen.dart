@@ -232,14 +232,19 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                         etiqueta: 'Pagado',
                         color: CEColors.success),
                     CeStatCard(
+                        icono: Icons.account_balance_wallet_outlined,
+                        valor: formatearLempiras((pendiente - mora).clamp(0, double.infinity)),
+                        etiqueta: 'Pendiente sin mora',
+                        color: CEColors.danger),
+                    CeStatCard(
                         icono: Icons.report_gmailerrorred_outlined,
                         valor: formatearLempiras(mora),
                         etiqueta: 'Mora',
                         color: CEColors.danger),
                     CeStatCard(
-                        icono: Icons.account_balance_wallet_outlined,
+                        icono: Icons.warning_amber_outlined,
                         valor: formatearLempiras(pendiente),
-                        etiqueta: 'Pendiente (con mora)',
+                        etiqueta: 'Pendiente con mora',
                         color: CEColors.danger),
                   ],
                 ),

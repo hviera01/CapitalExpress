@@ -19,6 +19,9 @@ class TotalesCliente {
     this.pendiente = 0,
     this.mora = 0,
   });
+
+  /// Pendiente sin contar la mora (capital + interes que falta pagar).
+  double get pendienteSinMora => (pendiente - mora).clamp(0, double.infinity);
 }
 
 double _prestadoDe(PrestamoModel p) => p.totalPagar > 0 ? p.totalPagar : (p.monto + p.interes);

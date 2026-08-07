@@ -236,17 +236,23 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                   valor: formatearLempiras(totalAbonado),
                   etiqueta: 'Abonado',
                   color: CEColors.success),
-              if (totales.mora > 0)
+              CeStatCard(
+                  icono: Icons.account_balance_wallet_outlined,
+                  valor: formatearLempiras(totales.pendienteSinMora),
+                  etiqueta: 'Pendiente sin mora',
+                  color: CEColors.danger),
+              if (totales.mora > 0) ...[
                 CeStatCard(
                     icono: Icons.report_gmailerrorred_outlined,
                     valor: formatearLempiras(totales.mora),
                     etiqueta: 'Mora',
                     color: CEColors.danger),
-              CeStatCard(
-                  icono: Icons.warning_amber_outlined,
-                  valor: formatearLempiras(saldoPendiente),
-                  etiqueta: 'Pendiente',
-                  color: CEColors.danger),
+                CeStatCard(
+                    icono: Icons.warning_amber_outlined,
+                    valor: formatearLempiras(saldoPendiente),
+                    etiqueta: 'Pendiente con mora',
+                    color: CEColors.danger),
+              ],
               CeStatCard(
                   icono: Icons.trending_up,
                   valor: '$activos',
