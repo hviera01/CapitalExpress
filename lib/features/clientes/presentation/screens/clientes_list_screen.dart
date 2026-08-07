@@ -6,6 +6,7 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
@@ -259,6 +260,41 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
     setState(() => _expandido = !_expandido);
   }
 
+  Future<void> _accion(BuildContext context, String accion) async {
+    final c = widget.cliente;
+    switch (accion) {
+      case 'editar':
+        context.push('/clientes/${c.id}/editar');
+        break;
+      case 'llamar':
+        llamarTelefono(c.telefono);
+        break;
+      case 'whatsapp':
+        abrirWhatsapp(c.telefono);
+        break;
+      case 'eliminar':
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Eliminar cliente'),
+            content: Text('¿Eliminar a ${c.nombre}? Esta acción no se puede deshacer.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Eliminar', style: TextStyle(color: CEColors.danger)),
+              ),
+            ],
+          ),
+        );
+        if (ok == true) {
+          await ref.read(clienteRepositoryProvider).eliminar(c.id);
+        }
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.cliente;
@@ -296,6 +332,8 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                         const SizedBox(height: 4),
                         if (c.telefono.isNotEmpty) _filaIcono(Icons.call_outlined, c.telefono),
+                        if (c.empresa.isNotEmpty)
+                          _filaIcono(Icons.storefront_outlined, c.empresa),
                         if (c.identidad.isNotEmpty)
                           _filaIcono(Icons.badge_outlined, c.identidad),
                         if (c.tienePrestamo) ...[
@@ -318,10 +356,55 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(_expandido ? Icons.expand_less : Icons.expand_more),
-                    color: CEColors.textSecondary,
-                    onPressed: _toggle,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: CEColors.textSecondary),
+                        onSelected: (accion) => _accion(context, accion),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'editar',
+                            child: ListTile(
+                              leading: Icon(Icons.edit_outlined),
+                              title: Text('Editar'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'eliminar',
+                            child: ListTile(
+                              leading: Icon(Icons.delete_outline, color: CEColors.danger),
+                              title: Text('Eliminar'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          if (c.telefono.isNotEmpty) ...[
+                            const PopupMenuItem(
+                              value: 'llamar',
+                              child: ListTile(
+                                leading: Icon(Icons.call_outlined),
+                                title: Text('Llamar'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'whatsapp',
+                              child: ListTile(
+                                leading: Icon(Icons.chat_outlined, color: Color(0xFF25D366)),
+                                title: Text('WhatsApp'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(_expandido ? Icons.expand_less : Icons.expand_more),
+                        color: CEColors.textSecondary,
+                        onPressed: _toggle,
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../utils/seleccionar_imagen.dart';
 import 'imagen_red_network.dart';
+import 'visor_foto_zoom.dart';
 
 /// Slot de foto con el mismo patron que "Crear Nuevo Cliente": icono +
 /// etiqueta arriba, caja punteada con la foto (o "Sin foto"), y dos
@@ -61,7 +62,10 @@ class SelectorFoto extends StatelessWidget {
             child: bytesNuevos != null
                 ? Image.memory(bytesNuevos!, fit: BoxFit.cover)
                 : urlActual.isNotEmpty
-                    ? ImagenRedNetwork(url: urlActual)
+                    ? GestureDetector(
+                        onTap: () => abrirFotoZoom(context, urlActual),
+                        child: ImagenRedNetwork(url: urlActual),
+                      )
                     : const Center(
                         child: Text('Sin foto',
                             style: TextStyle(color: CEColors.textSecondary, fontSize: 12)),

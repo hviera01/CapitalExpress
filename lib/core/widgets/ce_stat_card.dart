@@ -28,12 +28,20 @@ class CeStatCard extends StatelessWidget {
         children: [
           Icon(icono, color: color, size: 20),
           const SizedBox(height: 10),
-          Text(
-            valor,
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: color),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              valor,
+              maxLines: 1,
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: color),
+            ),
           ),
           const SizedBox(height: 2),
-          Text(etiqueta, style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+          Text(etiqueta,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
         ],
       ),
     );

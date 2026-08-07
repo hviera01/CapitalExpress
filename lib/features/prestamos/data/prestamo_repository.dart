@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/prestamo_model.dart';
+import '../../../core/utils/normalizar_texto.dart';
 
 class PrestamoRepository {
   final _db = FirebaseFirestore.instance;
@@ -62,6 +63,63 @@ class PrestamoRepository {
       prestamos.sort((a, b) => (b.fechaCreacion?.compareTo(a.fechaCreacion ?? b.fechaCreacion!) ?? 0));
       return prestamos;
     });
+  }
+
+  /// Cantidad total de prestamos del alcance dado (para el stat "Total"
+  /// sin tener que bajar todos los documentos).
+  Future<int> contar({String? cobradorUid, bool soloEliminados = false}) async {
+    Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: soloEliminados);
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    final agg = await query.count().get();
+    return agg.count ?? 0;
+  }
+
+  Future<int> contarPorEstado(String estado, {String? cobradorUid}) async {
+    Query<Map<String, dynamic>> query =
+        _col.where('estado', isEqualTo: estado).where('eliminado', isEqualTo: false);
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    final agg = await query.count().get();
+    return agg.count ?? 0;
+  }
+
+  /// Busqueda puntual (no streaming), igual criterio que
+  /// ClienteRepository.buscar: filtra por cobrador/estado/eliminado en
+  /// el servidor y el texto libre en memoria sobre ese subconjunto.
+  Future<List<PrestamoModel>> buscar({
+    String? cobradorUid,
+    String? estado,
+    bool incluirEliminados = false,
+    String texto = '',
+  }) async {
+    Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: incluirEliminados);
+    if (cobradorUid != null) {
+      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+    }
+    if (estado != null) {
+      query = query.where('estado', isEqualTo: estado);
+    }
+
+    final snap = await query.limit(300).get();
+    final prestamos = <PrestamoModel>[];
+    for (final doc in snap.docs) {
+      try {
+        prestamos.add(PrestamoModel.fromDoc(doc));
+      } catch (_) {
+        // documento con formato inesperado: se omite.
+      }
+    }
+    prestamos.sort((a, b) => (b.fechaCreacion?.compareTo(a.fechaCreacion ?? b.fechaCreacion!) ?? 0));
+
+    if (texto.trim().isEmpty) return prestamos;
+    final q = normalizarTexto(texto);
+    return prestamos
+        .where((p) =>
+            normalizarTexto(p.cliente).contains(q) || normalizarTexto(p.numeroPrestamo).contains(q))
+        .toList();
   }
 
   Future<PrestamoModel?> obtenerPorId(String id) async {

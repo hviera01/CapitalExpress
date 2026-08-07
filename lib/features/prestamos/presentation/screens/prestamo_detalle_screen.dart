@@ -10,6 +10,7 @@ import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
+import '../../../../core/widgets/visor_foto_zoom.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/recibo_prestamo_service.dart';
 import '../../providers/prestamos_provider.dart';
@@ -304,9 +305,12 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
               spacing: 10,
               runSpacing: 10,
               children: p.fotos
-                  .map((url) => ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SizedBox(width: 90, height: 90, child: ImagenRedNetwork(url: url)),
+                  .map((url) => GestureDetector(
+                        onTap: () => abrirFotoZoom(context, url),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: SizedBox(width: 90, height: 90, child: ImagenRedNetwork(url: url)),
+                        ),
                       ))
                   .toList(),
             ),

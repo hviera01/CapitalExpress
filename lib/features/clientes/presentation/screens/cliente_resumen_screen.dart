@@ -6,6 +6,7 @@ import '../../../../core/models/cliente_model.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/models/usuario_simple.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
@@ -41,12 +42,16 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
 
   Future<void> _cargar() async {
     setState(() => _cargando = true);
-    final cliente = await ref.read(clienteRepositoryProvider).obtenerPorId(widget.clienteId);
-    final prestamos = await ref.read(prestamoRepositoryProvider).obtenerPorCliente(widget.clienteId);
+    // Las dos consultas no dependen entre si: pedirlas en paralelo corta
+    // el tiempo de carga a la mitad en vez de esperar una y despues la otra.
+    final resultados = await Future.wait([
+      ref.read(clienteRepositoryProvider).obtenerPorId(widget.clienteId),
+      ref.read(prestamoRepositoryProvider).obtenerPorCliente(widget.clienteId),
+    ]);
     if (mounted) {
       setState(() {
-        _cliente = cliente;
-        _prestamos = prestamos;
+        _cliente = resultados[0] as ClienteModel?;
+        _prestamos = resultados[1] as List<PrestamoModel>;
         _cargando = false;
       });
     }
@@ -201,6 +206,11 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                 Text(c.nombre,
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 19)),
+                if (c.identidad.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(c.identidad,
+                      style: const TextStyle(color: CEColors.textSecondary, fontSize: 12)),
+                ],
                 if (c.telefono.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -210,6 +220,27 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                       const SizedBox(width: 4),
                       Text(c.telefono,
                           style: const TextStyle(color: CEColors.textSecondary, fontSize: 13)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => llamarTelefono(c.telefono),
+                        icon: const Icon(Icons.call, size: 16),
+                        label: const Text('Llamar'),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF25D366),
+                          side: const BorderSide(color: Color(0xFF25D366)),
+                        ),
+                        onPressed: () => abrirWhatsapp(c.telefono),
+                        icon: const Icon(Icons.chat_outlined, size: 16),
+                        label: const Text('WhatsApp'),
+                      ),
                     ],
                   ),
                 ],

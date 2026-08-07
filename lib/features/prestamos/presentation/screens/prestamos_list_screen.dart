@@ -14,33 +14,125 @@ import '../../providers/prestamos_provider.dart';
 
 const _estadosFiltro = ['Todos', 'Activo', 'Mora', 'Saldado'];
 
-class PrestamosListScreen extends ConsumerWidget {
+/// Igual que Ver Clientes: nada se carga solo con entrar a la pantalla.
+/// Los 3 contadores de arriba salen de agregaciones (count en el
+/// servidor), y la lista solo se trae al apretar "Buscar".
+class PrestamosListScreen extends ConsumerStatefulWidget {
   const PrestamosListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final usuario = ref.watch(authProvider).usuario;
+  ConsumerState<PrestamosListScreen> createState() => _PrestamosListScreenState();
+}
+
+class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
+  final _busquedaCtrl = TextEditingController();
+  String _filtroEstado = 'Todos';
+  bool _verEliminados = false;
+
+  bool _cargandoStats = true;
+  int _total = 0;
+  int _activos = 0;
+  int _saldados = 0;
+
+  bool _buscando = false;
+  bool _seBusco = false;
+  List<PrestamoModel> _resultados = [];
+
+  String? _cobradorUid;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _cargarStats());
+  }
+
+  @override
+  void dispose() {
+    _busquedaCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargarStats() async {
+    final usuario = ref.read(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
-    final cobradorUid = esAdmin ? null : usuario?.uid;
+    _cobradorUid = esAdmin ? null : usuario?.uid;
 
-    final verEliminados = ref.watch(verEliminadosProvider);
-    final estadoFiltro = ref.watch(filtroEstadoPrestamosProvider);
-    final busqueda = ref.watch(busquedaPrestamosProvider);
+    setState(() => _cargandoStats = true);
+    final repo = ref.read(prestamoRepositoryProvider);
+    final resultados = await Future.wait([
+      repo.contar(cobradorUid: _cobradorUid),
+      repo.contarPorEstado('activo', cobradorUid: _cobradorUid),
+      repo.contarPorEstado('saldado', cobradorUid: _cobradorUid),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _total = resultados[0];
+      _activos = resultados[1];
+      _saldados = resultados[2];
+      _cargandoStats = false;
+    });
+  }
 
-    final query = PrestamosQuery(cobradorUid: cobradorUid, incluirEliminados: verEliminados);
-    final prestamosAsync = ref.watch(prestamosStreamProvider(query));
+  Future<void> _buscar() async {
+    setState(() => _buscando = true);
+    final estado = _filtroEstado == 'Todos' ? null : _filtroEstado.toLowerCase();
+    final resultados = await ref.read(prestamoRepositoryProvider).buscar(
+          cobradorUid: _cobradorUid,
+          estado: estado,
+          incluirEliminados: _verEliminados,
+          texto: _busquedaCtrl.text,
+        );
+    if (!mounted) return;
+    setState(() {
+      _resultados = resultados;
+      _buscando = false;
+      _seBusco = true;
+    });
+  }
 
-    final hayFiltros = busqueda.isNotEmpty || estadoFiltro != 'Todos' || verEliminados;
+  Future<void> _eliminarTodos() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar todos'),
+        content: const Text(
+            'Se borrarán definitivamente todos los préstamos eliminados. Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar todos', style: TextStyle(color: CEColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final borrados =
+          await ref.read(prestamoRepositoryProvider).eliminarTodosLosEliminados(cobradorUid: _cobradorUid);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$borrados préstamo(s) borrados')));
+        _buscar();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hayFiltros = _busquedaCtrl.text.isNotEmpty || _filtroEstado != 'Todos' || _verEliminados;
 
     return CeScaffold(
       maxWidth: 900,
       appBar: AppBar(
-        backgroundColor: verEliminados ? CEColors.danger : null,
-        title: Text(verEliminados ? 'Préstamos eliminados' : 'Préstamos'),
+        backgroundColor: _verEliminados ? CEColors.danger : null,
+        title: Text(_verEliminados ? 'Préstamos eliminados' : 'Préstamos'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(prestamosStreamProvider(query)),
+            onPressed: () {
+              _cargarStats();
+              if (_seBusco) _buscar();
+            },
           ),
         ],
       ),
@@ -49,165 +141,156 @@ class PrestamosListScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Nuevo préstamo'),
       ),
-      body: prestamosAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error al cargar préstamos: $e')),
-        data: (prestamos) {
-          var filtrados = filtrarPrestamos(prestamos, busqueda);
-          if (estadoFiltro != 'Todos') {
-            final estado = estadoFiltro.toLowerCase();
-            filtrados = filtrados.where((p) => p.estado.toLowerCase() == estado).toList();
-          }
-
-          final activos = prestamos.where((p) => p.estado != 'saldado').length;
-          final saldados = prestamos.where((p) => p.estado == 'saldado').length;
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        children: [
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.0,
             children: [
-              CeCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+              CeStatCard(
+                icono: Icons.payments_outlined,
+                valor: _cargandoStats ? '…' : '$_total',
+                etiqueta: 'TOTAL',
+              ),
+              CeStatCard(
+                icono: Icons.check_circle_outline,
+                valor: _cargandoStats ? '…' : '$_activos',
+                etiqueta: 'ACTIVOS',
+                color: CEColors.success,
+              ),
+              CeStatCard(
+                icono: Icons.history_toggle_off,
+                valor: _cargandoStats ? '…' : '$_saldados',
+                etiqueta: 'SALDADOS',
+                color: CEColors.accent,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          CeCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _busquedaCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar cliente o número...',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onSubmitted: (_) => _buscar(),
+                ),
+                const SizedBox(height: 14),
+                Row(
                   children: [
-                    TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'Buscar cliente o número...',
-                        prefixIcon: Icon(Icons.search),
+                    const Icon(Icons.warning_amber_rounded, size: 18, color: CEColors.danger),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('Ver eliminados', style: TextStyle(fontSize: 13))),
+                    Switch(
+                      value: _verEliminados,
+                      activeThumbColor: CEColors.danger,
+                      onChanged: (v) => setState(() => _verEliminados = v),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Estado de préstamo',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _estadosFiltro
+                      .map((e) => ChoiceChip(
+                            label: Text(e),
+                            selected: _filtroEstado == e,
+                            onSelected: (_) => setState(() => _filtroEstado = e),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: _buscando ? null : _buscar,
+                    icon: _buscando
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.search),
+                    label: const Text('Buscar'),
+                  ),
+                ),
+                if (hayFiltros) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        _busquedaCtrl.clear();
+                        setState(() {
+                          _filtroEstado = 'Todos';
+                          _verEliminados = false;
+                        });
+                      },
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Limpiar filtros'),
+                    ),
+                  ),
+                ],
+                if (_verEliminados && _resultados.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: CEColors.danger,
+                        side: const BorderSide(color: CEColors.danger),
                       ),
-                      onChanged: (v) => ref.read(busquedaPrestamosProvider.notifier).state = v,
+                      onPressed: _eliminarTodos,
+                      icon: const Icon(Icons.delete_forever_outlined, size: 16),
+                      label: const Text('Eliminar todos permanentemente'),
                     ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, size: 18, color: CEColors.danger),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text('Ver eliminados', style: TextStyle(fontSize: 13)),
-                        ),
-                        Switch(
-                          value: verEliminados,
-                          activeThumbColor: CEColors.danger,
-                          onChanged: (v) => ref.read(verEliminadosProvider.notifier).state = v,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Estado de préstamo',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _estadosFiltro
-                          .map((e) => ChoiceChip(
-                                label: Text(e),
-                                selected: estadoFiltro == e,
-                                onSelected: (_) =>
-                                    ref.read(filtroEstadoPrestamosProvider.notifier).state = e,
-                              ))
-                          .toList(),
-                    ),
-                    if (hayFiltros) ...[
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            ref.read(busquedaPrestamosProvider.notifier).state = '';
-                            ref.read(filtroEstadoPrestamosProvider.notifier).state = 'Todos';
-                            ref.read(verEliminadosProvider.notifier).state = false;
-                          },
-                          icon: const Icon(Icons.close, size: 16),
-                          label: const Text('Limpiar filtros'),
-                        ),
-                      ),
-                    ],
-                    if (verEliminados && prestamosAsync.value?.isNotEmpty == true) ...[
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: CEColors.danger,
-                            side: const BorderSide(color: CEColors.danger),
-                          ),
-                          onPressed: () async {
-                            final ok = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Eliminar todos'),
-                                content: const Text(
-                                    'Se borrarán definitivamente todos los préstamos eliminados. Esta acción no se puede deshacer.'),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () => Navigator.pop(context, false),
-                                      child: const Text('Cancelar')),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('Eliminar todos',
-                                        style: TextStyle(color: CEColors.danger)),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (ok == true) {
-                              final borrados = await ref
-                                  .read(prestamoRepositoryProvider)
-                                  .eliminarTodosLosEliminados(cobradorUid: cobradorUid);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('$borrados préstamo(s) borrados')),
-                                );
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.delete_forever_outlined, size: 16),
-                          label: const Text('Eliminar todos permanentemente'),
-                        ),
-                      ),
-                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (!_seBusco)
+            const Padding(
+              padding: EdgeInsets.only(top: 40),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.search, size: 40, color: CEColors.textSecondary),
+                    SizedBox(height: 12),
+                    Text('Buscá para ver los préstamos',
+                        style: TextStyle(color: CEColors.textSecondary)),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              GridView.count(
-                crossAxisCount: 3,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.0,
-                children: [
-                  CeStatCard(icono: Icons.payments_outlined, valor: '${prestamos.length}', etiqueta: 'TOTAL'),
-                  CeStatCard(
-                      icono: Icons.check_circle_outline,
-                      valor: '$activos',
-                      etiqueta: 'ACTIVOS',
-                      color: CEColors.success),
-                  CeStatCard(
-                      icono: Icons.history_toggle_off,
-                      valor: '$saldados',
-                      etiqueta: 'SALDADOS',
-                      color: CEColors.accent),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (filtrados.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 40),
-                  child: Center(child: Text('No hay préstamos')),
-                )
-              else
-                ...filtrados.map((p) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _PrestamoCard(prestamo: p, eliminadoView: verEliminados),
-                    )),
-            ],
-          );
-        },
+            )
+          else if (_resultados.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 24),
+              child: Center(child: Text('No hay préstamos')),
+            )
+          else
+            ..._resultados.map((p) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _PrestamoCard(prestamo: p, eliminadoView: _verEliminados),
+                )),
+        ],
       ),
     );
   }
@@ -232,6 +315,9 @@ class _PrestamoCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final usuario = ref.watch(authProvider).usuario;
+    final esAdmin = usuario?.rol == Roles.admin;
+
     return CeCard(
       padding: EdgeInsets.zero,
       onTap: () => context.push('/prestamos/${prestamo.prestamoId}'),
@@ -322,6 +408,15 @@ class _PrestamoCard extends ConsumerWidget {
                         child: const Text('Ver'),
                       ),
                     ),
+                    if (esAdmin && !eliminadoView) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => context.push('/prestamos/${prestamo.prestamoId}/editar'),
+                          child: const Text('Editar'),
+                        ),
+                      ),
+                    ],
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton(

@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
+import '../../../../core/widgets/visor_foto_zoom.dart';
 import '../../providers/clientes_provider.dart';
 
 class ClienteDetalleScreen extends ConsumerStatefulWidget {
@@ -134,11 +135,18 @@ class _ClienteDetalleScreenState extends ConsumerState<ClienteDetalleScreen> {
                     c.fotoIdentidadReversoUrl,
                     c.fotoReciboLuzUrl,
                     c.garantiaFotoUrl,
+                    c.fotoExtra1Url,
+                    c.fotoExtra2Url,
+                    c.fotoExtra3Url,
                   ]
                       .where((u) => u.isNotEmpty)
-                      .map((u) => ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: SizedBox(width: 90, height: 90, child: ImagenRedNetwork(url: u)),
+                      .map((u) => GestureDetector(
+                            onTap: () => abrirFotoZoom(context, u),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child:
+                                  SizedBox(width: 90, height: 90, child: ImagenRedNetwork(url: u)),
+                            ),
                           ))
                       .toList(),
                 ),

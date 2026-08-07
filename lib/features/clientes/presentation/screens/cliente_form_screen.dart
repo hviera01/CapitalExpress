@@ -247,6 +247,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
+        leading: BackButton(onPressed: () => context.pop()),
         title: Text(_clienteOriginal == null ? 'Crear Nuevo Cliente' : 'Editar cliente'),
       ),
       drawer: Drawer(
