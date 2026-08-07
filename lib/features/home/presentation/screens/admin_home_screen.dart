@@ -35,7 +35,7 @@ class AdminHomeScreen extends ConsumerWidget {
       nombreUsuario: usuario?.nombre ?? '',
       rolUsuario: 'Administrador',
       onLogout: () => ref.read(authProvider.notifier).logout(),
-      onNotificaciones: () => _proximamente(context, 'Notificaciones'),
+      onNotificaciones: () => context.push('/cobros'),
       body: ListView(
         padding: EdgeInsets.fromLTRB(
           escritorio ? 32 : 16,
@@ -46,10 +46,10 @@ class AdminHomeScreen extends ConsumerWidget {
         children: [
           CeMenuRow(
             icono: Icons.notifications_outlined,
-            titulo: 'Ver Notificaciones',
-            subtitulo: 'Centro de alertas crítico',
+            titulo: 'Cobros',
+            subtitulo: 'Cuotas vencidas y próximas',
             chevron: true,
-            onTap: () => _proximamente(context, 'Notificaciones'),
+            onTap: () => context.push('/cobros'),
           ),
           const CeSectionLabel('Crear'),
           GridView.count(
@@ -118,37 +118,13 @@ class AdminHomeScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const CeSectionLabel('Historial'),
+          const CeSectionLabel('Reportes'),
           CeMenuRow(
             icono: Icons.summarize_outlined,
-            titulo: 'Reporte de Clientes',
-            subtitulo: 'Filtros, resumen y exportar a PDF',
+            titulo: 'Reportes',
+            subtitulo: 'Clientes, préstamos, cobros y dashboard',
             chevron: true,
-            onTap: () => context.push('/clientes/reporte'),
-          ),
-          const SizedBox(height: 12),
-          CeMenuRow(
-            icono: Icons.receipt_long_outlined,
-            titulo: 'Historial de Pagos',
-            subtitulo: 'Arqueo de caja y transacciones',
-            chevron: true,
-            onTap: () => _proximamente(context, 'Historial de Pagos'),
-          ),
-          const SizedBox(height: 12),
-          CeMenuRow(
-            icono: Icons.storage_outlined,
-            titulo: 'Historial Global',
-            subtitulo: 'Auditoría completa del sistema',
-            chevron: true,
-            onTap: () => _proximamente(context, 'Historial Global'),
-          ),
-          const CeSectionLabel('Estadísticas y herramientas'),
-          CeMenuRow(
-            icono: Icons.grid_view_outlined,
-            titulo: 'Dashboard',
-            subtitulo: 'Métricas en tiempo real',
-            trailingIcon: Icons.trending_up,
-            onTap: () => _proximamente(context, 'Dashboard'),
+            onTap: () => context.push('/reportes'),
           ),
           const SizedBox(height: 12),
           CeDashedCard(

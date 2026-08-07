@@ -75,6 +75,7 @@ class PrestamoModel {
   final int diasEfectivos;
   final List<String> morasAplicadas;
   final List<MoraIndividual> morasIndividuales;
+  final Timestamp? fechaUltimaMora;
 
   const PrestamoModel({
     required this.prestamoId,
@@ -114,6 +115,7 @@ class PrestamoModel {
     this.diasEfectivos = 0,
     this.morasAplicadas = const [],
     this.morasIndividuales = const [],
+    this.fechaUltimaMora,
   });
 
   /// `numeroPrestamo` deberia ser siempre String ("SDG-00001") pero por
@@ -167,6 +169,7 @@ class PrestamoModel {
               ?.map((m) => MoraIndividual.fromMap(Map<String, dynamic>.from(m as Map)))
               .toList() ??
           const [],
+      fechaUltimaMora: asTimestamp(d['fechaUltimaMora']),
     );
   }
 }

@@ -133,10 +133,10 @@ class CobradorHomeScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           CeMenuRow(
             icono: Icons.notifications_outlined,
-            titulo: 'Ver Notificaciones',
-            subtitulo: 'Revisar mensajes y alertas',
+            titulo: 'Cobros',
+            subtitulo: 'Cuotas vencidas y próximas',
             chevron: true,
-            onTap: () => _proximamente(context, 'Notificaciones'),
+            onTap: () => context.push('/cobros'),
           ),
           const SizedBox(height: 24),
         ],

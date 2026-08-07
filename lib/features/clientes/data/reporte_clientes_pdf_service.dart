@@ -1,7 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/reporte_clientes_calculos.dart';
@@ -31,7 +32,7 @@ class FilaReporteCliente {
 }
 
 class ReporteClientesPdfService {
-  static Future<void> generarYAbrir({
+  static Future<Uint8List> generar({
     required List<FilaReporteCliente> filas,
     required String filtroEstadoTexto,
     required String filtroCobradorTexto,
@@ -178,7 +179,7 @@ class ReporteClientesPdfService {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+    return pdf.save();
   }
 
   static pw.Widget _statChip(String label, String valor) {

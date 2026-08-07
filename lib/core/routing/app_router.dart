@@ -17,6 +17,11 @@ import '../../features/prestamos/presentation/screens/prestamos_list_screen.dart
 import '../../features/prestamos/presentation/screens/crear_prestamo_screen.dart';
 import '../../features/prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../features/prestamos/presentation/screens/editar_prestamo_screen.dart';
+import '../../features/prestamos/presentation/screens/reporte_prestamos_screen.dart';
+import '../../features/pagos/presentation/screens/reporte_cobros_screen.dart';
+import '../../features/pagos/presentation/screens/cobros_screen.dart';
+import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../../features/reportes/presentation/screens/reportes_screen.dart';
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
@@ -104,6 +109,25 @@ final routerProvider = Provider<GoRouter>((ref) {
                     EditarPrestamoScreen(prestamoId: state.pathParameters['id']!),
               ),
             ],
+          ),
+        ],
+      ),
+      GoRoute(path: '/cobros', builder: (context, state) => const CobrosScreen()),
+      GoRoute(
+        path: '/reportes',
+        builder: (context, state) => const ReportesScreen(),
+        routes: [
+          GoRoute(
+            path: 'prestamos',
+            builder: (context, state) => const ReportePrestamosScreen(),
+          ),
+          GoRoute(
+            path: 'cobros',
+            builder: (context, state) => const ReporteCobrosScreen(),
+          ),
+          GoRoute(
+            path: 'dashboard',
+            builder: (context, state) => const DashboardScreen(),
           ),
         ],
       ),

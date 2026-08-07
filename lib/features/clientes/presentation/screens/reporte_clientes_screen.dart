@@ -12,6 +12,7 @@ import '../../../../core/utils/reporte_clientes_calculos.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../data/reporte_clientes_pdf_service.dart';
@@ -43,7 +44,6 @@ class ReporteClientesScreen extends ConsumerStatefulWidget {
 
 class _ReporteClientesScreenState extends ConsumerState<ReporteClientesScreen> {
   bool _cargando = true;
-  bool _generandoPdf = false;
   List<ClienteModel> _clientes = [];
   Map<String, List<PrestamoModel>> _prestamosPorCliente = {};
   List<UsuarioSimple> _cobradores = [];
@@ -122,32 +122,32 @@ class _ReporteClientesScreenState extends ConsumerState<ReporteClientesScreen> {
     return _nombresCobradores[c.cobradorAsignado] ?? c.cobradorAsignado;
   }
 
-  Future<void> _exportarPdf() async {
-    setState(() => _generandoPdf = true);
-    try {
-      final filas = _filas
-          .map((f) => FilaReporteCliente(
-                cliente: f.cliente.nombre,
-                telefono: f.cliente.telefono,
-                cobrador: _nombreCobradorDe(f.cliente),
-                estado: f.estado,
-                totales: f.totales,
-                proximoPago: f.proximoPago,
-              ))
-          .toList();
+  void _exportarPdf() {
+    final filas = _filas
+        .map((f) => FilaReporteCliente(
+              cliente: f.cliente.nombre,
+              telefono: f.cliente.telefono,
+              cobrador: _nombreCobradorDe(f.cliente),
+              estado: f.estado,
+              totales: f.totales,
+              proximoPago: f.proximoPago,
+            ))
+        .toList();
 
-      final cobradorTexto = _filtroCobradorUid == null
-          ? 'Todos'
-          : (_nombresCobradores[_filtroCobradorUid] ?? _filtroCobradorUid!);
+    final cobradorTexto = _filtroCobradorUid == null
+        ? 'Todos'
+        : (_nombresCobradores[_filtroCobradorUid] ?? _filtroCobradorUid!);
 
-      await ReporteClientesPdfService.generarYAbrir(
+    abrirVistaPreviaPdf(
+      context,
+      titulo: 'Reporte de Clientes',
+      nombreArchivo: 'reporte_clientes.pdf',
+      generar: () => ReporteClientesPdfService.generar(
         filas: filas,
         filtroEstadoTexto: _filtroEstado,
         filtroCobradorTexto: cobradorTexto,
-      );
-    } finally {
-      if (mounted) setState(() => _generandoPdf = false);
-    }
+      ),
+    );
   }
 
   @override
@@ -168,15 +168,9 @@ class _ReporteClientesScreenState extends ConsumerState<ReporteClientesScreen> {
         actions: [
           if (_esAdmin)
             IconButton(
-              icon: _generandoPdf
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.picture_as_pdf_outlined),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
               tooltip: 'Exportar PDF',
-              onPressed: (_cargando || _generandoPdf) ? null : _exportarPdf,
+              onPressed: _cargando ? null : _exportarPdf,
             ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
         ],

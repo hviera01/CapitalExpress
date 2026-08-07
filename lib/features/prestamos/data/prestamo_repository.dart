@@ -172,6 +172,35 @@ class PrestamoRepository {
     });
   }
 
+  /// Aplica una mora al prestamo -- misma logica que DialogoAplicarMora
+  /// en NotificacionesScreen.kt: incrementa saldo y mora, registra en
+  /// morasAplicadas/morasIndividuales, y marca el prestamo en "mora".
+  Future<void> aplicarMora(
+    String id, {
+    required double monto,
+    required String aplicadaPor,
+    required double saldoActual,
+  }) async {
+    final ahora = Timestamp.now();
+    await _col.doc(id).update({
+      'saldo': saldoActual + monto,
+      'mora': FieldValue.increment(monto),
+      'morasAplicadas': FieldValue.arrayUnion(['${aplicadaPor}_${ahora.millisecondsSinceEpoch}']),
+      'morasIndividuales': FieldValue.arrayUnion([
+        {
+          'id': ahora.millisecondsSinceEpoch.toString(),
+          'monto': monto,
+          'fechaAplicada': ahora,
+          'aplicadaPor': aplicadaPor,
+          'sintetica': false,
+        }
+      ]),
+      'estado': 'mora',
+      'fechaUltimaActualizacion': ahora,
+      'fechaUltimaMora': ahora,
+    });
+  }
+
   /// Cantidad de prestamos en mora (para el stat "Pagos Tarde").
   Future<int> contarEnMora({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col.where('estado', isEqualTo: 'mora');
@@ -192,6 +221,17 @@ class PrestamoRepository {
     }
     final agg = await query.aggregate(sum('saldo')).get();
     return (agg.getSum('saldo') ?? 0).toDouble();
+  }
+
+  /// Total prestado (monto) e interes total sobre TODOS los prestamos
+  /// (sin filtro de fecha, igual que DashboardScreen.kt) -- agregado en
+  /// el servidor, no se descarga ningun documento.
+  Future<({double monto, double interes})> sumarMontoEInteres() async {
+    final agg = await _col.aggregate(sum('monto'), sum('interesTotal')).get();
+    return (
+      monto: (agg.getSum('monto') ?? 0).toDouble(),
+      interes: (agg.getSum('interesTotal') ?? 0).toDouble(),
+    );
   }
 
   Future<String> crear(Map<String, dynamic> datos) async {
