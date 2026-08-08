@@ -170,18 +170,18 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     setState(() => _guardando = true);
 
     try {
+      // Las fotos nuevas se suben todas EN PARALELO (antes era una por
+      // una, esperando a que terminara cada una para recien empezar la
+      // siguiente -- con los 10 casilleros llenos eso sumaba el tiempo
+      // de las 10 subidas en vez de tardar lo que tarda la mas lenta).
       final storage = StorageService();
-      final urls = <String, String>{};
-      for (final entry in _fotos.entries) {
-        if (entry.value != null) {
-          urls[entry.key] = await storage.subirFoto(
-            bytes: entry.value!,
-            carpeta: 'clientes',
-          );
-        } else {
-          urls[entry.key] = _urlExistente(entry.key);
-        }
-      }
+      final subidas = await Future.wait(_fotos.entries.map((entry) async {
+        final url = entry.value != null
+            ? await storage.subirFoto(bytes: entry.value!, carpeta: 'clientes')
+            : _urlExistente(entry.key);
+        return MapEntry(entry.key, url);
+      }));
+      final urls = Map<String, String>.fromEntries(subidas);
 
       final usuario = ref.read(authProvider).usuario!;
       final cliente = ClienteModel(
