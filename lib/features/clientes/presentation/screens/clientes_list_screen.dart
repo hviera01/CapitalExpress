@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
@@ -14,11 +13,14 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../providers/clientes_busqueda_cache.dart';
 import '../../providers/clientes_provider.dart';
+import 'cliente_form_screen.dart';
+import 'cliente_resumen_screen.dart';
 
 const _estados = ['Todos', 'Activo', 'Inactivo'];
 
@@ -237,7 +239,8 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       appBar: AppBar(
         leading: const BackButton(),title: Text(esAdmin ? 'Ver Clientes' : 'Mis Clientes')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/clientes/nuevo'),
+        onPressed: () =>
+            irAPantalla(context, ruta: '/clientes/nuevo', pantalla: const ClienteFormScreen()),
         icon: const Icon(Icons.person_add_outlined),
         label: const Text('Nuevo cliente'),
       ),
@@ -430,7 +433,10 @@ class _TablaClientes extends ConsumerWidget {
   });
 
   Future<void> _abrirResumen(BuildContext context, WidgetRef ref, ClienteModel c) async {
-    await context.push('/clientes/${c.id}', extra: c);
+    await irAPantalla(context,
+        ruta: '/clientes/${c.id}',
+        extra: c,
+        pantalla: ClienteResumenScreen(clienteId: c.id, clienteInicial: c));
     final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(c.id);
     if (actualizado != null) {
       onActualizado(actualizado);
@@ -440,7 +446,10 @@ class _TablaClientes extends ConsumerWidget {
   }
 
   Future<void> _editar(BuildContext context, WidgetRef ref, ClienteModel c) async {
-    await context.push('/clientes/${c.id}/editar', extra: c);
+    await irAPantalla(context,
+        ruta: '/clientes/${c.id}/editar',
+        extra: c,
+        pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c));
     final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(c.id);
     if (actualizado != null) onActualizado(actualizado);
   }
@@ -638,7 +647,10 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
     final c = widget.cliente;
     switch (accion) {
       case 'editar':
-        await context.push('/clientes/${c.id}/editar', extra: c);
+        await irAPantalla(context,
+            ruta: '/clientes/${c.id}/editar',
+            extra: c,
+            pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c));
         // Al volver de editar, se trae el cliente actualizado -- antes
         // la fila se quedaba mostrando los datos viejos hasta que se
         // repetia la busqueda a mano.
@@ -693,7 +705,10 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
   /// fila para no quedar mostrando datos viejos o un cliente ya
   /// borrado.
   Future<void> _abrirResumen(BuildContext context) async {
-    await context.push('/clientes/${widget.cliente.id}', extra: widget.cliente);
+    await irAPantalla(context,
+        ruta: '/clientes/${widget.cliente.id}',
+        extra: widget.cliente,
+        pantalla: ClienteResumenScreen(clienteId: widget.cliente.id, clienteInicial: widget.cliente));
     final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(widget.cliente.id);
     if (actualizado != null) {
       widget.onActualizado(actualizado);

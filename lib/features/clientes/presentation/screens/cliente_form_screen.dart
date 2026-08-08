@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
@@ -233,7 +232,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         await repo.actualizar(cliente);
       }
 
-      if (mounted) context.pop();
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

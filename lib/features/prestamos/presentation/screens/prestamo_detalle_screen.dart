@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -9,11 +8,16 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../../core/widgets/visor_foto_zoom.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../pagos/presentation/screens/cobrar_screen.dart';
+import '../../../pagos/presentation/screens/historial_pagos_prestamo_screen.dart';
+import '../../../pagos/presentation/screens/ver_cuotas_screen.dart';
 import '../../data/recibo_prestamo_service.dart';
 import '../../providers/prestamos_provider.dart';
+import 'editar_prestamo_screen.dart';
 
 class PrestamoDetalleScreen extends ConsumerStatefulWidget {
   final String prestamoId;
@@ -131,7 +135,10 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Editar',
-              onPressed: () => context.push('/prestamos/${p.prestamoId}/editar', extra: p),
+              onPressed: () => irAPantalla(context,
+                  ruta: '/prestamos/${p.prestamoId}/editar',
+                  extra: p,
+                  pantalla: EditarPrestamoScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
             ),
           if (esAdmin)
             IconButton(
@@ -372,7 +379,9 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             SizedBox(
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: () => context.push('/prestamos/${p.prestamoId}/cobrar'),
+                onPressed: () => irAPantalla(context,
+                    ruta: '/prestamos/${p.prestamoId}/cobrar',
+                    pantalla: CobrarScreen(prestamoId: p.prestamoId)),
                 style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
                 icon: const Icon(Icons.payments_outlined),
                 label: const Text('Cobrar'),
@@ -383,7 +392,9 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
           SizedBox(
             height: 50,
             child: OutlinedButton.icon(
-              onPressed: () => context.push('/prestamos/${p.prestamoId}/cuotas'),
+              onPressed: () => irAPantalla(context,
+                  ruta: '/prestamos/${p.prestamoId}/cuotas',
+                  pantalla: VerCuotasScreen(prestamoId: p.prestamoId)),
               icon: const Icon(Icons.list_alt_outlined),
               label: const Text('Ver Cuotas del Préstamo'),
             ),
@@ -392,8 +403,10 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
           SizedBox(
             height: 50,
             child: OutlinedButton.icon(
-              onPressed: () => context
-                  .push('/prestamos/${p.prestamoId}/pagos?numero=${p.numeroPrestamo}'),
+              onPressed: () => irAPantalla(context,
+                  ruta: '/prestamos/${p.prestamoId}/pagos?numero=${p.numeroPrestamo}',
+                  pantalla: HistorialPagosPrestamoScreen(
+                      prestamoId: p.prestamoId, numeroPrestamo: p.numeroPrestamo)),
               icon: const Icon(Icons.receipt_long_outlined),
               label: const Text('Historial de Pagos'),
             ),

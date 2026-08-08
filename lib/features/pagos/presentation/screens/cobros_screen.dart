@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -15,9 +14,12 @@ import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import 'cobrar_screen.dart';
+import 'ver_cuotas_screen.dart';
 import '../../providers/cobros_cache.dart';
 import '../../providers/pagos_provider.dart';
 
@@ -480,16 +482,18 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                 children: [
                                   Expanded(
                                     child: ElevatedButton(
-                                      onPressed: () =>
-                                          context.push('/prestamos/${p.prestamoId}/cobrar'),
+                                      onPressed: () => irAPantalla(context,
+                                          ruta: '/prestamos/${p.prestamoId}/cobrar',
+                                          pantalla: CobrarScreen(prestamoId: p.prestamoId)),
                                       child: const Text('Pagar'),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed: () =>
-                                          context.push('/prestamos/${p.prestamoId}/cuotas'),
+                                      onPressed: () => irAPantalla(context,
+                                          ruta: '/prestamos/${p.prestamoId}/cuotas',
+                                          pantalla: VerCuotasScreen(prestamoId: p.prestamoId)),
                                       child: const Text('Cuotas'),
                                     ),
                                   ),
@@ -581,7 +585,9 @@ class _TablaCobros extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         TextButton(
-                          onPressed: () => context.push('/prestamos/${p.prestamoId}/cobrar'),
+                          onPressed: () => irAPantalla(context,
+                              ruta: '/prestamos/${p.prestamoId}/cobrar',
+                              pantalla: CobrarScreen(prestamoId: p.prestamoId)),
                           child: const Text('Pagar'),
                         ),
                         PopupMenuButton<String>(
@@ -589,7 +595,9 @@ class _TablaCobros extends StatelessWidget {
                           onSelected: (accion) {
                             switch (accion) {
                               case 'cuotas':
-                                context.push('/prestamos/${p.prestamoId}/cuotas');
+                                irAPantalla(context,
+                                    ruta: '/prestamos/${p.prestamoId}/cuotas',
+                                    pantalla: VerCuotasScreen(prestamoId: p.prestamoId));
                                 break;
                               case 'whatsapp':
                                 onWhatsapp(p);

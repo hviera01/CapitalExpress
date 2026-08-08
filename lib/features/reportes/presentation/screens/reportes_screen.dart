@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
+import '../../../clientes/presentation/screens/reporte_clientes_screen.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../pagos/presentation/screens/reporte_cobros_screen.dart';
+import '../../../prestamos/presentation/screens/reporte_prestamos_screen.dart';
 
 class ReportesScreen extends StatelessWidget {
   const ReportesScreen({super.key});
@@ -29,26 +33,30 @@ class ReportesScreen extends StatelessWidget {
                 icono: Icons.people_outline,
                 titulo: 'Reporte de Clientes',
                 subtitulo: 'Cartera y saldos',
-                onTap: () => context.push('/clientes/reporte'),
+                onTap: () => irAPantalla(context,
+                    ruta: '/clientes/reporte', pantalla: const ReporteClientesScreen()),
               ),
               CeMenuCard(
                 icono: Icons.account_balance_outlined,
                 titulo: 'Reporte de Préstamos',
                 subtitulo: 'Estado y montos',
-                onTap: () => context.push('/reportes/prestamos'),
+                onTap: () => irAPantalla(context,
+                    ruta: '/reportes/prestamos', pantalla: const ReportePrestamosScreen()),
               ),
               CeMenuCard(
                 icono: Icons.payments_outlined,
                 titulo: 'Reporte de Cobros',
                 subtitulo: 'Pagos y saldados',
-                onTap: () => context.push('/reportes/cobros'),
+                onTap: () => irAPantalla(context,
+                    ruta: '/reportes/cobros', pantalla: const ReporteCobrosScreen()),
               ),
               CeMenuCard(
                 oscuro: true,
                 icono: Icons.dashboard_outlined,
                 titulo: 'Dashboard General',
                 subtitulo: 'Métricas y gráficos',
-                onTap: () => context.push('/reportes/dashboard'),
+                onTap: () => irAPantalla(context,
+                    ruta: '/reportes/dashboard', pantalla: const DashboardScreen()),
               ),
             ],
           ),

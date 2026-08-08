@@ -8,18 +8,19 @@ import '../theme/app_theme.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import 'ce_web_sections.dart';
 
-/// Chrome de escritorio Web: menu lateral desplegable + pestañas en
-/// memoria (IndexedStack, ver WebTabsNotifier) en vez del menu
-/// superior fijo + navegacion por ruta. Mismo patron que Super Color/
-/// Variedades Lopsi: cambiar de seccion NO destruye ni recarga nada,
-/// solo cambia que pestaña esta a la vista -- por eso es instantaneo,
-/// sin el "salto"/parpadeo de una transicion de pantalla normal.
+/// Chrome de escritorio Web: barra superior fija (marca, usuario,
+/// actualizar, cerrar sesion) + menu lateral desplegable EN OVERLAY
+/// (no empuja/redimensiona el contenido, por eso abrir/cerrar es
+/// instantaneo) + pestañas en memoria (IndexedStack, ver
+/// WebTabsNotifier). Mismo patron que Super Color/Variedades Lopsi:
+/// cambiar de seccion NO destruye ni recarga nada, solo cambia que
+/// pestaña esta a la vista.
 ///
-/// Cada pantalla dentro de una pestaña sigue usando go_router
-/// (`context.push`) para navegar a detalles/formularios exactamente
-/// igual que antes -- eso no cambia, solo la navegacion ENTRE
-/// secciones (Clientes/Prestamos/Cobros/etc.) deja de pasar por el
-/// router.
+/// Cada pantalla dentro de una pestaña tiene su PROPIO Navigator local
+/// (ver _envolverConNavegador): un detalle/formulario abierto desde
+/// adentro de una pestaña se apila ahi mismo, sin tapar el menu ni la
+/// barra de pestañas, y al volver la lista de atras sigue exactamente
+/// como estaba (ver ce_web_nav.dart).
 class CeWebShell extends ConsumerStatefulWidget {
   final String tituloInicial;
   final IconData iconoInicial;
@@ -37,7 +38,15 @@ class CeWebShell extends ConsumerStatefulWidget {
 }
 
 class _CeWebShellState extends ConsumerState<CeWebShell> {
-  bool _menuExpandido = true;
+  bool _menuAbierto = false;
+
+  WebTabItem _tabPanel() => WebTabItem(
+        id: 'panel',
+        titulo: widget.tituloInicial,
+        icono: widget.iconoInicial,
+        contenido: envolverConNavegador(widget.contenidoInicial),
+        cerrable: false,
+      );
 
   @override
   void initState() {
@@ -45,13 +54,7 @@ class _CeWebShellState extends ConsumerState<CeWebShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tabs = ref.read(webTabsProvider);
       if (tabs.tabs.isEmpty) {
-        ref.read(webTabsProvider.notifier).abrir(WebTabItem(
-              id: 'panel',
-              titulo: widget.tituloInicial,
-              icono: widget.iconoInicial,
-              contenido: Builder(builder: widget.contenidoInicial),
-              cerrable: false,
-            ));
+        ref.read(webTabsProvider.notifier).abrir(_tabPanel());
       }
     });
   }
@@ -72,55 +75,75 @@ class _CeWebShellState extends ConsumerState<CeWebShell> {
 
     return Scaffold(
       backgroundColor: CEColors.surface,
-      body: Row(
+      body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _MenuLateral(
-            expandido: _menuExpandido,
-            idsMenu: idsMenu,
-            tituloPanel: widget.tituloInicial,
-            iconoPanel: widget.iconoInicial,
-            idActivo: tabsState.tabs.isEmpty ? null : tabsState.tabs[tabsState.indiceActivo].id,
+          _BarraSuperior(
+            menuAbierto: _menuAbierto,
             nombreUsuario: usuario?.nombre ?? '',
             esAdmin: esAdmin,
-            onToggle: () => setState(() => _menuExpandido = !_menuExpandido),
-            onSeleccionar: (id) {
-              if (id == 'panel') {
-                ref.read(webTabsProvider.notifier).abrir(WebTabItem(
-                      id: 'panel',
-                      titulo: widget.tituloInicial,
-                      icono: widget.iconoInicial,
-                      contenido: Builder(builder: widget.contenidoInicial),
-                      cerrable: false,
-                    ));
-              } else {
-                abrirSeccionWeb(ref, id);
-              }
-            },
+            onToggleMenu: () => setState(() => _menuAbierto = !_menuAbierto),
             onLogout: () {
               ref.read(webTabsProvider.notifier).limpiar();
               ref.read(authProvider.notifier).logout();
             },
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Stack(
               children: [
-                if (tabsState.tabs.length > 1)
-                  _BarraPestanas(
-                    tabs: tabsState.tabs,
-                    indiceActivo: tabsState.indiceActivo,
-                    onSeleccionar: (i) => ref.read(webTabsProvider.notifier).seleccionar(i),
-                    onCerrar: (id) => ref.read(webTabsProvider.notifier).cerrar(id),
-                  ),
-                Expanded(
-                  child: tabsState.tabs.isEmpty
-                      ? const SizedBox()
-                      : IndexedStack(
-                          index: tabsState.indiceActivo,
-                          children: tabsState.tabs.map((t) => t.contenido).toList(),
+                Positioned.fill(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (tabsState.tabs.length > 1)
+                        _BarraPestanas(
+                          tabs: tabsState.tabs,
+                          indiceActivo: tabsState.indiceActivo,
+                          onSeleccionar: (i) => ref.read(webTabsProvider.notifier).seleccionar(i),
+                          onCerrar: (id) => ref.read(webTabsProvider.notifier).cerrar(id),
                         ),
+                      Expanded(
+                        child: tabsState.tabs.isEmpty
+                            ? const SizedBox()
+                            : IndexedStack(
+                                index: tabsState.indiceActivo,
+                                children: tabsState.tabs.map((t) => t.contenido).toList(),
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
+                if (_menuAbierto) ...[
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _menuAbierto = false),
+                      child: Container(color: Colors.black.withValues(alpha: 0.15)),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Material(
+                      elevation: 8,
+                      child: _MenuLateral(
+                        idsMenu: idsMenu,
+                        tituloPanel: widget.tituloInicial,
+                        iconoPanel: widget.iconoInicial,
+                        idActivo: tabsState.tabs.isEmpty ? null : tabsState.tabs[tabsState.indiceActivo].id,
+                        onSeleccionar: (id) {
+                          if (id == 'panel') {
+                            ref.read(webTabsProvider.notifier).abrir(_tabPanel());
+                          } else {
+                            abrirSeccionWeb(ref, id);
+                          }
+                          setState(() => _menuAbierto = false);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -130,166 +153,149 @@ class _CeWebShellState extends ConsumerState<CeWebShell> {
   }
 }
 
-class _MenuLateral extends StatelessWidget {
-  final bool expandido;
-  final List<String> idsMenu;
-  final String tituloPanel;
-  final IconData iconoPanel;
-  final String? idActivo;
+/// Cada pestaña vive con su propio Navigator: eso hace que un
+/// detalle/formulario abierto DESDE ADENTRO de esa pestaña (ver
+/// irAPantalla en ce_web_nav.dart) se apile localmente, en vez de
+/// taparlo todo -- la barra de pestañas y el menu lateral se ven
+/// siempre, y al volver la pantalla de atras esta intacta.
+Widget envolverConNavegador(WidgetBuilder construir) {
+  return Navigator(
+    onGenerateRoute: (settings) => MaterialPageRoute(builder: construir, settings: settings),
+  );
+}
+
+class _BarraSuperior extends StatelessWidget {
+  final bool menuAbierto;
   final String nombreUsuario;
   final bool esAdmin;
-  final VoidCallback onToggle;
-  final ValueChanged<String> onSeleccionar;
+  final VoidCallback onToggleMenu;
   final VoidCallback onLogout;
 
-  const _MenuLateral({
-    required this.expandido,
-    required this.idsMenu,
-    required this.tituloPanel,
-    required this.iconoPanel,
-    required this.idActivo,
+  const _BarraSuperior({
+    required this.menuAbierto,
     required this.nombreUsuario,
     required this.esAdmin,
-    required this.onToggle,
-    required this.onSeleccionar,
+    required this.onToggleMenu,
     required this.onLogout,
   });
 
   @override
   Widget build(BuildContext context) {
-    final ancho = expandido ? 220.0 : 68.0;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      width: ancho,
+    return Container(
+      height: 52,
       color: CEColors.primary,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
         children: [
-          SizedBox(
-            height: 56,
-            child: Row(
-              mainAxisAlignment: expandido ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
-              children: [
-                if (expandido)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16),
-                    child: Text(
-                      'CAPITAL EXPRESS',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                IconButton(
-                  icon: Icon(expandido ? Icons.chevron_left : Icons.menu, color: Colors.white70, size: 20),
-                  tooltip: expandido ? 'Contraer menú' : 'Expandir menú',
-                  onPressed: onToggle,
-                ),
-              ],
+          IconButton(
+            icon: Icon(menuAbierto ? Icons.menu_open : Icons.menu, color: Colors.white, size: 22),
+            tooltip: menuAbierto ? 'Cerrar menú' : 'Abrir menú',
+            onPressed: onToggleMenu,
+          ),
+          const SizedBox(width: 4),
+          const Text(
+            'CAPITAL EXPRESS',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
             ),
           ),
-          Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: idsMenu.map((id) {
-                final titulo = id == 'panel' ? tituloPanel : ceSeccionesWeb[id]!.titulo;
-                final icono = id == 'panel' ? iconoPanel : ceSeccionesWeb[id]!.icono;
-                final activo = id == idActivo;
-                final tile = Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => onSeleccionar(id),
-                    child: Container(
-                      height: 44,
-                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      padding: EdgeInsets.symmetric(horizontal: expandido ? 12 : 0),
-                      alignment: expandido ? Alignment.centerLeft : Alignment.center,
-                      decoration: BoxDecoration(
-                        color: activo ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(icono, color: activo ? Colors.white : Colors.white60, size: 19),
-                          if (expandido) ...[
-                            const SizedBox(width: 12),
-                            Text(titulo,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: activo ? Colors.white : Colors.white60,
-                                  fontSize: 13,
-                                  fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
-                                )),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-                return expandido ? tile : Tooltip(message: titulo, child: tile);
-              }).toList(),
-            ),
+          const Spacer(),
+          Container(
+            width: 28,
+            height: 28,
+            decoration:
+                BoxDecoration(color: Colors.white.withValues(alpha: 0.12), shape: BoxShape.circle),
+            child: const Icon(Icons.person_outline, color: Colors.white, size: 15),
           ),
-          Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            child: Column(
-              children: [
-                if (expandido)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.12), shape: BoxShape.circle),
-                          child: const Icon(Icons.person_outline, color: Colors.white, size: 16),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(nombreUsuario,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                              Text(esAdmin ? 'Administrador' : 'Cobrador',
-                                  style: const TextStyle(color: Colors.white54, fontSize: 10.5)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Row(
-                  mainAxisAlignment: expandido ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
-                  children: [
-                    if (expandido)
-                      IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.white54, size: 18),
-                        tooltip: 'Actualizar app',
-                        onPressed: () => limpiarCacheYRecargarWeb(),
-                      ),
-                    IconButton(
-                      icon: const Icon(Icons.logout, color: Colors.white70, size: 18),
-                      tooltip: 'Cerrar sesión',
-                      onPressed: onLogout,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(nombreUsuario,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              Text(esAdmin ? 'Administrador' : 'Cobrador',
+                  style: const TextStyle(color: Colors.white54, fontSize: 10.5)),
+            ],
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white54, size: 19),
+            tooltip: 'Actualizar app',
+            onPressed: () => limpiarCacheYRecargarWeb(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white70, size: 19),
+            tooltip: 'Cerrar sesión',
+            onPressed: onLogout,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MenuLateral extends StatelessWidget {
+  final List<String> idsMenu;
+  final String tituloPanel;
+  final IconData iconoPanel;
+  final String? idActivo;
+  final ValueChanged<String> onSeleccionar;
+
+  const _MenuLateral({
+    required this.idsMenu,
+    required this.tituloPanel,
+    required this.iconoPanel,
+    required this.idActivo,
+    required this.onSeleccionar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 230,
+      color: CEColors.primary,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        children: idsMenu.map((id) {
+          final titulo = id == 'panel' ? tituloPanel : ceSeccionesWeb[id]!.titulo;
+          final icono = id == 'panel' ? iconoPanel : ceSeccionesWeb[id]!.icono;
+          final activo = id == idActivo;
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => onSeleccionar(id),
+              child: Container(
+                height: 44,
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                  color: activo ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icono, color: activo ? Colors.white : Colors.white60, size: 19),
+                    const SizedBox(width: 12),
+                    Text(titulo,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: activo ? Colors.white : Colors.white60,
+                          fontSize: 13,
+                          fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+                        )),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

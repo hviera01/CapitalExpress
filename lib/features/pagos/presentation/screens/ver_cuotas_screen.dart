@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -13,11 +12,13 @@ import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../data/cuotas_pdf_service.dart';
 import '../../providers/pagos_provider.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
+import 'cobrar_screen.dart';
 
 /// "Ver Cuotas": tabla de cuotas de un prestamo, reconstruida en vivo a
 /// partir de los pagos reales. Si el cliente da menos de una cuota
@@ -181,8 +182,11 @@ class _VerCuotasScreenState extends ConsumerState<VerCuotasScreen> {
                     esAdmin: esAdmin,
                     fechaFormato: f,
                     onCobrar: c.estado != EstadoCuota.pagada
-                        ? () => context.push(
-                            '/prestamos/${prestamo.prestamoId}/cobrar?monto=${c.faltante.toStringAsFixed(2)}')
+                        ? () => irAPantalla(context,
+                            ruta:
+                                '/prestamos/${prestamo.prestamoId}/cobrar?monto=${c.faltante.toStringAsFixed(2)}',
+                            pantalla: CobrarScreen(
+                                prestamoId: prestamo.prestamoId, montoInicial: c.faltante))
                         : null,
                   ),
                 )),
@@ -256,8 +260,9 @@ class _TablaCuotas extends StatelessWidget {
               DataCell(ceTableBadge(_etiqueta(c.estado), _color(c.estado))),
               DataCell(c.estado != EstadoCuota.pagada
                   ? TextButton(
-                      onPressed: () => context.push(
-                          '/prestamos/$prestamoId/cobrar?monto=${c.faltante.toStringAsFixed(2)}'),
+                      onPressed: () => irAPantalla(context,
+                          ruta: '/prestamos/$prestamoId/cobrar?monto=${c.faltante.toStringAsFixed(2)}',
+                          pantalla: CobrarScreen(prestamoId: prestamoId, montoInicial: c.faltante)),
                       child: Text(c.estado == EstadoCuota.parcial ? 'Completar' : 'Cobrar'),
                     )
                   : const Text('—')),

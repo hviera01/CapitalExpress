@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/usuario_model.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -10,10 +9,12 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../providers/usuarios_cache.dart';
 import '../../providers/usuarios_provider.dart';
+import 'usuario_form_screen.dart';
 
 const _rolesFiltro = ['todos', 'admin', 'cobrador'];
 const _estadosFiltro = ['todos', 'activo', 'inactivo'];
@@ -172,7 +173,8 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
       maxWidth: 900,
       appBar: AppBar(leading: const BackButton(), title: const Text('Gestión de Usuarios')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/usuarios/nuevo'),
+        onPressed: () =>
+            irAPantalla(context, ruta: '/usuarios/nuevo', pantalla: const UsuarioFormScreen()),
         icon: const Icon(Icons.person_add_alt_1_outlined),
         label: const Text('Nuevo usuario'),
       ),
@@ -271,7 +273,10 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
                         usuarios: _filtrados,
                         prestamosAsignados: _prestamosAsignados,
                         onEditar: (u) async {
-                          await context.push('/usuarios/${u.uid}/editar', extra: u);
+                          await irAPantalla(context,
+                              ruta: '/usuarios/${u.uid}/editar',
+                              extra: u,
+                              pantalla: UsuarioFormScreen(usuarioId: u.uid, usuarioInicial: u));
                           _cargar();
                         },
                         onCambiarEstado: _cambiarEstado,
@@ -283,7 +288,10 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
                               usuario: u,
                               prestamosAsignados: _prestamosAsignados[u.uid] ?? 0,
                               onEditar: () async {
-                                await context.push('/usuarios/${u.uid}/editar', extra: u);
+                                await irAPantalla(context,
+                              ruta: '/usuarios/${u.uid}/editar',
+                              extra: u,
+                              pantalla: UsuarioFormScreen(usuarioId: u.uid, usuarioInicial: u));
                                 // Al volver de editar, se recarga la lista --
                                 // antes se quedaba mostrando los datos viejos
                                 // hasta salir y volver a entrar.

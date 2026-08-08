@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
@@ -83,7 +82,7 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
         'plazo': _plazo,
         'estado': _estado,
       });
-      if (mounted) context.pop();
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

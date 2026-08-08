@@ -14,13 +14,18 @@ import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_menu_row.dart';
 import '../../../../core/widgets/ce_section_label.dart';
 import '../../../../core/widgets/ce_shell.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/ce_web_sections.dart';
 import '../../../../core/widgets/ce_web_shell.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../clientes/presentation/screens/cliente_form_screen.dart';
 import '../../../clientes/providers/clientes_provider.dart';
+import '../../../pagos/presentation/screens/reporte_cobros_screen.dart';
 import '../../../pagos/providers/pagos_provider.dart';
+import '../../../prestamos/presentation/screens/crear_prestamo_screen.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../solicitudes/providers/solicitudes_provider.dart';
+import '../../../usuarios/presentation/screens/usuario_form_screen.dart';
 
 const _colorSubtitulo = Color(0xFF2DD9B8);
 
@@ -349,17 +354,20 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                         icono: Icons.add,
                         titulo: 'Crear Préstamo',
                         color: CEColors.accent,
-                        onTap: () => context.push('/prestamos/nuevo')),
+                        onTap: () => irAPantalla(context,
+                            ruta: '/prestamos/nuevo', pantalla: const CrearPrestamoScreen())),
                     CeAccionRapidaTile(
                         icono: Icons.person_add_alt_1_outlined,
                         titulo: 'Crear Cliente',
                         color: CEColors.warning,
-                        onTap: () => context.push('/clientes/nuevo')),
+                        onTap: () => irAPantalla(context,
+                            ruta: '/clientes/nuevo', pantalla: const ClienteFormScreen())),
                     CeAccionRapidaTile(
                         icono: Icons.badge_outlined,
                         titulo: 'Crear Usuario',
                         color: CEColors.textSecondary,
-                        onTap: () => context.push('/usuarios/nuevo')),
+                        onTap: () => irAPantalla(context,
+                            ruta: '/usuarios/nuevo', pantalla: const UsuarioFormScreen())),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -447,7 +455,8 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                 CePanelActividad(
                   titulo: 'Actividad reciente',
                   onRefrescar: _cargarDashboard,
-                  onVerTodo: () => context.push('/reportes/cobros'),
+                  onVerTodo: () => irAPantalla(context,
+                      ruta: '/reportes/cobros', pantalla: const ReporteCobrosScreen()),
                   items: _cargando
                       ? const []
                       : [

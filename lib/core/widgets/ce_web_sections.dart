@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/web_tabs_provider.dart';
+import 'ce_web_shell.dart';
 import '../../features/clientes/presentation/screens/clientes_list_screen.dart';
 import '../../features/dispositivos/presentation/screens/dispositivos_screen.dart';
 import '../../features/pagos/presentation/screens/cobros_screen.dart';
@@ -103,6 +104,6 @@ void abrirSeccionWeb(WidgetRef ref, String id) {
         id: seccion.id,
         titulo: seccion.titulo,
         icono: seccion.icono,
-        contenido: Builder(builder: seccion.construir),
+        contenido: envolverConNavegador(seccion.construir),
       ));
 }

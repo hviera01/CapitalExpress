@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/solicitud_model.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -40,7 +39,7 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
       );
 
       // Se busca el prestamo y se abre la vista previa ANTES de salir
-      // de esta pantalla (context.pop() mas abajo) -- usar el context
+      // de esta pantalla (Navigator.pop() mas abajo) -- usar el context
       // para navegar despues de que su propia pantalla ya se cerro es
       // fragil.
       final prestamo = await ref.read(prestamoRepositoryProvider).obtenerPorId(resultado.prestamoId);
@@ -49,7 +48,7 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
         ReciboPrestamoService.mostrarVistaPrevia(context, prestamo);
       }
 
-      context.pop();
+      Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       setState(() => _procesando = false);
@@ -81,7 +80,7 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Solicitud rechazada')));
-        context.pop();
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (!mounted) return;

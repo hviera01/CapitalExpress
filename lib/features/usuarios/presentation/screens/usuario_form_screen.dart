@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/usuario_model.dart';
 import '../../../../core/services/storage_service.dart';
@@ -128,7 +127,7 @@ class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
       }
       ref.invalidate(cobradoresCacheProvider);
 
-      if (mounted) context.pop();
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

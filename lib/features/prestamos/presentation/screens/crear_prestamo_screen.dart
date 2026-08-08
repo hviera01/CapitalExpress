@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -140,7 +139,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Solicitud enviada, queda pendiente de aprobación')),
           );
-          context.pop();
+          Navigator.of(context).pop();
         }
         return;
       }
@@ -215,7 +214,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
         );
       }
 
-      if (mounted) context.pop();
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

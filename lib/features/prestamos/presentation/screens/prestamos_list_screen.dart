@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
@@ -11,9 +10,13 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/prestamos_busqueda_cache.dart';
 import '../../providers/prestamos_provider.dart';
+import 'crear_prestamo_screen.dart';
+import 'editar_prestamo_screen.dart';
+import 'prestamo_detalle_screen.dart';
 
 const _estadosFiltro = ['Todos', 'Activo', 'Mora', 'Saldado'];
 
@@ -204,7 +207,8 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/prestamos/nuevo'),
+        onPressed: () =>
+            irAPantalla(context, ruta: '/prestamos/nuevo', pantalla: const CrearPrestamoScreen()),
         icon: const Icon(Icons.add),
         label: const Text('Nuevo préstamo'),
       ),
@@ -458,12 +462,18 @@ class _TablaPrestamos extends ConsumerWidget {
   }
 
   Future<void> _verDetalle(BuildContext context, WidgetRef ref, PrestamoModel p) async {
-    await context.push('/prestamos/${p.prestamoId}', extra: p);
+    await irAPantalla(context,
+        ruta: '/prestamos/${p.prestamoId}',
+        extra: p,
+        pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p));
     await _refrescar(ref, p);
   }
 
   Future<void> _editar(BuildContext context, WidgetRef ref, PrestamoModel p) async {
-    await context.push('/prestamos/${p.prestamoId}/editar', extra: p);
+    await irAPantalla(context,
+        ruta: '/prestamos/${p.prestamoId}/editar',
+        extra: p,
+        pantalla: EditarPrestamoScreen(prestamoId: p.prestamoId, prestamoInicial: p));
     await _refrescar(ref, p);
   }
 
@@ -602,7 +612,10 @@ class _PrestamoCard extends ConsumerWidget {
   });
 
   Future<void> _editar(BuildContext context, WidgetRef ref) async {
-    await context.push('/prestamos/${prestamo.prestamoId}/editar', extra: prestamo);
+    await irAPantalla(context,
+        ruta: '/prestamos/${prestamo.prestamoId}/editar',
+        extra: prestamo,
+        pantalla: EditarPrestamoScreen(prestamoId: prestamo.prestamoId, prestamoInicial: prestamo));
     // Al volver de editar, se trae el prestamo actualizado -- antes la
     // card se quedaba mostrando los datos viejos hasta repetir la
     // busqueda a mano.
@@ -614,7 +627,10 @@ class _PrestamoCard extends ConsumerWidget {
   /// no corresponde a la vista actual) en vez de dejarla con datos
   /// viejos.
   Future<void> _verDetalle(BuildContext context, WidgetRef ref) async {
-    await context.push('/prestamos/${prestamo.prestamoId}', extra: prestamo);
+    await irAPantalla(context,
+        ruta: '/prestamos/${prestamo.prestamoId}',
+        extra: prestamo,
+        pantalla: PrestamoDetalleScreen(prestamoId: prestamo.prestamoId, prestamoInicial: prestamo));
     await _refrescar(ref);
   }
 

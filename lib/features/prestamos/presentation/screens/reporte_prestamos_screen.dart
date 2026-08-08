@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -14,10 +13,12 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/filtro_fecha_rango.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/reporte_prestamos_pdf_service.dart';
+import 'prestamo_detalle_screen.dart';
 import '../../providers/prestamos_provider.dart';
 import '../../providers/reporte_prestamos_cache.dart';
 
@@ -283,7 +284,9 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: CeCard(
-                        onTap: () => context.push('/prestamos/${p.prestamoId}'),
+                        onTap: () => irAPantalla(context,
+                            ruta: '/prestamos/${p.prestamoId}',
+                            pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
                         child: Row(
                           children: [
                             Expanded(
@@ -366,7 +369,9 @@ class _TablaReportePrestamos extends StatelessWidget {
       rows: filas.map((p) {
             final estado = estadoEfectivoPrestamo(p);
             return DataRow(
-              onSelectChanged: (_) => context.push('/prestamos/${p.prestamoId}'),
+              onSelectChanged: (_) => irAPantalla(context,
+                  ruta: '/prestamos/${p.prestamoId}',
+                  pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
               cells: [
                 DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
                 DataCell(Text('#${p.numeroPrestamo}')),

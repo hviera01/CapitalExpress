@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/models/prestamo_model.dart';
@@ -14,11 +13,15 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../../core/widgets/visor_foto_zoom.dart';
+import '../../../prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../providers/clientes_provider.dart';
+import 'cliente_detalle_screen.dart';
+import 'cliente_form_screen.dart';
 
 /// Pantalla al tocar un cliente en la lista: resumen (no edicion directa)
 /// con los totales de sus prestamos y accesos a Editar / Ver Detalles /
@@ -85,7 +88,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
     );
     if (ok == true) {
       await ref.read(clienteRepositoryProvider).eliminar(widget.clienteId);
-      if (mounted) context.pop();
+      if (mounted) Navigator.of(context).pop();
     }
   }
 
@@ -248,13 +251,19 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
               icono: Icons.edit_outlined,
               titulo: 'Editar',
               subtitulo: 'Datos del cliente',
-              onTap: () => context.push('/clientes/${c.id}/editar', extra: c),
+              onTap: () => irAPantalla(context,
+                  ruta: '/clientes/${c.id}/editar',
+                  extra: c,
+                  pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c)),
             ),
             CeMenuCard(
               icono: Icons.badge_outlined,
               titulo: 'Ver Detalles',
               subtitulo: 'Datos completos',
-              onTap: () => context.push('/clientes/${c.id}/detalle', extra: c),
+              onTap: () => irAPantalla(context,
+                  ruta: '/clientes/${c.id}/detalle',
+                  extra: c,
+                  pantalla: ClienteDetalleScreen(clienteId: c.id, clienteInicial: c)),
             ),
             CeMenuCard(
               icono: Icons.delete_outline,
@@ -303,12 +312,18 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                       _botonAccionEscritorio(
                         icono: Icons.edit_outlined,
                         texto: 'Editar',
-                        onTap: () => context.push('/clientes/${c.id}/editar', extra: c),
+                        onTap: () => irAPantalla(context,
+                  ruta: '/clientes/${c.id}/editar',
+                  extra: c,
+                  pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c)),
                       ),
                       _botonAccionEscritorio(
                         icono: Icons.badge_outlined,
                         texto: 'Ver detalles',
-                        onTap: () => context.push('/clientes/${c.id}/detalle', extra: c),
+                        onTap: () => irAPantalla(context,
+                  ruta: '/clientes/${c.id}/detalle',
+                  extra: c,
+                  pantalla: ClienteDetalleScreen(clienteId: c.id, clienteInicial: c)),
                       ),
                       _botonAccionEscritorio(
                         icono: Icons.delete_outline,
@@ -472,7 +487,10 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
         .map((p) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: CeCard(
-                onTap: () => context.push('/prestamos/${p.prestamoId}', extra: p),
+                onTap: () => irAPantalla(context,
+                    ruta: '/prestamos/${p.prestamoId}',
+                    extra: p,
+                    pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
                 padding: const EdgeInsets.all(14),
                 child: Row(
                   children: [

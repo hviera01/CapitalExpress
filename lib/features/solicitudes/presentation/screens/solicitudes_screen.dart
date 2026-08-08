@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -11,8 +10,10 @@ import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/solicitudes_provider.dart';
+import 'solicitud_detalle_screen.dart';
 
 /// Lista de solicitudes pendientes, siempre en vivo: apenas un cobrador
 /// manda una solicitud nueva, aparece aca sin recargar.
@@ -61,7 +62,9 @@ class SolicitudesScreen extends ConsumerWidget {
                       ...solicitudes.map((s) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: CeCard(
-                              onTap: () => context.push('/solicitudes/${s.id}'),
+                              onTap: () => irAPantalla(context,
+                                  ruta: '/solicitudes/${s.id}',
+                                  pantalla: SolicitudDetalleScreen(solicitudId: s.id)),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -105,7 +108,9 @@ class SolicitudesScreen extends ConsumerWidget {
                                     children: [
                                       Expanded(
                                         child: ElevatedButton(
-                                          onPressed: () => context.push('/solicitudes/${s.id}'),
+                                          onPressed: () => irAPantalla(context,
+                              ruta: '/solicitudes/${s.id}',
+                              pantalla: SolicitudDetalleScreen(solicitudId: s.id)),
                                           child: const Text('Ver detalle'),
                                         ),
                                       ),
@@ -144,7 +149,9 @@ class _TablaSolicitudes extends StatelessWidget {
       ],
       rows: solicitudes.map((s) {
             return DataRow(
-              onSelectChanged: (_) => context.push('/solicitudes/${s.id}'),
+              onSelectChanged: (_) => irAPantalla(context,
+                  ruta: '/solicitudes/${s.id}',
+                  pantalla: SolicitudDetalleScreen(solicitudId: s.id)),
               cells: [
                 DataCell(Text(s.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
                 DataCell(Text(formatearLempiras(s.monto),
@@ -154,7 +161,9 @@ class _TablaSolicitudes extends StatelessWidget {
                 DataCell(Text(
                     s.fechaCreacion != null ? formatoFecha.format(s.fechaCreacion!.toDate()) : '—')),
                 DataCell(TextButton(
-                  onPressed: () => context.push('/solicitudes/${s.id}'),
+                  onPressed: () => irAPantalla(context,
+                              ruta: '/solicitudes/${s.id}',
+                              pantalla: SolicitudDetalleScreen(solicitudId: s.id)),
                   child: const Text('Ver detalle'),
                 )),
               ],
