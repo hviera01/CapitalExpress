@@ -499,7 +499,7 @@ class _PrestamoCard extends ConsumerWidget {
                         child: const Text('Ver'),
                       ),
                     ),
-                    if (esAdmin && !eliminadoView) ...[
+                    if (!eliminadoView) ...[
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(

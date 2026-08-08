@@ -352,12 +352,6 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                 onTap: () => context.push('/clientes/${c.id}/detalle', extra: c),
               ),
               CeMenuCard(
-                icono: Icons.person_pin_circle_outlined,
-                titulo: 'Asignar Cobrador',
-                subtitulo: _nombreCobradorAsignado(c),
-                onTap: () => _asignarCobrador(c, prestamos),
-              ),
-              CeMenuCard(
                 icono: Icons.delete_outline,
                 titulo: 'Borrar Cliente',
                 subtitulo: 'Acción permanente',

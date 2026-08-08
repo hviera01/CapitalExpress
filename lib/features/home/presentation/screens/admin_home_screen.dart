@@ -44,6 +44,58 @@ class AdminHomeScreen extends ConsumerWidget {
           32,
         ),
         children: [
+          if (!escritorio) ...[
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: CEColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('¡Bienvenido!',
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+                            const SizedBox(height: 2),
+                            Text(
+                              usuario?.nombre ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(color: CEColors.textSecondary, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration: const BoxDecoration(
+                          color: CEColors.onlineDot,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Divider(height: 1, color: CEColors.border),
+            ),
+          ],
           CeMenuRow(
             icono: Icons.notifications_outlined,
             titulo: 'Cobros',

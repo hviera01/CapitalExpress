@@ -89,7 +89,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
         leading: const BackButton(),
         title: const Text('Detalle del Préstamo'),
         actions: [
-          if (esAdmin && !p.eliminado)
+          if (!p.eliminado)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Editar',
