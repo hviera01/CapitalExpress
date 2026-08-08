@@ -17,6 +17,7 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
+import '../../../prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import 'cobrar_screen.dart';
 import 'ver_cuotas_screen.dart';
@@ -391,6 +392,9 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: CeCard(
+                        onTap: () => irAPantalla(context,
+                            ruta: '/prestamos/${p.prestamoId}',
+                            pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -571,7 +575,11 @@ class _TablaCobros extends StatelessWidget {
             final color = colorUrgencia(n.diferenciaDias);
             final mostrarAcciones = p.estado.toLowerCase() != 'inactivo';
             final puedeAplicarMora = n.diferenciaDias < 0 || p.mora > 0;
-            return DataRow(cells: [
+            return DataRow(
+              onSelectChanged: (_) => irAPantalla(context,
+                  ruta: '/prestamos/${p.prestamoId}',
+                  pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
+              cells: [
               DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
               DataCell(Text('#${p.numeroPrestamo}')),
               DataCell(Text(formatearLempiras(p.saldo),
