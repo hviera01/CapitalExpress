@@ -14,6 +14,8 @@ import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_menu_row.dart';
 import '../../../../core/widgets/ce_section_label.dart';
 import '../../../../core/widgets/ce_shell.dart';
+import '../../../../core/widgets/ce_web_sections.dart';
+import '../../../../core/widgets/ce_web_shell.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../pagos/providers/pagos_provider.dart';
@@ -99,6 +101,14 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     final escritorio = esEscritorio(context);
     final columnas = escritorio ? 4 : 2;
 
+    if (esEscritorioWeb(context)) {
+      return CeWebShell(
+        tituloInicial: 'Panel',
+        iconoInicial: Icons.home_outlined,
+        contenidoInicial: (context) => _cuerpoEscritorio(context, usuario?.nombre ?? ''),
+      );
+    }
+
     return CeAppShell(
       subtituloApp: 'ADMIN PANEL',
       colorSubtitulo: _colorSubtitulo,
@@ -107,9 +117,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       rolUsuario: 'Administrador',
       onLogout: () => ref.read(authProvider.notifier).logout(),
       onNotificaciones: () => context.push('/cobros'),
-      body: esEscritorioWeb(context)
-          ? _cuerpoEscritorio(context, usuario?.nombre ?? '')
-          : ListView(
+      body: ListView(
         padding: EdgeInsets.fromLTRB(
           escritorio ? 32 : 16,
           escritorio ? 0 : 16,
@@ -336,7 +344,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                     CeAccionRapidaTile(
                         icono: Icons.notifications_outlined,
                         titulo: 'Cobros',
-                        onTap: () => context.push('/cobros')),
+                        onTap: () => abrirSeccionWeb(ref, 'cobros')),
                     CeAccionRapidaTile(
                         icono: Icons.add,
                         titulo: 'Crear Préstamo',
@@ -376,7 +384,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                       valor: _cargando ? '…' : '$_solicitudesCount',
                       subtitulo: 'pendientes de revisión',
                       enlace: 'Ver todas',
-                      onTap: () => context.push('/solicitudes'),
+                      onTap: () => abrirSeccionWeb(ref, 'solicitudes'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.people_outline,
@@ -384,7 +392,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                       valor: _cargando ? '…' : '$_clientesCount',
                       subtitulo: 'perfiles activos',
                       enlace: 'Directorio',
-                      onTap: () => context.push('/clientes'),
+                      onTap: () => abrirSeccionWeb(ref, 'clientes'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.account_balance_outlined,
@@ -392,7 +400,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                       valor: _cargando ? '…' : '$_prestamosCount',
                       subtitulo: 'préstamos registrados',
                       enlace: 'Gestionar',
-                      onTap: () => context.push('/prestamos'),
+                      onTap: () => abrirSeccionWeb(ref, 'prestamos'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.summarize_outlined,
@@ -400,7 +408,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                       valor: '',
                       subtitulo: 'Financiero y por cobrador',
                       enlace: 'Generar',
-                      onTap: () => context.push('/reportes'),
+                      onTap: () => abrirSeccionWeb(ref, 'reportes'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.manage_accounts_outlined,
@@ -408,7 +416,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                       valor: '',
                       subtitulo: 'Gestión interna',
                       enlace: 'Ver',
-                      onTap: () => context.push('/usuarios'),
+                      onTap: () => abrirSeccionWeb(ref, 'usuarios'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.devices_outlined,
@@ -416,7 +424,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                       valor: '',
                       subtitulo: 'Equipos con acceso',
                       enlace: 'Ver',
-                      onTap: () => context.push('/dispositivos'),
+                      onTap: () => abrirSeccionWeb(ref, 'dispositivos'),
                     ),
                   ],
                 ),

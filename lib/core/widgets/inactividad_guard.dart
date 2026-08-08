@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/actualizacion_provider.dart';
+import '../providers/web_tabs_provider.dart';
 import '../routing/app_router.dart';
 import '../services/actualizacion_service.dart';
 import '../version_app.dart';
@@ -106,6 +107,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
       } else {
         _timer?.cancel();
         _timerActualizacion?.cancel();
+        ref.read(webTabsProvider.notifier).limpiar();
       }
     });
 

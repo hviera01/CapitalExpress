@@ -4,13 +4,13 @@ import '../theme/app_theme.dart';
 import '../utils/responsive.dart';
 import 'ce_app_bar.dart';
 import 'ce_nav_drawer.dart';
-import 'ce_top_nav.dart';
 
-/// Chrome de las pantallas "home" (Panel Admin / Panel Cobrador).
+/// Chrome de las pantallas "home" (Panel Admin / Panel Cobrador) en
+/// mobile y escritorio nativo (Windows). Escritorio Web NO pasa por
+/// aca -- ver CeWebShell, que AdminHomeScreen/CobradorHomeScreen usan
+/// directo en ese caso (menu lateral + pestañas en memoria).
 ///
 /// Mobile: barra navy arriba + drawer, igual que antes.
-/// Escritorio Web: menu superior fijo (CeTopNav, igual que el resto de
-/// la app) y el contenido usando el ancho disponible.
 /// Escritorio nativo (Windows): rail lateral navy fijo (marca +
 /// usuario + salir), sin tocar.
 class CeAppShell extends StatelessWidget {
@@ -37,32 +37,6 @@ class CeAppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (esEscritorioWeb(context)) {
-      // Sin _HeaderEscritorio aca: era una franja con el titulo de la
-      // pagina + la campana de notificaciones que solo empujaba el
-      // contenido mas abajo -- el titulo ya es redundante con la
-      // pestaña activa de CeTopNav, y la campana se movio al propio
-      // CeTopNav (siempre visible, no solo en el panel).
-      return Scaffold(
-        backgroundColor: CEColors.surface,
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const CeTopNav(),
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1600),
-                  child: body,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     if (esEscritorio(context)) {
       return Scaffold(
         backgroundColor: CEColors.surface,

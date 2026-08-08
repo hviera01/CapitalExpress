@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../utils/responsive.dart';
 import 'ce_nav_drawer.dart';
-import 'ce_top_nav.dart';
 
 /// Scaffold normal en mobile. En escritorio centra el contenido con un
 /// ancho maximo (evita que un formulario/lista pensado para telefono se
@@ -15,11 +14,12 @@ import 'ce_top_nav.dart';
 /// pase cada pantalla (ej. "Nuevo cliente") sigue en su posicion de
 /// siempre (abajo a la derecha) sin chocar con el del menu.
 ///
-/// En escritorio Web (ver esEscritorioWeb) el menu lateral oculto +
-/// boton flotante se reemplazan por CeTopNav, fijo arriba de toda la
-/// pantalla -- asi no hace falta abrir un drawer para moverse de
-/// seccion, como en una app de escritorio real. Mobile y la app nativa
-/// de Windows no se tocan.
+/// En escritorio Web (ver esEscritorioWeb) esta pantalla vive DENTRO
+/// de una pestaña de CeWebShell (menu lateral + pestañas en memoria):
+/// no hay que dibujar ningun menu propio aca, CeWebShell ya lo tiene.
+/// Solo queda la franja angosta con titulo/acciones de la pantalla
+/// (ver _BarraPagina) y el contenido a todo el ancho disponible.
+/// Mobile y la app nativa de Windows no se tocan.
 class CeScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
   final Widget body;
@@ -51,11 +51,11 @@ class CeScaffold extends StatelessWidget {
 
     if (escritorioWeb) {
       return Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: null,
         floatingActionButton: floatingActionButton,
         body: Column(
           children: [
-            const CeTopNav(),
             if (appBar != null) _BarraPagina(appBar: appBar!),
             Expanded(child: contenido),
           ],
@@ -79,14 +79,17 @@ class CeScaffold extends StatelessWidget {
 
 /// En escritorio Web, el AppBar de cada pantalla (titulo + acciones
 /// como "Exportar PDF"/"Refrescar") se muestra como una franja angosta
-/// debajo del menu superior fijo, en vez de una AppBar navy de ancho
-/// completo pensada para telefono -- conserva todas sus acciones (no
-/// se pierde nada), solo cambia como se ve.
+/// en vez de una AppBar navy de ancho completo pensada para telefono
+/// -- conserva todas sus acciones (no se pierde nada), solo cambia
+/// como se ve.
 ///
-/// Tambien le saca el boton de "atras": en escritorio Web se navega
-/// con las pestañas de CeTopNav (`context.go`, que REEMPLAZA la
-/// ubicacion en vez de apilarla), asi que casi nunca hay algo para
-/// hacer pop -- el boton quedaba ahi sin responder al tocarlo.
+/// El boton de "atras" solo se muestra si de verdad hay algo para
+/// volver (`Navigator.canPop`): las pantallas de nivel superior
+/// (Clientes/Prestamos/etc.) viven como pestañas de CeWebShell, sin
+/// pasar por el Navigator para abrirse, asi que ahi no hay nada que
+/// hacer pop y el boton se saca (quedaba sin responder al tocarlo).
+/// Un detalle/formulario abierto con `context.push` SI tiene algo
+/// para volver, asi que ahi el boton se deja tal cual.
 class _BarraPagina extends StatelessWidget implements PreferredSizeWidget {
   final PreferredSizeWidget appBar;
 
@@ -95,13 +98,15 @@ class _BarraPagina extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final barra = appBar;
-    final sinAtras = barra is AppBar
+    final puedeVolver = Navigator.canPop(context);
+    final ajustada = barra is AppBar
         ? AppBar(
             title: barra.title,
             actions: barra.actions,
             bottom: barra.bottom,
             backgroundColor: barra.backgroundColor,
-            automaticallyImplyLeading: false,
+            leading: puedeVolver ? barra.leading : null,
+            automaticallyImplyLeading: puedeVolver,
           )
         : barra;
 
@@ -120,7 +125,7 @@ class _BarraPagina extends StatelessWidget implements PreferredSizeWidget {
               shape: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
             ),
       ),
-      child: sinAtras,
+      child: ajustada,
     );
   }
 

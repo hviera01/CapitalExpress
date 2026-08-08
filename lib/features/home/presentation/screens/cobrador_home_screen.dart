@@ -12,6 +12,8 @@ import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_menu_row.dart';
 import '../../../../core/widgets/ce_section_label.dart';
 import '../../../../core/widgets/ce_shell.dart';
+import '../../../../core/widgets/ce_web_sections.dart';
+import '../../../../core/widgets/ce_web_shell.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../pagos/providers/pagos_provider.dart';
@@ -90,6 +92,14 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
     final escritorio = esEscritorio(context);
     final columnas = escritorio ? 4 : 2;
 
+    if (esEscritorioWeb(context)) {
+      return CeWebShell(
+        tituloInicial: 'Panel',
+        iconoInicial: Icons.home_outlined,
+        contenidoInicial: (context) => _cuerpoEscritorio(context, usuario?.nombre ?? ''),
+      );
+    }
+
     return CeAppShell(
       subtituloApp: 'PANEL DE COBRANZA',
       colorSubtitulo: _colorSubtitulo,
@@ -97,9 +107,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       nombreUsuario: usuario?.nombre ?? '',
       rolUsuario: 'Cobrador',
       onLogout: () => ref.read(authProvider.notifier).logout(),
-      body: esEscritorioWeb(context)
-          ? _cuerpoEscritorio(context, usuario?.nombre ?? '')
-          : ListView(
+      body: ListView(
         padding: EdgeInsets.fromLTRB(
           escritorio ? 32 : 16,
           escritorio ? 0 : 16,
@@ -242,7 +250,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                     CeAccionRapidaTile(
                         icono: Icons.notifications_active_outlined,
                         titulo: 'Cobros',
-                        onTap: () => context.push('/cobros')),
+                        onTap: () => abrirSeccionWeb(ref, 'cobros')),
                     CeAccionRapidaTile(
                         icono: Icons.person_add_alt_1_outlined,
                         titulo: 'Registrar Cliente',
@@ -277,7 +285,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       valor: _cargando ? '…' : '$_clientesCount',
                       subtitulo: 'en mi cartera',
                       enlace: 'Directorio',
-                      onTap: () => context.push('/clientes'),
+                      onTap: () => abrirSeccionWeb(ref, 'clientes'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.account_balance_outlined,
@@ -285,7 +293,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       valor: _cargando ? '…' : '$_prestamosCount',
                       subtitulo: 'préstamos asignados',
                       enlace: 'Gestionar',
-                      onTap: () => context.push('/prestamos'),
+                      onTap: () => abrirSeccionWeb(ref, 'prestamos'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.payments_outlined,
@@ -293,7 +301,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       valor: '',
                       subtitulo: 'Historial de recaudación',
                       enlace: 'Ver',
-                      onTap: () => context.push('/reportes/cobros'),
+                      onTap: () => abrirSeccionWeb(ref, 'mis-pagos'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.forum_outlined,
@@ -301,7 +309,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                       valor: _cargando ? '…' : '$_solicitudesCount',
                       subtitulo: 'pendientes de aprobación',
                       enlace: 'Ver',
-                      onTap: () => context.push('/solicitudes'),
+                      onTap: () => abrirSeccionWeb(ref, 'solicitudes'),
                     ),
                   ],
                 ),
@@ -324,7 +332,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                 CePanelActividad(
                   titulo: 'Actividad reciente',
                   onRefrescar: _cargarDashboard,
-                  onVerTodo: () => context.push('/reportes/cobros'),
+                  onVerTodo: () => abrirSeccionWeb(ref, 'mis-pagos'),
                   items: _cargando
                       ? const []
                       : [
