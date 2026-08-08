@@ -65,9 +65,14 @@ class ReciboPagoService {
       }
     }
 
-    final cuotaMostrar = (p.descripcionCuotas.isNotEmpty && cuotasTotales != null && cuotasTotales > 0)
-        ? '${p.descripcionCuotas} de $cuotasTotales'
-        : p.descripcionCuotas;
+    // La impresora termica no tiene el glifo de "✓" (sale como un
+    // cuadro/caracter incompatible) -- se saca solo para el recibo
+    // impreso, el check normal en pantalla no se toca.
+    final descripcionCuotasPdf = p.descripcionCuotas.replaceAll(' ✓', '');
+    final cuotaMostrar =
+        (descripcionCuotasPdf.isNotEmpty && cuotasTotales != null && cuotasTotales > 0)
+            ? '$descripcionCuotasPdf de $cuotasTotales'
+            : descripcionCuotasPdf;
 
     final ahora = DateTime.now();
 
@@ -75,16 +80,25 @@ class ReciboPagoService {
     pdf.addPage(
       // Mismas medidas EXACTAS que ReciboHelper.generarReciboPDF en el
       // sistema viejo: 189x612pt (no son "80mm genericos" -- son los
-      // valores afinados a mano contra la impresora termica real, ver
-      // comentarios de ese archivo sobre por que se recorto de 756 a
-      // 612 y por que el margen superior subio a 32f).
+      // valores afinados a mano contra la impresora termica real). El
+      // margen superior de 32 (en vez de 15 parejo) es el mismo fix que
+      // ya tenia el sistema viejo para esto -- la impresora termica
+      // recorta lo primero que manda a imprimir, y con marginAll:15 se
+      // perdia "CAPITAL EXPRESS" completo.
       pw.Page(
-        pageFormat: const PdfPageFormat(189, 612, marginAll: 15),
+        pageFormat: const PdfPageFormat(189, 650,
+            marginTop: 32, marginBottom: 15, marginLeft: 15, marginRight: 15),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
+            // Titulo partido en dos lineas, igual que ya funciona bien
+            // en el recibo de prestamo (ver recibo_prestamo_service.dart).
             pw.Center(
-              child: pw.Text('CAPITAL EXPRESS',
+              child: pw.Text('CAPITAL',
+                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            ),
+            pw.Center(
+              child: pw.Text('EXPRESS',
                   style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             ),
             pw.Center(child: pw.Text('FINANCIERA', style: const pw.TextStyle(fontSize: 8))),
@@ -176,7 +190,10 @@ class ReciboPagoService {
             pw.Center(
                 child: pw.Text('CONSERVE ESTE RECIBO',
                     style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))),
-            pw.SizedBox(height: 8),
+            // Espacio en blanco para que el cliente pueda firmar arriba
+            // de la linea -- antes quedaba pegada, sin lugar para
+            // firmar.
+            pw.SizedBox(height: 28),
             pw.Padding(
               padding: const pw.EdgeInsets.symmetric(horizontal: 20),
               child: pw.Divider(thickness: 1),

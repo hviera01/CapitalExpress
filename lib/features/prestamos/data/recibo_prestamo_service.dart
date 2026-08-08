@@ -50,7 +50,7 @@ class ReciboPrestamoService {
       // lleva mas contenido (telefono, direccion, firma) y nunca se
       // recorto en la app original.
       pw.Page(
-        pageFormat: const PdfPageFormat(189, 756, marginAll: 15),
+        pageFormat: const PdfPageFormat(189, 776, marginAll: 15),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
@@ -133,7 +133,10 @@ class ReciboPrestamoService {
             pw.Center(
                 child: pw.Text('CONSERVE ESTE RECIBO',
                     style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))),
-            pw.SizedBox(height: 8),
+            // Espacio en blanco para que el cliente pueda firmar arriba
+            // de la linea -- antes quedaba pegada, sin lugar para
+            // firmar.
+            pw.SizedBox(height: 28),
             pw.Padding(
               padding: const pw.EdgeInsets.symmetric(horizontal: 20),
               child: pw.Divider(thickness: 1),
