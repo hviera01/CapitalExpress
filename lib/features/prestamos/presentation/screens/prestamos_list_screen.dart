@@ -58,6 +58,12 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
       _resultados = List.of(cache.resultados);
       _seBusco = true;
     }
+    if (cache.tieneStats) {
+      _total = cache.total;
+      _activos = cache.activos;
+      _saldados = cache.saldados;
+      _cargandoStats = false;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargarStats());
   }
 
@@ -77,15 +83,27 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
       ..resultados = _resultados;
   }
 
+  void _guardarStatsEnCache() {
+    final cache = ref.read(prestamosBusquedaCacheProvider);
+    cache
+      ..tieneStats = true
+      ..total = _total
+      ..activos = _activos
+      ..saldados = _saldados;
+  }
+
   Future<void> _cargarStats() async {
     final usuario = ref.read(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = esAdmin ? null : usuario?.uid;
 
-    setState(() {
-      _cargandoStats = true;
-      _errorStats = null;
-    });
+    // Si ya hay datos (de cache o de una carga anterior), el refresco
+    // pasa calladito: sin spinner, los numeros viejos se ven hasta que
+    // llegan los nuevos.
+    final primeraVez = _cargandoStats;
+    if (primeraVez) {
+      setState(() => _errorStats = null);
+    }
     final repo = ref.read(prestamoRepositoryProvider);
     try {
       final resultados = await Future.wait([
@@ -100,12 +118,15 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
         _saldados = resultados[2];
         _cargandoStats = false;
       });
+      _guardarStatsEnCache();
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _errorStats = '$e';
-        _cargandoStats = false;
-      });
+      if (primeraVez) {
+        setState(() {
+          _errorStats = '$e';
+          _cargandoStats = false;
+        });
+      }
     }
   }
 

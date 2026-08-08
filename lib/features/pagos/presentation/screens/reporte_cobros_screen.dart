@@ -18,6 +18,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../data/reporte_cobros_pdf_service.dart';
 import '../../providers/pagos_provider.dart';
+import '../../providers/reporte_cobros_cache.dart';
 import '../widgets/pago_tile.dart';
 
 /// Historial de Pagos (antes tenia un modo "Saldados" separado -- se
@@ -46,6 +47,18 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
   @override
   void initState() {
     super.initState();
+    // Si ya se habia cargado antes, se restaura el mismo filtro de
+    // fechas/cobrador y se muestra de una -- ver ReporteCobrosCache.
+    // Se sigue refrescando abajo, pero calladito.
+    final cache = ref.read(reporteCobrosCacheProvider);
+    if (cache.tieneDatos) {
+      _fechaInicio = cache.fechaInicio;
+      _fechaFin = cache.fechaFin;
+      _filtroCobradorUid = cache.filtroCobradorUid;
+      _pagos = List.of(cache.pagos);
+      _cobradores = List.of(cache.cobradores);
+      _cargando = false;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
@@ -59,17 +72,22 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
     final usuario = ref.read(authProvider).usuario;
     _esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = _esAdmin ? null : usuario?.uid;
-    if (_esAdmin) {
+    if (_esAdmin && _cobradores.isEmpty) {
       _cobradores = await ref.read(cobradoresCacheProvider.future);
     }
-    final hoy = DateTime.now();
-    _fechaInicio = DateTime(hoy.year, hoy.month, hoy.day);
-    _fechaFin = hoy;
+    if (_fechaInicio == null && _fechaFin == null) {
+      final hoy = DateTime.now();
+      _fechaInicio = DateTime(hoy.year, hoy.month, hoy.day);
+      _fechaFin = hoy;
+    }
     await _cargar();
   }
 
   Future<void> _cargar() async {
-    setState(() => _cargando = true);
+    final primeraVez = _pagos.isEmpty;
+    if (primeraVez) {
+      setState(() => _cargando = true);
+    }
     final cobradorUid = _filtroCobradorUid ?? _cobradorUid;
     final pagos = await ref
         .read(pagoRepositoryProvider)
@@ -79,6 +97,14 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
       _pagos = pagos;
       _cargando = false;
     });
+    final cache = ref.read(reporteCobrosCacheProvider);
+    cache
+      ..tieneDatos = true
+      ..fechaInicio = _fechaInicio
+      ..fechaFin = _fechaFin
+      ..filtroCobradorUid = _filtroCobradorUid
+      ..pagos = pagos
+      ..cobradores = _cobradores;
   }
 
   List<PagoModel> get _pagosFiltrados {

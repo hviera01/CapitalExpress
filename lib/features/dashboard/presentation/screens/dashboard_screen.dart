@@ -17,6 +17,7 @@ import '../../../clientes/providers/clientes_provider.dart';
 import '../../../pagos/providers/pagos_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../data/dashboard_pdf_service.dart';
+import '../../providers/dashboard_cache.dart';
 
 /// Clientes/Prestado/Interes/Pendiente son SIEMPRE sobre el universo
 /// completo (no se filtran por fecha, son un saldo actual, no algo que
@@ -69,14 +70,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    // Si ya se habia calculado antes, se muestra de una en vez de
+    // arrancar en blanco -- ver DashboardCache. Se sigue refrescando
+    // abajo, pero calladito (sin tapar las tarjetas con el spinner).
+    final cache = ref.read(dashboardCacheProvider);
+    if (cache.tieneDatos) {
+      _fechaInicio = cache.fechaInicio;
+      _fechaFin = cache.fechaFin;
+      _totalClientes = cache.totalClientes;
+      _totalPrestado = cache.totalPrestado;
+      _totalInteres = cache.totalInteres;
+      _totalPendiente = cache.totalPendiente;
+      _totalCobros = cache.totalCobros;
+      _totalPagado = cache.totalPagado;
+      _totalMoras = cache.totalMoras;
+      _cantidadMoras = cache.cantidadMoras;
+      _porCobrador = Map.of(cache.porCobrador);
+      _prestamosActivos = cache.prestamosActivos;
+      _prestamosMora = cache.prestamosMora;
+      _prestamosSaldados = cache.prestamosSaldados;
+      _cargando = false;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargar());
   }
 
   Future<void> _cargar() async {
-    setState(() {
-      _cargando = true;
-      _error = null;
-    });
+    final primeraVez = _cargando;
+    if (primeraVez) {
+      setState(() => _error = null);
+    }
 
     try {
       final prestamoRepo = ref.read(prestamoRepositoryProvider);
@@ -125,12 +147,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _prestamosSaldados = saldados;
         _cargando = false;
       });
+      final cache = ref.read(dashboardCacheProvider);
+      cache
+        ..tieneDatos = true
+        ..fechaInicio = _fechaInicio
+        ..fechaFin = _fechaFin
+        ..totalClientes = _totalClientes
+        ..totalPrestado = _totalPrestado
+        ..totalInteres = _totalInteres
+        ..totalPendiente = _totalPendiente
+        ..totalCobros = _totalCobros
+        ..totalPagado = _totalPagado
+        ..totalMoras = _totalMoras
+        ..cantidadMoras = _cantidadMoras
+        ..porCobrador = _porCobrador
+        ..prestamosActivos = _prestamosActivos
+        ..prestamosMora = _prestamosMora
+        ..prestamosSaldados = _prestamosSaldados;
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = '$e';
-        _cargando = false;
-      });
+      if (primeraVez) {
+        setState(() {
+          _error = '$e';
+          _cargando = false;
+        });
+      }
     }
   }
 

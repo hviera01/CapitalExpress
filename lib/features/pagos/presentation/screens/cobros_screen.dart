@@ -18,6 +18,7 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../providers/cobros_cache.dart';
 import '../../providers/pagos_provider.dart';
 
 const _estadosExcluidos = {
@@ -38,14 +39,14 @@ const _etiquetasTipo = {
   'futuro': 'Futuros',
 };
 
-class _NotifCobro {
+class NotifCobro {
   final PrestamoModel prestamo;
   final DateTime proximoPago;
   final int diferenciaDias;
   final String tipo;
   final int cuotasCompletadas;
 
-  const _NotifCobro({
+  const NotifCobro({
     required this.prestamo,
     required this.proximoPago,
     required this.diferenciaDias,
@@ -67,13 +68,22 @@ class CobrosScreen extends ConsumerStatefulWidget {
 
 class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   bool _cargando = true;
-  List<_NotifCobro> _notificaciones = [];
+  List<NotifCobro> _notificaciones = [];
   final _busquedaCtrl = TextEditingController();
   String _filtroTipo = 'hoy';
 
   @override
   void initState() {
     super.initState();
+    // Si ya se habia calculado antes (y solo se salio y volvio a
+    // entrar a la pantalla), se muestra de una en vez de arrancar en
+    // blanco -- ver CobrosCache. El calculo real se repite igual
+    // abajo, pero calladito (sin tapar la lista con el spinner).
+    final cache = ref.read(cobrosCacheProvider);
+    if (cache.tieneDatos) {
+      _notificaciones = List.of(cache.notificaciones);
+      _cargando = false;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargar());
   }
 
@@ -86,7 +96,12 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
-    setState(() => _cargando = true);
+    // Si ya hay datos (de cache o de una carga anterior), el refresco
+    // pasa calladito: sin spinner, la lista vieja se ve hasta que
+    // llega la nueva.
+    if (_notificaciones.isEmpty) {
+      setState(() => _cargando = true);
+    }
 
     final prestamos = await ref
         .read(prestamoRepositoryProvider)
@@ -94,7 +109,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
 
     final hoy = DateTime.now();
     final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
-    final notificaciones = <_NotifCobro>[];
+    final notificaciones = <NotifCobro>[];
 
     // Igual que procesarPrestamoUltraOptimizado en el sistema viejo: el
     // campo `proximoPago` del prestamo es la fuente principal, pero no
@@ -151,7 +166,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       final cuotasCompletadas =
           p.cuota > 0 ? (p.montoPagado / p.cuota).floor().clamp(0, p.cuotas) : 0;
 
-      notificaciones.add(_NotifCobro(
+      notificaciones.add(NotifCobro(
         prestamo: p,
         proximoPago: fecha,
         diferenciaDias: diferenciaDias,
@@ -172,9 +187,13 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       _notificaciones = notificaciones;
       _cargando = false;
     });
+    final cache = ref.read(cobrosCacheProvider);
+    cache
+      ..tieneDatos = true
+      ..notificaciones = notificaciones;
   }
 
-  List<_NotifCobro> get _filtradas {
+  List<NotifCobro> get _filtradas {
     var lista = _notificaciones;
     if (_filtroTipo != 'Todos') {
       lista = lista.where((n) => n.tipo == _filtroTipo).toList();
@@ -200,7 +219,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     await abrirWhatsapp(cliente.telefono, mensaje: mensaje);
   }
 
-  Future<void> _aplicarMora(_NotifCobro n) async {
+  Future<void> _aplicarMora(NotifCobro n) async {
     final p = n.prestamo;
     final tieneMoraActiva = p.mora > 0;
     final cantidadMorasAplicadas = p.morasAplicadas.length;
@@ -288,7 +307,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   Widget build(BuildContext context) {
     final usuario = ref.watch(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
-    final filtradas = _cargando ? const <_NotifCobro>[] : _filtradas;
+    final filtradas = _cargando ? const <NotifCobro>[] : _filtradas;
     final total = filtradas.length;
     final mora = filtradas.where((n) => n.tipo == 'vencido').length;
     final hoyCount = filtradas.where((n) => n.tipo == 'hoy').length;
@@ -511,12 +530,12 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
 /// Version tabla de Cobros, solo para escritorio Web (ver
 /// esEscritorioWeb).
 class _TablaCobros extends StatelessWidget {
-  final List<_NotifCobro> notificaciones;
+  final List<NotifCobro> notificaciones;
   final bool esAdmin;
   final Color Function(int) colorUrgencia;
   final String Function(int) etiquetaUrgencia;
   final ValueChanged<PrestamoModel> onWhatsapp;
-  final ValueChanged<_NotifCobro> onAplicarMora;
+  final ValueChanged<NotifCobro> onAplicarMora;
 
   const _TablaCobros({
     required this.notificaciones,

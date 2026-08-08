@@ -12,6 +12,7 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../providers/usuarios_cache.dart';
 import '../../providers/usuarios_provider.dart';
 
 const _rolesFiltro = ['todos', 'admin', 'cobrador'];
@@ -39,6 +40,15 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
   @override
   void initState() {
     super.initState();
+    // Si ya se habia cargado antes, se muestra de una en vez de
+    // arrancar en blanco -- ver UsuariosCache. Se sigue refrescando
+    // abajo, pero calladito (sin tapar la lista con el spinner).
+    final cache = ref.read(usuariosCacheProvider);
+    if (cache.tieneDatos) {
+      _usuarios = List.of(cache.usuarios);
+      _prestamosAsignados.addAll(cache.prestamosAsignados);
+      _cargando = false;
+    }
     _cargar();
   }
 
@@ -49,10 +59,13 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
   }
 
   Future<void> _cargar() async {
-    setState(() {
-      _cargando = true;
-      _error = null;
-    });
+    final primeraVez = _usuarios.isEmpty;
+    if (primeraVez) {
+      setState(() {
+        _cargando = true;
+        _error = null;
+      });
+    }
     try {
       final usuarios = await ref.read(usuarioRepositoryProvider).obtenerTodos();
       if (!mounted) return;
@@ -72,12 +85,19 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
           _prestamosAsignados[cobradores[i].uid] = conteos[i];
         }
       });
+      final cache = ref.read(usuariosCacheProvider);
+      cache
+        ..tieneDatos = true
+        ..usuarios = usuarios
+        ..prestamosAsignados = _prestamosAsignados;
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = '$e';
-        _cargando = false;
-      });
+      if (primeraVez) {
+        setState(() {
+          _error = '$e';
+          _cargando = false;
+        });
+      }
     }
   }
 

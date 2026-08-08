@@ -19,6 +19,7 @@ import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/reporte_prestamos_pdf_service.dart';
 import '../../providers/prestamos_provider.dart';
+import '../../providers/reporte_prestamos_cache.dart';
 
 const _estadosFiltro = ['Todos', 'activo', 'vencido', 'saldado'];
 
@@ -40,6 +41,14 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
   @override
   void initState() {
     super.initState();
+    // Si ya se habia cargado antes, se muestra de una en vez de
+    // arrancar en blanco -- ver ReportePrestamosCache. Se sigue
+    // refrescando abajo, pero calladito.
+    final cache = ref.read(reportePrestamosCacheProvider);
+    if (cache.tieneDatos) {
+      _prestamos = List.of(cache.prestamos);
+      _cargando = false;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargar());
   }
 
@@ -52,7 +61,10 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
-    setState(() => _cargando = true);
+    final primeraVez = _prestamos.isEmpty;
+    if (primeraVez) {
+      setState(() => _cargando = true);
+    }
     final prestamos = await ref
         .read(prestamoRepositoryProvider)
         .obtenerTodos(cobradorUid: esAdmin ? null : usuario?.uid);
@@ -61,6 +73,10 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
       _prestamos = prestamos;
       _cargando = false;
     });
+    final cache = ref.read(reportePrestamosCacheProvider);
+    cache
+      ..tieneDatos = true
+      ..prestamos = prestamos;
   }
 
   bool _pasaFecha(PrestamoModel p) {

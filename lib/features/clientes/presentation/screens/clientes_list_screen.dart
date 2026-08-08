@@ -59,7 +59,9 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     super.initState();
     // Si ya se habia buscado antes (y solo se salio y volvio a entrar
     // a la pantalla), se restaura esa busqueda en vez de arrancar en
-    // blanco -- ver ClientesBusquedaCache.
+    // blanco -- ver ClientesBusquedaCache. Igual con las estadisticas
+    // del encabezado: si ya las teniamos, se muestran de una (sin el
+    // parpadeo de "..." al volver) y se refrescan calladitas atras.
     final cache = ref.read(clientesBusquedaCacheProvider);
     if (cache.seBusco) {
       _busquedaCtrl.text = cache.texto;
@@ -67,6 +69,14 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       _resultados = List.of(cache.resultados);
       _tienePrestamoReal.addAll(cache.tienePrestamoReal);
       _seBusco = true;
+    }
+    if (cache.tieneStats) {
+      _total = cache.total;
+      _activos = cache.activos;
+      _pagosTarde = cache.pagosTarde;
+      _pendiente = cache.pendiente;
+      _nombresCobradores = Map.of(cache.nombresCobradores);
+      _cargandoStats = false;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarStats();
@@ -84,6 +94,17 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       ..tienePrestamoReal = _tienePrestamoReal;
   }
 
+  void _guardarStatsEnCache() {
+    final cache = ref.read(clientesBusquedaCacheProvider);
+    cache
+      ..tieneStats = true
+      ..total = _total
+      ..activos = _activos
+      ..pagosTarde = _pagosTarde
+      ..pendiente = _pendiente
+      ..nombresCobradores = _nombresCobradores;
+  }
+
   /// Para poder mostrar el nombre real del cobrador asignado en cada
   /// card (antes no se mostraba en ningun lado, ni siquiera en Resumen
   /// del Cliente). Solo hace falta para admin -- un cobrador viendo
@@ -97,6 +118,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       setState(() {
         _nombresCobradores = {for (final c in cobradores) c.uid: c.nombre};
       });
+      _guardarStatsEnCache();
     } catch (_) {
       // No es critico: si falla, las cards simplemente no muestran el
       // nombre del cobrador (se resuelve "Sin asignar"/UID como antes).
@@ -114,10 +136,14 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     _esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = _esAdmin ? null : usuario?.uid;
 
-    setState(() {
-      _cargandoStats = true;
-      _errorStats = null;
-    });
+    // Si ya hay datos (de cache o de una carga anterior), el refresco
+    // pasa calladito: sin spinner ni "...", los numeros viejos se ven
+    // hasta que llegan los nuevos. Solo la PRIMERA carga real (sin
+    // nada que mostrar todavia) bloquea con el spinner.
+    final primeraVez = _cargandoStats;
+    if (primeraVez) {
+      setState(() => _errorStats = null);
+    }
     final clienteRepo = ref.read(clienteRepositoryProvider);
     final prestamoRepo = ref.read(prestamoRepositoryProvider);
 
@@ -137,12 +163,19 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
         _pendiente = resultados[3] as double;
         _cargandoStats = false;
       });
+      _guardarStatsEnCache();
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _errorStats = '$e';
-        _cargandoStats = false;
-      });
+      // Si el refresco silencioso falla pero ya habia numeros en
+      // pantalla (de cache o de una carga anterior), se dejan como
+      // estaban -- no tiene sentido tapar datos buenos con un error
+      // de un refresco de fondo que nadie pidio.
+      if (primeraVez) {
+        setState(() {
+          _errorStats = '$e';
+          _cargandoStats = false;
+        });
+      }
     }
   }
 
