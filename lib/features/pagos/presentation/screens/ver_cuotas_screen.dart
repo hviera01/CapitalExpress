@@ -9,7 +9,9 @@ import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/cuotas_calculos.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
@@ -169,18 +171,21 @@ class _VerCuotasScreenState extends ConsumerState<VerCuotasScreen> {
               style: TextStyle(fontSize: 12, color: CEColors.textSecondary),
             ),
           ),
-          ...cuotas.map((c) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _CuotaTile(
-                  cuota: c,
-                  esAdmin: esAdmin,
-                  fechaFormato: f,
-                  onCobrar: c.estado != EstadoCuota.pagada
-                      ? () => context.push(
-                          '/prestamos/${prestamo.prestamoId}/cobrar?monto=${c.faltante.toStringAsFixed(2)}')
-                      : null,
-                ),
-              )),
+          if (esEscritorioWeb(context))
+            _TablaCuotas(cuotas: cuotas, fechaFormato: f, prestamoId: prestamo.prestamoId)
+          else
+            ...cuotas.map((c) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _CuotaTile(
+                    cuota: c,
+                    esAdmin: esAdmin,
+                    fechaFormato: f,
+                    onCobrar: c.estado != EstadoCuota.pagada
+                        ? () => context.push(
+                            '/prestamos/${prestamo.prestamoId}/cobrar?monto=${c.faltante.toStringAsFixed(2)}')
+                        : null,
+                  ),
+                )),
           const SizedBox(height: 24),
         ],
       ),
@@ -196,6 +201,75 @@ class _VerCuotasScreenState extends ConsumerState<VerCuotasScreen> {
           const SizedBox(height: 2),
           Text(etiqueta, style: const TextStyle(fontSize: 11, color: CEColors.textSecondary)),
         ],
+      ),
+    );
+  }
+}
+
+/// Version tabla de la lista de cuotas, solo para escritorio Web (ver
+/// esEscritorioWeb).
+class _TablaCuotas extends StatelessWidget {
+  final List<CuotaInfo> cuotas;
+  final DateFormat fechaFormato;
+  final String prestamoId;
+
+  const _TablaCuotas({required this.cuotas, required this.fechaFormato, required this.prestamoId});
+
+  Color _color(EstadoCuota estado) {
+    switch (estado) {
+      case EstadoCuota.pagada:
+        return CEColors.success;
+      case EstadoCuota.parcial:
+        return CEColors.accent;
+      case EstadoCuota.pendiente:
+        return CEColors.danger;
+    }
+  }
+
+  String _etiqueta(EstadoCuota estado) {
+    switch (estado) {
+      case EstadoCuota.pagada:
+        return 'PAGADA';
+      case EstadoCuota.parcial:
+        return 'PARCIAL';
+      case EstadoCuota.pendiente:
+        return 'PENDIENTE';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: const [
+            DataColumn(label: Text('Cuota')),
+            DataColumn(label: Text('Vence')),
+            DataColumn(label: Text('Pagado / Esperado')),
+            DataColumn(label: Text('Estado')),
+            DataColumn(label: Text('Acción')),
+          ],
+          rows: cuotas.map((c) {
+            return DataRow(cells: [
+              DataCell(Text('#${c.numero}', style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text(fechaFormato.format(c.fechaVencimiento))),
+              DataCell(Text(
+                  '${formatearLempiras(c.montoPagado)} de ${formatearLempiras(c.montoEsperado)}')),
+              DataCell(ceTableBadge(_etiqueta(c.estado), _color(c.estado))),
+              DataCell(c.estado != EstadoCuota.pagada
+                  ? TextButton(
+                      onPressed: () => context.push(
+                          '/prestamos/$prestamoId/cobrar?monto=${c.faltante.toStringAsFixed(2)}'),
+                      child: Text(c.estado == EstadoCuota.parcial ? 'Completar' : 'Cobrar'),
+                    )
+                  : const Text('—')),
+            ]);
+          }).toList(),
+        ),
       ),
     );
   }
