@@ -111,15 +111,12 @@ class _CobrarScreenState extends ConsumerState<CobrarScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
+              onPressed: () {
                 Navigator.pop(context);
-                try {
-                  await ReciboPagoService.imprimir(resultado.pago);
-                } catch (e) {
-                  messenger.showSnackBar(
-                      SnackBar(content: Text('No se pudo generar el recibo: $e')));
-                }
+                // `this.context` (de CobrarScreen), no el del dialogo
+                // que se acaba de cerrar -- la vista previa se abre
+                // sobre la pantalla de atras, no dentro del dialogo.
+                ReciboPagoService.mostrarVistaPrevia(this.context, resultado.pago);
               },
               child: const Text('Imprimir recibo'),
             ),

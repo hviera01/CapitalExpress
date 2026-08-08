@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
+import '../../../../core/widgets/ce_section_label.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/filtro_fecha_rango.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
@@ -46,6 +48,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _cantidadMoras = 0;
   Map<String, double> _porCobrador = {};
 
+  int _prestamosActivos = 0;
+  int _prestamosMora = 0;
+  int _prestamosSaldados = 0;
+
+  int get _totalPrestamos => _prestamosActivos + _prestamosMora + _prestamosSaldados;
+
+  double get _tasaCobro {
+    final base = _totalPagado + _totalPendiente;
+    return base > 0 ? (_totalPagado / base) * 100 : 0;
+  }
+
+  double get _carteraEnMoraPct =>
+      _totalPrestamos > 0 ? (_prestamosMora / _totalPrestamos) * 100 : 0;
+
+  double get _prestamoPromedio => _totalPrestamos > 0 ? _totalPrestado / _totalPrestamos : 0;
+
+  double get _rentabilidad => _totalPrestado > 0 ? (_totalInteres / _totalPrestado) * 100 : 0;
+
   @override
   void initState() {
     super.initState();
@@ -59,17 +79,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
 
     try {
+      final prestamoRepo = ref.read(prestamoRepositoryProvider);
       final resultados = await Future.wait([
         ref.read(clienteRepositoryProvider).contar(),
-        ref.read(prestamoRepositoryProvider).sumarMontoEInteres(),
+        prestamoRepo.sumarMontoEInteres(),
         ref.read(pagoRepositoryProvider).obtenerConRango(inicio: _fechaInicio, fin: _fechaFin),
-        ref.read(prestamoRepositoryProvider).sumarSaldoPendiente(),
+        prestamoRepo.sumarSaldoPendiente(),
+        prestamoRepo.contarPorEstado('activo'),
+        prestamoRepo.contarPorEstado('mora'),
+        prestamoRepo.contarPorEstado('saldado'),
       ]);
 
       final totalClientes = resultados[0] as int;
       final montoEInteres = resultados[1] as ({double monto, double interes});
       final pagos = resultados[2] as List<PagoModel>;
       final totalPendiente = resultados[3] as double;
+      final activos = resultados[4] as int;
+      final enMora = resultados[5] as int;
+      final saldados = resultados[6] as int;
 
       double totalPagado = 0, totalMoras = 0;
       var cantidadMoras = 0;
@@ -93,6 +120,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _totalMoras = totalMoras;
         _cantidadMoras = cantidadMoras;
         _porCobrador = porCobrador;
+        _prestamosActivos = activos;
+        _prestamosMora = enMora;
+        _prestamosSaldados = saldados;
         _cargando = false;
       });
     } catch (e) {
@@ -133,8 +163,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final escritorio = esEscritorio(context);
+    final columnas = escritorio ? 4 : 2;
+
     return CeScaffold(
-      maxWidth: 1100,
+      maxWidth: 1200,
       appBar: AppBar(
         leading: const BackButton(),
         title: const Text('Dashboard General'),
@@ -175,76 +208,143 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 )
               : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                CeCard(
-                  child: FiltroFechaRango(
-                    fechaInicio: _fechaInicio,
-                    fechaFin: _fechaFin,
-                    onCambio: (inicio, fin) {
-                      setState(() {
-                        _fechaInicio = inicio;
-                        _fechaFin = fin;
-                      });
-                      _cargar();
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                GridView.count(
-                  crossAxisCount: 4,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.2,
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    CeStatCard(icono: Icons.people_outline, valor: '$_totalClientes', etiqueta: 'Clientes'),
-                    CeStatCard(
-                        icono: Icons.payments_outlined, valor: '$_totalCobros', etiqueta: 'Cobros'),
-                    CeStatCard(
-                        icono: Icons.account_balance_outlined,
-                        valor: formatearLempiras(_totalPrestado),
-                        etiqueta: 'Prestado'),
-                    CeStatCard(
-                        icono: Icons.savings_outlined,
-                        valor: formatearLempiras(_totalPagado),
-                        etiqueta: 'Pagado',
-                        color: CEColors.success),
-                    CeStatCard(
-                        icono: Icons.warning_amber_outlined,
-                        valor: formatearLempiras(_totalPendiente),
-                        etiqueta: 'Pendiente',
-                        color: CEColors.danger),
-                    CeStatCard(
-                        icono: Icons.percent_outlined,
-                        valor: formatearLempiras(_totalInteres),
-                        etiqueta: 'Interés',
-                        color: CEColors.warning),
-                    CeStatCard(
-                        icono: Icons.report_gmailerrorred_outlined,
-                        valor: formatearLempiras(_totalMoras),
-                        etiqueta: 'Moras Cobradas',
-                        color: CEColors.danger),
-                    CeStatCard(
-                        icono: Icons.numbers_outlined,
-                        valor: '$_cantidadMoras',
-                        etiqueta: 'Cant. Moras'),
+                    CeCard(
+                      child: FiltroFechaRango(
+                        fechaInicio: _fechaInicio,
+                        fechaFin: _fechaFin,
+                        onCambio: (inicio, fin) {
+                          setState(() {
+                            _fechaInicio = inicio;
+                            _fechaFin = fin;
+                          });
+                          _cargar();
+                        },
+                      ),
+                    ),
+                    const CeSectionLabel('Cartera'),
+                    _grid(columnas, [
+                      CeStatCard(
+                          icono: Icons.people_outline, valor: '$_totalClientes', etiqueta: 'Clientes'),
+                      CeStatCard(
+                          icono: Icons.trending_up,
+                          valor: '$_prestamosActivos',
+                          etiqueta: 'Préstamos Activos',
+                          color: CEColors.accent),
+                      CeStatCard(
+                          icono: Icons.warning_amber_outlined,
+                          valor: '$_prestamosMora',
+                          etiqueta: 'En Mora',
+                          color: CEColors.danger),
+                      CeStatCard(
+                          icono: Icons.check_circle_outline,
+                          valor: '$_prestamosSaldados',
+                          etiqueta: 'Saldados',
+                          color: CEColors.success),
+                    ]),
+                    const CeSectionLabel('Financiero'),
+                    _grid(columnas, [
+                      CeStatCard(
+                          icono: Icons.account_balance_outlined,
+                          valor: formatearLempiras(_totalPrestado),
+                          etiqueta: 'Prestado'),
+                      CeStatCard(
+                          icono: Icons.savings_outlined,
+                          valor: formatearLempiras(_totalPagado),
+                          etiqueta: 'Pagado',
+                          color: CEColors.success),
+                      CeStatCard(
+                          icono: Icons.account_balance_wallet_outlined,
+                          valor: formatearLempiras(_totalPendiente),
+                          etiqueta: 'Pendiente',
+                          color: CEColors.danger),
+                      CeStatCard(
+                          icono: Icons.percent_outlined,
+                          valor: formatearLempiras(_totalInteres),
+                          etiqueta: 'Interés',
+                          color: CEColors.warning),
+                    ]),
+                    const CeSectionLabel('Indicadores clave'),
+                    _grid(columnas, [
+                      CeStatCard(
+                          icono: Icons.speed_outlined,
+                          valor: '${_tasaCobro.toStringAsFixed(1)}%',
+                          etiqueta: 'Tasa de Cobro',
+                          color: CEColors.success),
+                      CeStatCard(
+                          icono: Icons.error_outline,
+                          valor: '${_carteraEnMoraPct.toStringAsFixed(1)}%',
+                          etiqueta: 'Cartera en Mora',
+                          color: CEColors.danger),
+                      CeStatCard(
+                          icono: Icons.request_quote_outlined,
+                          valor: formatearLempiras(_prestamoPromedio),
+                          etiqueta: 'Préstamo Promedio',
+                          color: CEColors.accent),
+                      CeStatCard(
+                          icono: Icons.show_chart,
+                          valor: '${_rentabilidad.toStringAsFixed(1)}%',
+                          etiqueta: 'Rentabilidad',
+                          color: CEColors.warning),
+                    ]),
+                    const CeSectionLabel('Cobros del período'),
+                    _grid(columnas, [
+                      CeStatCard(
+                          icono: Icons.payments_outlined, valor: '$_totalCobros', etiqueta: 'Cobros'),
+                      CeStatCard(
+                          icono: Icons.report_gmailerrorred_outlined,
+                          valor: formatearLempiras(_totalMoras),
+                          etiqueta: 'Moras Cobradas',
+                          color: CEColors.danger),
+                      CeStatCard(
+                          icono: Icons.numbers_outlined,
+                          valor: '$_cantidadMoras',
+                          etiqueta: 'Cant. Moras'),
+                    ]),
+                    const SizedBox(height: 20),
+                    if (escritorio)
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _panelGrafico('Distribución Financiera', _graficoDistribucion())),
+                            const SizedBox(width: 16),
+                            Expanded(child: _panelGrafico('Cobros por Cobrador', _graficoPorCobrador())),
+                          ],
+                        ),
+                      )
+                    else ...[
+                      _panelGrafico('Distribución Financiera', _graficoDistribucion()),
+                      const SizedBox(height: 20),
+                      _panelGrafico('Cobros por Cobrador', _graficoPorCobrador()),
+                    ],
+                    const SizedBox(height: 24),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Text('Distribución Financiera',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                const SizedBox(height: 10),
-                CeCard(child: _graficoDistribucion()),
-                const SizedBox(height: 20),
-                const Text('Cobros por Cobrador',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                const SizedBox(height: 10),
-                CeCard(child: _graficoPorCobrador()),
-                const SizedBox(height: 24),
-              ],
-            ),
+    );
+  }
+
+  Widget _grid(int columnas, List<Widget> cards) {
+    return GridView.count(
+      crossAxisCount: columnas,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 1.2,
+      children: cards,
+    );
+  }
+
+  Widget _panelGrafico(String titulo, Widget grafico) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 10),
+        CeCard(child: grafico),
+      ],
     );
   }
 

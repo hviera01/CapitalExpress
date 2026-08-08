@@ -43,15 +43,8 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
     await ref.read(prestamoRepositoryProvider).restaurar(widget.prestamoId);
   }
 
-  Future<void> _reimprimir(BuildContext context, PrestamoModel p) async {
-    try {
-      await ReciboPrestamoService.imprimir(p);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('No se pudo generar el recibo: $e')));
-      }
-    }
+  void _reimprimir(BuildContext context, PrestamoModel p) {
+    ReciboPrestamoService.mostrarVistaPrevia(context, p);
   }
 
   Color _colorEstado(String estado) {

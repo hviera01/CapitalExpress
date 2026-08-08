@@ -1,14 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../../core/models/cliente_model.dart';
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/firestore_parse.dart';
+import '../../../core/widgets/pdf_preview_screen.dart';
 
 String _f2(int n) => n.toString().padLeft(2, '0');
 String _fecha(DateTime d) => '${_f2(d.day)}/${_f2(d.month)}/${d.year}';
@@ -20,12 +21,16 @@ String _fecha(DateTime d) => '${_f2(d.day)}/${_f2(d.month)}/${d.year}';
 /// compacto, total, proximo pago, telefono/dirección del cliente,
 /// firma).
 class ReciboPrestamoService {
-  static Future<void> imprimir(PrestamoModel p) async {
-    // Igual que ReciboPagoService: Printing.layoutPdf() va primero, sin
-    // ningun await antes, para que el navegador no bloquee el dialogo
-    // de impresion (solo lo permite si sale disparado directo del tap
-    // del usuario, sin un `await` a Firestore de por medio).
-    await Printing.layoutPdf(onLayout: (format) => _generar(p));
+  /// Abre una vista previa del recibo en una pantalla nueva -- igual
+  /// que ReciboPagoService, para evitar el dialogo de impresion
+  /// bloqueado en silencio por el navegador.
+  static void mostrarVistaPrevia(BuildContext context, PrestamoModel p) {
+    abrirVistaPreviaPdf(
+      context,
+      titulo: 'Recibo de Préstamo',
+      nombreArchivo: 'recibo_prestamo_${p.numeroPrestamo}.pdf',
+      generar: () => _generar(p),
+    );
   }
 
   static Future<Uint8List> _generar(PrestamoModel p) async {

@@ -1,14 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../../core/models/pago_model.dart';
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/cuotas_calculos.dart';
 import '../../../core/utils/currency_utils.dart';
+import '../../../core/widgets/pdf_preview_screen.dart';
 
 String _f2(int n) => n.toString().padLeft(2, '0');
 String _fecha(DateTime d) => '${_f2(d.day)}/${_f2(d.month)}/${d.year}';
@@ -21,16 +22,20 @@ String _fechaHora(DateTime d) => '${_fecha(d)} ${_f2(d.hour)}:${_f2(d.minute)}';
 /// fecha, cobrador -- para que el recibo reimpreso sea igual al que
 /// salio impreso quando se registro el pago originalmente.
 class ReciboPagoService {
-  static Future<void> imprimir(PagoModel p) async {
-    // IMPORTANTE: Printing.layoutPdf() tiene que ser lo PRIMERO que se
-    // llama, sin ningun `await` antes -- en Web/movil el navegador solo
-    // deja abrir el dialogo de impresion si viene disparado
-    // sincronicamente desde el tap del usuario. Antes se hacia un
-    // `await` a Firestore para traer el prestamo ANTES de llamar esto,
-    // y el navegador bloqueaba el dialogo en silencio (no pasaba nada
-    // al tocar "Reimprimir"). Ahora ese fetch se hace DENTRO de
-    // onLayout, que la libreria de impresion ya maneja de forma async.
-    await Printing.layoutPdf(onLayout: (format) => _generar(p));
+  /// Abre una vista previa del recibo en una pantalla nueva, con
+  /// imprimir/compartir/descargar ya incluidos (mismo widget que usan
+  /// los reportes). Esto evita por completo el problema de navegadores
+  /// que bloquean en silencio un dialogo de impresion disparado despues
+  /// de un `await` -- ahora el unico gesto directo del usuario es
+  /// "entrar a ver el recibo", y el boton de imprimir vive DENTRO de esa
+  /// pantalla, se preciona aparte y ahi si es un click directo.
+  static void mostrarVistaPrevia(BuildContext context, PagoModel p) {
+    abrirVistaPreviaPdf(
+      context,
+      titulo: 'Recibo de Abono',
+      nombreArchivo: 'recibo_abono_${p.numeroPrestamo}.pdf',
+      generar: () => _generar(p),
+    );
   }
 
   static Future<Uint8List> _generar(PagoModel p) async {
