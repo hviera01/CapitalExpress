@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/roles.dart';
 import '../../../../core/models/pago_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../data/reporte_cobros_pdf_service.dart';
 import '../../providers/pagos_provider.dart';
 import '../widgets/pago_tile.dart';
@@ -59,6 +61,7 @@ class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPre
 
   @override
   Widget build(BuildContext context) {
+    final esAdmin = ref.watch(authProvider).usuario?.rol == Roles.admin;
     return StreamBuilder<List<PagoModel>>(
       stream: _stream,
       builder: (context, snapshot) {
@@ -126,6 +129,7 @@ class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPre
                                 child: PagoTile(
                                   pago: p,
                                   mostrarPrestamo: false,
+                                  puedeEliminar: esAdmin,
                                   onEliminado: () {},
                                 ),
                               )),

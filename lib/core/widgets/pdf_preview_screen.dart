@@ -29,6 +29,38 @@ class PdfPreviewScreen extends StatelessWidget {
         pdfFileName: nombreArchivo,
         canChangePageFormat: false,
         canChangeOrientation: false,
+        loadingWidget: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generando recibo...'),
+              ],
+            ),
+          ),
+        ),
+        // Si algo falla (generando el PDF, o el visor de PDF.js en Web),
+        // antes se quedaba en blanco/cargando para siempre sin ningun
+        // aviso. Esto al menos muestra el error real y deja reintentar.
+        onError: (context, error) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                const SizedBox(height: 12),
+                const Text('No se pudo generar la vista previa',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Text('$error', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

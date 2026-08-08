@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -39,10 +39,17 @@ class _RouterRefreshNotifier extends ChangeNotifier {
   }
 }
 
+/// Contexto valido para mostrar dialogos desde fuera del arbol de
+/// widgets (ej. el chequeo periodico de actualizaciones en
+/// InactividadGuard, que vive POR ENCIMA del Router y no tiene un
+/// Navigator ancestro propio).
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _RouterRefreshNotifier(ref);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {

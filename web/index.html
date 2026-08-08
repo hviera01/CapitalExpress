@@ -43,6 +43,40 @@
   <script>
     var dartPdfJsBaseUrl = "assets/js/pdf/3.2.146/";
   </script>
+
+  <script>
+    // Boton "Actualizar app" del menu lateral (ver web_refresh_web.dart):
+    // desregistra el service worker y borra las caches del navegador
+    // antes de recargar, para que quien usa la web no tenga que abrir
+    // DevTools ni saber que es un Ctrl+Shift+R cuando queda pegado en
+    // una version vieja.
+    window.limpiarCacheYRecargarApp = async function () {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registros = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registros.map((r) => r.unregister()));
+        }
+      } catch (e) {}
+      try {
+        if ('caches' in window) {
+          const nombres = await caches.keys();
+          await Promise.all(nombres.map((n) => caches.delete(n)));
+        }
+      } catch (e) {}
+      try {
+        // Lo de arriba borra el Cache Storage del service worker, pero
+        // ese es un cache aparte del cache HTTP normal del navegador
+        // -el que respeta el "Cache-Control" que manda GitHub Pages-.
+        // Pedir cada archivo clave con {cache:'reload'} fuerza ir a la
+        // red e ignorar lo guardado, y de paso deja la respuesta nueva
+        // puesta en ese mismo cache HTTP para que el reload de abajo ya
+        // la encuentre.
+        const archivosClave = ['index.html', 'flutter_bootstrap.js', 'flutter.js', 'main.dart.js', 'flutter_service_worker.js', 'version.json'];
+        await Promise.all(archivosClave.map((f) => fetch(f, { cache: 'reload' }).catch(() => {})));
+      } catch (e) {}
+      location.reload();
+    };
+  </script>
 </head>
 <body>
   <!--

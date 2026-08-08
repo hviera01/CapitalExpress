@@ -225,6 +225,7 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: PagoTile(
                           pago: p,
+                          puedeEliminar: _esAdmin,
                           onEliminado: () => setState(() => _pagos.removeWhere((x) => x.docId == p.docId)),
                         ),
                       )),

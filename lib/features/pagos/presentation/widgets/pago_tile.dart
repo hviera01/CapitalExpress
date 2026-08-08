@@ -16,12 +16,14 @@ class PagoTile extends ConsumerWidget {
   final PagoModel pago;
   final VoidCallback onEliminado;
   final bool mostrarPrestamo;
+  final bool puedeEliminar;
 
   const PagoTile({
     super.key,
     required this.pago,
     required this.onEliminado,
     this.mostrarPrestamo = true,
+    this.puedeEliminar = true,
   });
 
   Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
@@ -107,8 +109,8 @@ class PagoTile extends ConsumerWidget {
                 _eliminar(context, ref);
               }
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              const PopupMenuItem(
                 value: 'reimprimir',
                 child: ListTile(
                   leading: Icon(Icons.print_outlined),
@@ -116,14 +118,15 @@ class PagoTile extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              PopupMenuItem(
-                value: 'eliminar',
-                child: ListTile(
-                  leading: Icon(Icons.delete_outline, color: CEColors.danger),
-                  title: Text('Eliminar'),
-                  contentPadding: EdgeInsets.zero,
+              if (puedeEliminar)
+                const PopupMenuItem(
+                  value: 'eliminar',
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline, color: CEColors.danger),
+                    title: Text('Eliminar'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
-              ),
             ],
           ),
         ],
