@@ -47,6 +47,40 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
     ReciboPrestamoService.mostrarVistaPrevia(context, p);
   }
 
+  Future<void> _cancelarMora(BuildContext context, double moraActual) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar mora'),
+        content: Text(
+          'Se eliminará la mora de ${formatearLempiras(moraActual)} del saldo pendiente. '
+          'El saldo volverá a su valor sin mora. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Volver')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancelar mora', style: TextStyle(color: CEColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await ref.read(prestamoRepositoryProvider).cancelarMora(widget.prestamoId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Mora cancelada')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo cancelar la mora: $e')));
+      }
+    }
+  }
+
   Color _colorEstado(String estado) {
     switch (estado) {
       case 'saldado':
@@ -236,6 +270,24 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
                 const Divider(height: 24),
                 _filaFinanciera('Saldo pendiente', formatearLempiras(p.saldo),
                     color: CEColors.danger, negrita: true),
+                if (p.mora > 0)
+                  _filaFinanciera('Mora acumulada', formatearLempiras(p.mora),
+                      color: CEColors.danger),
+                if (esAdmin && p.estado == 'mora') ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: CEColors.danger,
+                        side: const BorderSide(color: CEColors.danger),
+                      ),
+                      onPressed: () => _cancelarMora(context, p.mora),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancelar Mora'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -9,10 +9,8 @@ import '../../../core/models/cliente_model.dart';
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/firestore_parse.dart';
+import '../../../core/utils/recibo_fecha_utils.dart';
 import '../../../core/widgets/pdf_preview_screen.dart';
-
-String _f2(int n) => n.toString().padLeft(2, '0');
-String _fecha(DateTime d) => '${_f2(d.day)}/${_f2(d.month)}/${d.year}';
 
 /// Recibo de desembolso del préstamo -- mismo contenido, orden y tamaño
 /// EXACTOS que ReciboHelper.generarReciboPrestamoPDF en el sistema viejo:
@@ -76,7 +74,7 @@ class ReciboPrestamoService {
                 child: pw.Text('Prestamo N° ${p.numeroPrestamo}',
                     style: const pw.TextStyle(fontSize: 9))),
             pw.Center(
-                child: pw.Text('Doc ${_fecha(fecha).replaceAll('/', '')}',
+                child: pw.Text('Doc ${fechaCorta(fecha).replaceAll('/', '')}',
                     style: const pw.TextStyle(fontSize: 9))),
             pw.SizedBox(height: 4),
             pw.Center(child: pw.Text('Sr(a) ${p.cliente}', style: const pw.TextStyle(fontSize: 9))),
@@ -91,7 +89,7 @@ class ReciboPrestamoService {
             pw.SizedBox(height: 6),
             pw.Divider(thickness: 1),
             _fila('Cuotas', '${p.cuotas}'),
-            _fila('Fecha', _fecha(fecha)),
+            _fila('Fecha', fechaCorta(fecha)),
             _fila('Monto', formatearLempiras(p.monto)),
             _fila('Capital', formatearLempiras(p.monto)),
             _fila('Interes', formatearLempiras(p.interes)),
@@ -110,7 +108,7 @@ class ReciboPrestamoService {
             pw.SizedBox(height: 8),
             if (proximo != null) ...[
               pw.Center(child: pw.Text('Proximo:', style: const pw.TextStyle(fontSize: 9))),
-              pw.Center(child: pw.Text(_fecha(proximo), style: const pw.TextStyle(fontSize: 9))),
+              pw.Center(child: pw.Text(fechaCorta(proximo), style: const pw.TextStyle(fontSize: 9))),
               pw.SizedBox(height: 4),
             ],
             if (cliente != null && cliente.telefono.isNotEmpty) ...[
@@ -130,10 +128,7 @@ class ReciboPrestamoService {
             pw.SizedBox(height: 6),
             pw.Divider(thickness: 1),
             pw.SizedBox(height: 4),
-            pw.Center(child: pw.Text(_fecha(ahora), style: const pw.TextStyle(fontSize: 7))),
-            pw.Center(
-                child: pw.Text('${_f2(ahora.hour)}:${_f2(ahora.minute)}:${_f2(ahora.second)}',
-                    style: const pw.TextStyle(fontSize: 7))),
+            pw.Center(child: pw.Text(fechaHoraConSegundos(ahora), style: const pw.TextStyle(fontSize: 7))),
             pw.SizedBox(height: 6),
             pw.Center(
                 child: pw.Text('CONSERVE ESTE RECIBO',

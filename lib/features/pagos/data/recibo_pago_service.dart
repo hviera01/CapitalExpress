@@ -9,11 +9,8 @@ import '../../../core/models/pago_model.dart';
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/cuotas_calculos.dart';
 import '../../../core/utils/currency_utils.dart';
+import '../../../core/utils/recibo_fecha_utils.dart';
 import '../../../core/widgets/pdf_preview_screen.dart';
-
-String _f2(int n) => n.toString().padLeft(2, '0');
-String _fecha(DateTime d) => '${_f2(d.day)}/${_f2(d.month)}/${d.year}';
-String _fechaHora(DateTime d) => '${_fecha(d)} ${_f2(d.hour)}:${_f2(d.minute)}';
 
 /// Recibo de abono (reimprimir), mismo contenido y orden que
 /// ReciboHelper.generarReciboPDF en el sistema viejo (ticket termico
@@ -63,9 +60,10 @@ class ReciboPagoService {
       cuotasTotales = prestamo.cuotas;
       final inicio = prestamo.fecha?.toDate();
       if (inicio != null) {
-        fechaInicioTexto = _fecha(inicio);
+        fechaInicioTexto = fechaCorta(inicio);
         if (prestamo.cuotas > 0) {
-          fechaCancelacionTexto = _fecha(calcularFechaCuota(inicio, prestamo.plazo, prestamo.cuotas));
+          fechaCancelacionTexto =
+              fechaCorta(calcularFechaCuota(inicio, prestamo.plazo, prestamo.cuotas));
         }
       }
     }
@@ -108,7 +106,7 @@ class ReciboPagoService {
                   child: pw.Text('Cancelación prog.: $fechaCancelacionTexto',
                       style: const pw.TextStyle(fontSize: 8))),
             pw.Center(
-                child: pw.Text('Doc ${_fechaHora(fecha).replaceAll('/', '')}',
+                child: pw.Text('Doc ${fechaHoraCorta(fecha).replaceAll('/', '')}',
                     style: const pw.TextStyle(fontSize: 8))),
             pw.SizedBox(height: 6),
             pw.Center(
@@ -129,16 +127,20 @@ class ReciboPagoService {
               pw.Text('Cuotas:', style: const pw.TextStyle(fontSize: 7)),
               pw.Text(cuotaMostrar, style: const pw.TextStyle(fontSize: 7)),
             ],
-            _fila('Fecha', _fechaHora(fecha)),
+            _fila('Fecha', fechaHoraCorta(fecha)),
             _fila('Saldo anterior', formatearLempiras(saldoAntesDeMora)),
             if (p.mora > 0) ...[
               _fila('Mora aplicada', formatearLempiras(p.mora)),
               _fila('Saldo con mora', formatearLempiras(saldoAnterior)),
             ],
             _fila('Abono', formatearLempiras(montoPagado)),
-            _fila('Aplicado a cuota', formatearLempiras(p.monto)),
-            _fila('Aplicado a mora', formatearLempiras(p.mora)),
-            if (p.mora > 0)
+            // El desglose "aplicado a cuota/mora" solo tiene sentido
+            // mencionarlo cuando de verdad hubo mora de por medio -- si
+            // no hay mora, "Aplicado a cuota" es lo mismo que "Abono" y
+            // "Aplicado a mora: L.0.00" solo genera confusion.
+            if (p.mora > 0) ...[
+              _fila('Aplicado a cuota', formatearLempiras(p.monto)),
+              _fila('Aplicado a mora', formatearLempiras(p.mora)),
               pw.Padding(
                 padding: const pw.EdgeInsets.only(top: 3),
                 child: pw.Text(
@@ -146,6 +148,7 @@ class ReciboPagoService {
                   style: const pw.TextStyle(fontSize: 7),
                 ),
               ),
+            ],
             pw.SizedBox(height: 5),
             pw.Divider(thickness: 1),
             pw.SizedBox(height: 4),
@@ -161,7 +164,7 @@ class ReciboPagoService {
             pw.SizedBox(height: 8),
             if (proximo != null) ...[
               pw.Center(child: pw.Text('Próxima fecha de pago:', style: const pw.TextStyle(fontSize: 8))),
-              pw.Center(child: pw.Text(_fecha(proximo), style: const pw.TextStyle(fontSize: 8))),
+              pw.Center(child: pw.Text(fechaCorta(proximo), style: const pw.TextStyle(fontSize: 8))),
               pw.SizedBox(height: 6),
             ],
             pw.Center(child: pw.Text('Cobrado por:', style: const pw.TextStyle(fontSize: 7))),
@@ -171,14 +174,18 @@ class ReciboPagoService {
             pw.SizedBox(height: 6),
             pw.Divider(thickness: 1),
             pw.SizedBox(height: 4),
-            pw.Center(child: pw.Text(_fecha(ahora), style: const pw.TextStyle(fontSize: 7))),
-            pw.Center(
-                child: pw.Text('${_f2(ahora.hour)}:${_f2(ahora.minute)}:${_f2(ahora.second)}',
-                    style: const pw.TextStyle(fontSize: 7))),
+            pw.Center(child: pw.Text(fechaHoraConSegundos(ahora), style: const pw.TextStyle(fontSize: 7))),
             pw.SizedBox(height: 6),
             pw.Center(
                 child: pw.Text('CONSERVE ESTE RECIBO',
                     style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))),
+            pw.SizedBox(height: 8),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 20),
+              child: pw.Divider(thickness: 1),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Center(child: pw.Text('Firma Cliente', style: const pw.TextStyle(fontSize: 7))),
           ],
         ),
       ),

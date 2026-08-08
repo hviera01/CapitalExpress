@@ -31,6 +31,18 @@
 
   <title>capital_express</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    El paquete `printing` (usado para las vistas previas de PDF y
+    recibos) carga pdf.js desde un CDN externo (cdnjs.cloudflare.com)
+    por defecto en Web. En redes moviles/corporativas que bloquean o
+    filtran ese dominio, la vista previa se queda en blanco sin ningun
+    error visible ("no pasa nada al abrir el recibo/PDF"). Se bundlea
+    pdf.js localmente para que no dependa de ningun CDN externo.
+  -->
+  <script>
+    var dartPdfJsBaseUrl = "assets/js/pdf/3.2.146/";
+  </script>
 </head>
 <body>
   <!--

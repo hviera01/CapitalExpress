@@ -232,6 +232,58 @@ class PrestamoRepository {
     });
   }
 
+  /// Cancela la mora activa del prestamo -- misma logica que el dialogo
+  /// "Cancelar mora" en CuotasPrestamoScreen.kt: recalcula el saldo
+  /// SIN mora (totalPagar - cuotas ya pagadas, la mora nunca fue parte
+  /// de totalPagar) y deja el campo `mora` en lo que ya se pago de mora
+  /// historicamente (para que la mora pendiente quede en 0, sin perder
+  /// el registro de lo ya cobrado). Quita la ULTIMA entrada de
+  /// `morasAplicadas` (no borra `morasIndividuales`, esas quedan como
+  /// historial -- igual que el sistema viejo).
+  Future<void> cancelarMora(String id) async {
+    final snap = await _col.doc(id).get();
+    final moraGuardada = (snap.data()?['mora'] as num?)?.toDouble() ?? 0.0;
+    if (moraGuardada <= 0.0) {
+      throw Exception('No hay mora activa');
+    }
+
+    final pagosSnap = await _db.collection('pagos').where('prestamoId', isEqualTo: id).get();
+    var totalCuotasPagadas = 0.0;
+    var totalMoraPagada = 0.0;
+    for (final pago in pagosSnap.docs) {
+      totalCuotasPagadas += (pago.data()['monto'] as num?)?.toDouble() ?? 0.0;
+      totalMoraPagada += (pago.data()['mora'] as num?)?.toDouble() ?? 0.0;
+    }
+
+    final totalPagarBase = (snap.data()?['totalPagar'] as num?)?.toDouble() ?? 0.0;
+    final nuevoSaldo = (totalPagarBase - totalCuotasPagadas).clamp(0.0, double.infinity);
+
+    final morasAplicadasActual =
+        (snap.data()?['morasAplicadas'] as List?)?.cast<String>() ?? const [];
+    final morasActualizadas =
+        morasAplicadasActual.isNotEmpty ? morasAplicadasActual.sublist(0, morasAplicadasActual.length - 1) : const <String>[];
+
+    final nuevoEstado = nuevoSaldo <= 0.01 ? 'saldado' : 'activo';
+    final ahora = Timestamp.now();
+
+    final actualizacion = <String, dynamic>{
+      'mora': totalMoraPagada,
+      'saldo': nuevoSaldo,
+      'morasAplicadas': morasActualizadas,
+      'estado': nuevoEstado,
+      'fechaUltimaActualizacion': ahora,
+      'fechaUltimaMora': FieldValue.delete(),
+    };
+    if (nuevoEstado == 'saldado') {
+      actualizacion['fechaSaldado'] = ahora;
+      actualizacion['fechaCancelacion'] = ahora;
+    }
+    if (morasActualizadas.isEmpty) {
+      actualizacion['saldoOriginal'] = FieldValue.delete();
+    }
+    await _col.doc(id).update(actualizacion);
+  }
+
   /// Cantidad de prestamos en mora (para el stat "Pagos Tarde").
   Future<int> contarEnMora({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col.where('estado', isEqualTo: 'mora');

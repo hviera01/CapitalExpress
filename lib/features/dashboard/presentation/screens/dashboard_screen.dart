@@ -409,51 +409,63 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+  // Barras horizontales tipo ranking en vez de un BarChart vertical: con
+  // varios cobradores (o nombres largos) las etiquetas del eje inferior
+  // se amontonaban/solapaban entre si. Cada fila es simplemente un
+  // Row/nombre+barra+monto, asi que nunca colisiona sin importar
+  // cuantos cobradores haya o que tan largo sea el nombre.
   Widget _graficoPorCobrador() {
     if (_porCobrador.isEmpty) {
       return const SizedBox(
-        height: 180,
+        height: 120,
         child: Center(child: Text('Sin cobros en este período')),
       );
     }
 
-    final entradas = _porCobrador.entries.toList();
-    final maxY = entradas.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+    final entradas = _porCobrador.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final maxValor = entradas.first.value;
 
-    return SizedBox(
-      height: 240,
-      child: BarChart(
-        BarChartData(
-          maxY: maxY * 1.2,
-          barGroups: [
-            for (var i = 0; i < entradas.length; i++)
-              BarChartGroupData(x: i, barRods: [
-                BarChartRodData(toY: entradas[i].value, color: CEColors.accent, width: 18),
-              ]),
-          ],
-          titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  final i = value.toInt();
-                  if (i < 0 || i >= entradas.length) return const SizedBox();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(entradas[i].key,
-                        style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis),
-                  );
-                },
-              ),
-            ),
-          ),
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-        ),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: entradas
+          .map((e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 96,
+                      child: Text(
+                        e.key,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: maxValor > 0 ? e.value / maxValor : 0,
+                          minHeight: 14,
+                          backgroundColor: CEColors.border,
+                          color: CEColors.accent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 78,
+                      child: Text(
+                        formatearLempiras(e.value),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ))
+          .toList(),
     );
   }
 }
