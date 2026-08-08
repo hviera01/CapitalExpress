@@ -9,7 +9,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/normalizar_texto.dart';
 import '../../../../core/utils/prestamo_estado_utils.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/filtro_fecha_rango.dart';
@@ -257,6 +259,8 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                     padding: EdgeInsets.only(top: 24),
                     child: Center(child: Text('No hay préstamos con este filtro')),
                   )
+                else if (esEscritorioWeb(context))
+                  _TablaReportePrestamos(filas: filas, formatoFecha: formatoFecha)
                 else
                   ...filas.map((p) {
                     final estado = estadoEfectivoPrestamo(p);
@@ -310,6 +314,62 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                   }),
               ],
             ),
+    );
+  }
+}
+
+/// Version tabla del Reporte de Prestamos, solo para escritorio Web
+/// (ver esEscritorioWeb).
+class _TablaReportePrestamos extends StatelessWidget {
+  final List<PrestamoModel> filas;
+  final DateFormat formatoFecha;
+
+  const _TablaReportePrestamos({required this.filas, required this.formatoFecha});
+
+  Color _colorEstado(String estado) {
+    switch (estado) {
+      case 'saldado':
+        return CEColors.success;
+      case 'vencido':
+        return CEColors.danger;
+      default:
+        return CEColors.accent;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: const [
+            DataColumn(label: Text('Cliente')),
+            DataColumn(label: Text('N°')),
+            DataColumn(label: Text('Fecha')),
+            DataColumn(label: Text('Saldo'), numeric: true),
+            DataColumn(label: Text('Estado')),
+          ],
+          rows: filas.map((p) {
+            final estado = estadoEfectivoPrestamo(p);
+            return DataRow(
+              onSelectChanged: (_) => context.push('/prestamos/${p.prestamoId}'),
+              cells: [
+                DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Text('#${p.numeroPrestamo}')),
+                DataCell(Text(
+                    p.fechaCreacion != null ? formatoFecha.format(p.fechaCreacion!.toDate()) : '—')),
+                DataCell(Text(formatearLempiras(p.saldo),
+                    style: const TextStyle(fontWeight: FontWeight.w700))),
+                DataCell(ceTableBadge(estado, _colorEstado(estado))),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../../../core/models/usuario_simple.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/normalizar_texto.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
@@ -219,6 +220,12 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
                   const Padding(
                     padding: EdgeInsets.only(top: 24),
                     child: Center(child: Text('No hay pagos en este período')),
+                  )
+                else if (esEscritorioWeb(context))
+                  TablaPagos(
+                    pagos: filas,
+                    puedeEliminar: _esAdmin,
+                    onEliminado: (p) => setState(() => _pagos.removeWhere((x) => x.docId == p.docId)),
                   )
                 else
                   ...filas.map((p) => Padding(

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/normalizar_texto.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
@@ -240,28 +241,106 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ..._filtrados.map((u) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _UsuarioTile(
-                            usuario: u,
-                            prestamosAsignados: _prestamosAsignados[u.uid] ?? 0,
-                            onEditar: () async {
-                              await context.push('/usuarios/${u.uid}/editar', extra: u);
-                              // Al volver de editar, se recarga la lista --
-                              // antes se quedaba mostrando los datos viejos
-                              // hasta salir y volver a entrar.
-                              _cargar();
-                            },
-                            onCambiarEstado: (nuevo) => _cambiarEstado(u, nuevo),
-                          ),
-                        )),
                     if (_filtrados.isEmpty)
                       const Padding(
                         padding: EdgeInsets.only(top: 24),
                         child: Center(child: Text('No se encontraron usuarios')),
-                      ),
+                      )
+                    else if (esEscritorioWeb(context))
+                      _TablaUsuarios(
+                        usuarios: _filtrados,
+                        prestamosAsignados: _prestamosAsignados,
+                        onEditar: (u) async {
+                          await context.push('/usuarios/${u.uid}/editar', extra: u);
+                          _cargar();
+                        },
+                        onCambiarEstado: _cambiarEstado,
+                      )
+                    else
+                      ..._filtrados.map((u) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _UsuarioTile(
+                              usuario: u,
+                              prestamosAsignados: _prestamosAsignados[u.uid] ?? 0,
+                              onEditar: () async {
+                                await context.push('/usuarios/${u.uid}/editar', extra: u);
+                                // Al volver de editar, se recarga la lista --
+                                // antes se quedaba mostrando los datos viejos
+                                // hasta salir y volver a entrar.
+                                _cargar();
+                              },
+                              onCambiarEstado: (nuevo) => _cambiarEstado(u, nuevo),
+                            ),
+                          )),
                   ],
                 ),
+    );
+  }
+}
+
+/// Version tabla de la lista de usuarios, solo para escritorio Web (ver
+/// esEscritorioWeb).
+class _TablaUsuarios extends StatelessWidget {
+  final List<UsuarioModel> usuarios;
+  final Map<String, int> prestamosAsignados;
+  final ValueChanged<UsuarioModel> onEditar;
+  final void Function(UsuarioModel, String) onCambiarEstado;
+
+  const _TablaUsuarios({
+    required this.usuarios,
+    required this.prestamosAsignados,
+    required this.onEditar,
+    required this.onCambiarEstado,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: const [
+            DataColumn(label: Text('Nombre')),
+            DataColumn(label: Text('Código')),
+            DataColumn(label: Text('Rol')),
+            DataColumn(label: Text('Teléfono')),
+            DataColumn(label: Text('Préstamos asignados')),
+            DataColumn(label: Text('Estado')),
+            DataColumn(label: Text('Acciones')),
+          ],
+          rows: usuarios.map((u) {
+            final activo = u.estado == 'activo';
+            return DataRow(cells: [
+              DataCell(Text(u.nombre, style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text(u.codigo)),
+              DataCell(Text(u.rol.toUpperCase())),
+              DataCell(Text(u.telefono.isEmpty ? '—' : u.telefono)),
+              DataCell(Text(u.rol == 'cobrador' ? '${prestamosAsignados[u.uid] ?? 0}' : '—')),
+              DataCell(ceTableBadge(
+                  u.estado.toUpperCase(), activo ? CEColors.success : CEColors.danger)),
+              DataCell(Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    tooltip: 'Editar',
+                    onPressed: () => onEditar(u),
+                  ),
+                  IconButton(
+                    icon: Icon(activo ? Icons.cancel_outlined : Icons.refresh,
+                        size: 18, color: activo ? CEColors.danger : CEColors.success),
+                    tooltip: activo ? 'Inactivar' : 'Reactivar',
+                    onPressed: () => onCambiarEstado(u, activo ? 'inactivo' : 'activo'),
+                  ),
+                ],
+              )),
+            ]);
+          }).toList(),
+        ),
+      ),
     );
   }
 }

@@ -4,13 +4,15 @@ import '../theme/app_theme.dart';
 import '../utils/responsive.dart';
 import 'ce_app_bar.dart';
 import 'ce_nav_drawer.dart';
+import 'ce_top_nav.dart';
 
 /// Chrome de las pantallas "home" (Panel Admin / Panel Cobrador).
 ///
 /// Mobile: barra navy arriba + drawer, igual que antes.
-/// Escritorio: rail lateral navy fijo (marca + usuario + salir) y el
-/// contenido centrado con un encabezado propio, en vez de la barra
-/// angosta de telefono estirada de punta a punta.
+/// Escritorio Web: menu superior fijo (CeTopNav, igual que el resto de
+/// la app) y el contenido usando el ancho disponible.
+/// Escritorio nativo (Windows): rail lateral navy fijo (marca +
+/// usuario + salir), sin tocar.
 class CeAppShell extends StatelessWidget {
   final String subtituloApp;
   final Color colorSubtitulo;
@@ -35,6 +37,31 @@ class CeAppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (esEscritorioWeb(context)) {
+      return Scaffold(
+        backgroundColor: CEColors.surface,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const CeTopNav(),
+            _HeaderEscritorio(
+              titulo: tituloPagina,
+              onNotificaciones: onNotificaciones,
+            ),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1600),
+                  child: body,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (esEscritorio(context)) {
       return Scaffold(
         backgroundColor: CEColors.surface,

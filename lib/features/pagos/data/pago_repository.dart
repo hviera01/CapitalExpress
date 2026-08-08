@@ -58,6 +58,46 @@ class PagoRepository {
     return _ordenados(snap.docs);
   }
 
+  /// Fecha del ULTIMO pago de cada prestamo en [prestamoIds] (o sin
+  /// entrada si no tiene pagos) -- para Cobros/Notificaciones, que
+  /// necesita reconstruir el proximo pago cuando el prestamo no tiene
+  /// bien guardado el campo `proximoPago` (sobre todo prestamos
+  /// viejos). Antes se hacia con una consulta POR PRESTAMO
+  /// (`obtenerPorPrestamo` uno por uno) -- con cientos de prestamos sin
+  /// ese campo, eso eran cientos de viajes de red separados y la
+  /// pantalla se sentia eterna. Ahora se trae todo en lotes de 10 con
+  /// `whereIn` (limite de Firestore), en paralelo.
+  Future<Map<String, DateTime?>> obtenerUltimaFechaPorPrestamos(List<String> prestamoIds) async {
+    final resultado = <String, DateTime?>{};
+    if (prestamoIds.isEmpty) return resultado;
+
+    final lotes = <List<String>>[];
+    for (var i = 0; i < prestamoIds.length; i += 10) {
+      lotes.add(prestamoIds.sublist(i, (i + 10).clamp(0, prestamoIds.length)));
+    }
+
+    final snaps = await Future.wait(
+      lotes.map((lote) => _col.where('prestamoId', whereIn: lote).get()),
+    );
+
+    for (final snap in snaps) {
+      for (final doc in snap.docs) {
+        try {
+          final pago = PagoModel.fromDoc(doc);
+          final f = pago.fechaPago?.toDate();
+          if (f == null) continue;
+          final actual = resultado[pago.prestamoId];
+          if (actual == null || f.isAfter(actual)) {
+            resultado[pago.prestamoId] = f;
+          }
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
+    }
+    return resultado;
+  }
+
   /// Igual que [obtenerPorPrestamo] pero en vivo (Historial de Pagos de
   /// un prestamo puntual) -- si se registra o borra un pago desde otra
   /// pantalla/dispositivo, esta lista se actualiza sola.

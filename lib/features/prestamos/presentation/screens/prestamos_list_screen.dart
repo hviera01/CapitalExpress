@@ -6,7 +6,9 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -326,6 +328,22 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
               padding: EdgeInsets.only(top: 24),
               child: Center(child: Text('No hay préstamos')),
             )
+          else if (esEscritorioWeb(context))
+            _TablaPrestamos(
+              prestamos: _resultados,
+              eliminadoView: _verEliminados,
+              esAdmin: esAdmin,
+              onActualizado: (actualizado) {
+                setState(() {
+                  final i = _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
+                  if (i != -1) _resultados[i] = actualizado;
+                });
+              },
+              onEliminado: (p) {
+                setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
+                _cargarStats();
+              },
+            )
           else
             ..._resultados.map((p) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -345,6 +363,155 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
                   ),
                 )),
         ],
+      ),
+    );
+  }
+}
+
+/// Version tabla de la lista de prestamos, solo para escritorio Web
+/// (ver esEscritorioWeb) -- misma info y acciones que _PrestamoCard
+/// pero usando el ancho completo de la pantalla.
+class _TablaPrestamos extends ConsumerWidget {
+  final List<PrestamoModel> prestamos;
+  final bool eliminadoView;
+  final bool esAdmin;
+  final ValueChanged<PrestamoModel> onActualizado;
+  final ValueChanged<PrestamoModel> onEliminado;
+
+  const _TablaPrestamos({
+    required this.prestamos,
+    required this.eliminadoView,
+    required this.esAdmin,
+    required this.onActualizado,
+    required this.onEliminado,
+  });
+
+  Color _colorEstado(String estado) {
+    switch (estado) {
+      case 'saldado':
+        return CEColors.success;
+      case 'mora':
+        return CEColors.danger;
+      default:
+        return CEColors.accent;
+    }
+  }
+
+  Future<void> _refrescar(WidgetRef ref, PrestamoModel p) async {
+    final actualizado = await ref.read(prestamoRepositoryProvider).obtenerPorId(p.prestamoId);
+    if (actualizado == null || actualizado.eliminado != eliminadoView) {
+      onEliminado(p);
+    } else {
+      onActualizado(actualizado);
+    }
+  }
+
+  Future<void> _verDetalle(BuildContext context, WidgetRef ref, PrestamoModel p) async {
+    await context.push('/prestamos/${p.prestamoId}', extra: p);
+    await _refrescar(ref, p);
+  }
+
+  Future<void> _editar(BuildContext context, WidgetRef ref, PrestamoModel p) async {
+    await context.push('/prestamos/${p.prestamoId}/editar', extra: p);
+    await _refrescar(ref, p);
+  }
+
+  Future<void> _eliminarORestaurar(BuildContext context, WidgetRef ref, PrestamoModel p) async {
+    final repo = ref.read(prestamoRepositoryProvider);
+    if (eliminadoView) {
+      await repo.restaurar(p.prestamoId);
+    } else {
+      final usuario = ref.read(authProvider).usuario!;
+      await repo.marcarEliminado(p.prestamoId, eliminadoPor: usuario.nombre);
+    }
+    onEliminado(p);
+  }
+
+  Future<void> _eliminarPermanente(BuildContext context, WidgetRef ref, PrestamoModel p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar permanentemente'),
+        content: Text(
+            '¿Borrar definitivamente el préstamo de ${p.cliente}? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar', style: TextStyle(color: CEColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(prestamoRepositoryProvider).eliminarPermanente(p.prestamoId);
+      onEliminado(p);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: const [
+            DataColumn(label: Text('Cliente')),
+            DataColumn(label: Text('N°')),
+            DataColumn(label: Text('Saldo'), numeric: true),
+            DataColumn(label: Text('Estado')),
+            DataColumn(label: Text('Cuota'), numeric: true),
+            DataColumn(label: Text('Cuotas')),
+            DataColumn(label: Text('Cobrador')),
+            DataColumn(label: Text('Acciones')),
+          ],
+          rows: prestamos.map((p) {
+            return DataRow(
+              onSelectChanged: (_) => _verDetalle(context, ref, p),
+              cells: [
+                DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Text('#${p.numeroPrestamo}')),
+                DataCell(Text(formatearLempiras(p.saldo),
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: CEColors.accent))),
+                DataCell(ceTableBadge(p.estado.toUpperCase(), _colorEstado(p.estado))),
+                DataCell(Text(formatearLempiras(p.cuota))),
+                DataCell(Text('${p.cuotas}')),
+                DataCell(Text(p.cobrador.isEmpty ? 'Sin asignar' : p.cobrador)),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!eliminadoView)
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        tooltip: 'Editar',
+                        onPressed: () => _editar(context, ref, p),
+                      ),
+                    if (esAdmin)
+                      IconButton(
+                        icon: Icon(
+                          eliminadoView ? Icons.restore_outlined : Icons.delete_outline,
+                          size: 18,
+                          color: eliminadoView ? CEColors.success : CEColors.danger,
+                        ),
+                        tooltip: eliminadoView ? 'Restaurar' : 'Eliminar',
+                        onPressed: () => _eliminarORestaurar(context, ref, p),
+                      ),
+                    if (eliminadoView)
+                      IconButton(
+                        icon: const Icon(Icons.delete_forever_outlined,
+                            size: 18, color: CEColors.danger),
+                        tooltip: 'Eliminar permanentemente',
+                        onPressed: () => _eliminarPermanente(context, ref, p),
+                      ),
+                  ],
+                )),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }

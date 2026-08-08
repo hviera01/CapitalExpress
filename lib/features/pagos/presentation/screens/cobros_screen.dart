@@ -11,7 +11,9 @@ import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/firestore_parse.dart';
 import '../../../../core/utils/normalizar_texto.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
@@ -101,30 +103,35 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     // en vivo: ultimo pago real + un intervalo de plazo, o si nunca pago,
     // fecha de inicio + un intervalo. Sin este respaldo, esos prestamos
     // simplemente desaparecian de Cobros/Notificaciones.
-    final candidatos = prestamos.where((p) => !_estadosExcluidos.contains(p.estado.toLowerCase()));
+    final candidatos = prestamos.where((p) => !_estadosExcluidos.contains(p.estado.toLowerCase())).toList();
     final pagoRepo = ref.read(pagoRepositoryProvider);
     final fechasPorPrestamo = <String, DateTime?>{};
 
-    await Future.wait(candidatos.map((p) async {
+    // Solo los que NO traen `proximoPago` bien guardado necesitan ir a
+    // buscar su ultimo pago -- y eso se trae de a lotes (ver
+    // obtenerUltimaFechaPorPrestamos), no uno por uno.
+    final sinFechaDirecta = <PrestamoModel>[];
+    for (final p in candidatos) {
       final directa = asProximoPagoFecha(p.proximoPago);
       if (directa != null) {
         fechasPorPrestamo[p.prestamoId] = directa;
-        return;
+      } else {
+        sinFechaDirecta.add(p);
       }
-      DateTime? base;
-      try {
-        final pagos = await pagoRepo.obtenerPorPrestamo(p.prestamoId);
-        for (final pago in pagos) {
-          final f = pago.fechaPago?.toDate();
-          if (f != null && (base == null || f.isAfter(base))) base = f;
-        }
-      } catch (_) {
-        // sin conexion a pagos: se sigue con el respaldo de fecha de inicio.
-      }
-      base ??= p.fecha?.toDate();
-      fechasPorPrestamo[p.prestamoId] =
-          base != null ? calcularProximaFecha(base, p.plazo) : null;
-    }));
+    }
+
+    var ultimasFechas = const <String, DateTime?>{};
+    try {
+      ultimasFechas = await pagoRepo
+          .obtenerUltimaFechaPorPrestamos(sinFechaDirecta.map((p) => p.prestamoId).toList());
+    } catch (_) {
+      // sin conexion a pagos: se sigue con el respaldo de fecha de inicio.
+    }
+
+    for (final p in sinFechaDirecta) {
+      final base = ultimasFechas[p.prestamoId] ?? p.fecha?.toDate();
+      fechasPorPrestamo[p.prestamoId] = base != null ? calcularProximaFecha(base, p.plazo) : null;
+    }
 
     for (final p in candidatos) {
       final fecha = fechasPorPrestamo[p.prestamoId];
@@ -339,6 +346,15 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                     padding: EdgeInsets.only(top: 24),
                     child: Center(child: Text('No hay cobros con este filtro')),
                   )
+                else if (esEscritorioWeb(context))
+                  _TablaCobros(
+                    notificaciones: filtradas,
+                    esAdmin: esAdmin,
+                    colorUrgencia: _colorUrgencia,
+                    etiquetaUrgencia: _etiquetaUrgencia,
+                    onWhatsapp: _enviarWhatsapp,
+                    onAplicarMora: _aplicarMora,
+                  )
                 else
                   ...filtradas.map((n) {
                     final p = n.prestamo;
@@ -487,6 +503,93 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
           Text(valor, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: color)),
           Text(label, style: const TextStyle(fontSize: 11, color: CEColors.textSecondary)),
         ],
+      ),
+    );
+  }
+}
+
+/// Version tabla de Cobros, solo para escritorio Web (ver
+/// esEscritorioWeb).
+class _TablaCobros extends StatelessWidget {
+  final List<_NotifCobro> notificaciones;
+  final bool esAdmin;
+  final Color Function(int) colorUrgencia;
+  final String Function(int) etiquetaUrgencia;
+  final ValueChanged<PrestamoModel> onWhatsapp;
+  final ValueChanged<_NotifCobro> onAplicarMora;
+
+  const _TablaCobros({
+    required this.notificaciones,
+    required this.esAdmin,
+    required this.colorUrgencia,
+    required this.etiquetaUrgencia,
+    required this.onWhatsapp,
+    required this.onAplicarMora,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final f = DateFormat('dd/MM/yyyy');
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: const [
+            DataColumn(label: Text('Cliente')),
+            DataColumn(label: Text('N°')),
+            DataColumn(label: Text('Saldo'), numeric: true),
+            DataColumn(label: Text('Próxima cuota')),
+            DataColumn(label: Text('Estado')),
+            DataColumn(label: Text('Cuota')),
+            DataColumn(label: Text('Acciones')),
+          ],
+          rows: notificaciones.map((n) {
+            final p = n.prestamo;
+            final color = colorUrgencia(n.diferenciaDias);
+            final mostrarAcciones = p.estado.toLowerCase() != 'inactivo';
+            final puedeAplicarMora = n.diferenciaDias < 0 || p.mora > 0;
+            return DataRow(cells: [
+              DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text('#${p.numeroPrestamo}')),
+              DataCell(Text(formatearLempiras(p.saldo),
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+              DataCell(Text(f.format(n.proximoPago),
+                  style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+              DataCell(ceTableBadge(etiquetaUrgencia(n.diferenciaDias), color)),
+              DataCell(Text(p.cuotas > 0 ? '${n.cuotasCompletadas + 1} de ${p.cuotas}' : '—')),
+              DataCell(mostrarAcciones
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          onPressed: () => context.push('/prestamos/${p.prestamoId}/cobrar'),
+                          child: const Text('Pagar'),
+                        ),
+                        TextButton(
+                          onPressed: () => context.push('/prestamos/${p.prestamoId}/cuotas'),
+                          child: const Text('Cuotas'),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chat_outlined, size: 18, color: Color(0xFF25D366)),
+                          tooltip: 'WhatsApp',
+                          onPressed: () => onWhatsapp(p),
+                        ),
+                        if (esAdmin && puedeAplicarMora)
+                          IconButton(
+                            icon: const Icon(Icons.warning_amber_outlined,
+                                size: 18, color: CEColors.danger),
+                            tooltip: 'Aplicar Mora',
+                            onPressed: () => onAplicarMora(n),
+                          ),
+                      ],
+                    )
+                  : const Text('—')),
+            ]);
+          }).toList(),
+        ),
       ),
     );
   }

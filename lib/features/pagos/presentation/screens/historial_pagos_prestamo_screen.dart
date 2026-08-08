@@ -6,6 +6,7 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/pago_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
@@ -122,6 +123,13 @@ class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPre
                           const Padding(
                             padding: EdgeInsets.only(top: 24),
                             child: Center(child: Text('Este préstamo todavía no tiene pagos')),
+                          )
+                        else if (esEscritorioWeb(context))
+                          TablaPagos(
+                            pagos: pagos,
+                            mostrarPrestamo: false,
+                            puedeEliminar: esAdmin,
+                            onEliminado: (_) {},
                           )
                         else
                           ...pagos.map((p) => Padding(

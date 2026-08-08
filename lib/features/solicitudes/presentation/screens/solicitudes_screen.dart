@@ -7,7 +7,9 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/solicitud_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/solicitudes_provider.dart';
@@ -53,6 +55,8 @@ class SolicitudesScreen extends ConsumerWidget {
                         padding: EdgeInsets.only(top: 40),
                         child: Center(child: Text('No hay solicitudes pendientes')),
                       )
+                    else if (esEscritorioWeb(context))
+                      _TablaSolicitudes(solicitudes: solicitudes, formatoFecha: f)
                     else
                       ...solicitudes.map((s) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -115,6 +119,55 @@ class SolicitudesScreen extends ConsumerWidget {
                 ),
         );
       },
+    );
+  }
+}
+
+/// Version tabla de Solicitudes, solo para escritorio Web (ver
+/// esEscritorioWeb).
+class _TablaSolicitudes extends StatelessWidget {
+  final List<SolicitudModel> solicitudes;
+  final DateFormat formatoFecha;
+
+  const _TablaSolicitudes({required this.solicitudes, required this.formatoFecha});
+
+  @override
+  Widget build(BuildContext context) {
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: const [
+            DataColumn(label: Text('Cliente')),
+            DataColumn(label: Text('Monto'), numeric: true),
+            DataColumn(label: Text('Cuotas')),
+            DataColumn(label: Text('Cobrador solicitante')),
+            DataColumn(label: Text('Fecha')),
+            DataColumn(label: Text('Acciones')),
+          ],
+          rows: solicitudes.map((s) {
+            return DataRow(
+              onSelectChanged: (_) => context.push('/solicitudes/${s.id}'),
+              cells: [
+                DataCell(Text(s.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Text(formatearLempiras(s.monto),
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: CEColors.accent))),
+                DataCell(Text('${s.cuotas} · ${s.plazo}')),
+                DataCell(Text(s.cobradorSolicitante)),
+                DataCell(Text(
+                    s.fechaCreacion != null ? formatoFecha.format(s.fechaCreacion!.toDate()) : '—')),
+                DataCell(TextButton(
+                  onPressed: () => context.push('/solicitudes/${s.id}'),
+                  child: const Text('Ver detalle'),
+                )),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

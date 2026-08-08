@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# APKs generados para publicar como release (van a GitHub Releases, no al repo)
+*.apk

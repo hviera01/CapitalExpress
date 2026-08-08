@@ -13,6 +13,7 @@ import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
@@ -297,6 +298,22 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                 padding: EdgeInsets.only(top: 24),
                 child: Center(child: Text('No se encontraron clientes')),
               )
+            else if (esEscritorioWeb(context))
+              _TablaClientes(
+                clientes: _resultados,
+                tienePrestamoDe: (c) => _tienePrestamoReal[c.id] ?? c.tienePrestamo,
+                nombreCobradorDe: (c) => _nombresCobradores[c.cobradorAsignado],
+                onEliminado: (c) {
+                  setState(() => _resultados.removeWhere((r) => r.id == c.id));
+                  _cargarStats();
+                },
+                onActualizado: (actualizado) {
+                  setState(() {
+                    final i = _resultados.indexWhere((r) => r.id == actualizado.id);
+                    if (i != -1) _resultados[i] = actualizado;
+                  });
+                },
+              )
             else
               ..._resultados.map((c) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -318,6 +335,141 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                   )),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Version tabla de la lista de clientes, solo para escritorio Web (ver
+/// esEscritorioWeb) -- misma info que _ClienteTile pero usando el
+/// ancho completo de la pantalla. En vez del acordeon con el resumen
+/// de prestamos, tocar la fila abre Resumen del Cliente directamente
+/// (ya trae ese mismo resumen).
+class _TablaClientes extends ConsumerWidget {
+  final List<ClienteModel> clientes;
+  final bool Function(ClienteModel) tienePrestamoDe;
+  final String? Function(ClienteModel) nombreCobradorDe;
+  final ValueChanged<ClienteModel> onEliminado;
+  final ValueChanged<ClienteModel> onActualizado;
+
+  const _TablaClientes({
+    required this.clientes,
+    required this.tienePrestamoDe,
+    required this.nombreCobradorDe,
+    required this.onEliminado,
+    required this.onActualizado,
+  });
+
+  Future<void> _abrirResumen(BuildContext context, WidgetRef ref, ClienteModel c) async {
+    await context.push('/clientes/${c.id}', extra: c);
+    final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(c.id);
+    if (actualizado != null) {
+      onActualizado(actualizado);
+    } else {
+      onEliminado(c);
+    }
+  }
+
+  Future<void> _editar(BuildContext context, WidgetRef ref, ClienteModel c) async {
+    await context.push('/clientes/${c.id}/editar', extra: c);
+    final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(c.id);
+    if (actualizado != null) onActualizado(actualizado);
+  }
+
+  Future<void> _eliminar(BuildContext context, WidgetRef ref, ClienteModel c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar cliente'),
+        content: Text('¿Eliminar a ${c.nombre}? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar', style: TextStyle(color: CEColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(clienteRepositoryProvider).eliminar(c.id);
+      onEliminado(c);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('${c.nombre} fue eliminado')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo eliminar: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: const [
+            DataColumn(label: Text('Cliente')),
+            DataColumn(label: Text('Teléfono')),
+            DataColumn(label: Text('Empresa')),
+            DataColumn(label: Text('Identidad')),
+            DataColumn(label: Text('Cobrador')),
+            DataColumn(label: Text('Préstamo')),
+            DataColumn(label: Text('Acciones')),
+          ],
+          rows: clientes.map((c) {
+            final nombreCobrador = nombreCobradorDe(c);
+            return DataRow(
+              onSelectChanged: (_) => _abrirResumen(context, ref, c),
+              cells: [
+                DataCell(Text(c.nombre, style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Text(c.telefono.isEmpty ? '—' : c.telefono)),
+                DataCell(Text(c.nombreEmpresa.isEmpty ? '—' : c.nombreEmpresa)),
+                DataCell(Text(c.identidad.isEmpty ? '—' : c.identidad)),
+                DataCell(Text(nombreCobrador ??
+                    (c.cobradorAsignado.isEmpty ? 'Sin asignar' : c.cobradorAsignado))),
+                DataCell(tienePrestamoDe(c)
+                    ? ceTableBadge('Con préstamo', CEColors.accent)
+                    : const Text('—')),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      tooltip: 'Editar',
+                      onPressed: () => _editar(context, ref, c),
+                    ),
+                    if (c.telefono.isNotEmpty) ...[
+                      IconButton(
+                        icon: const Icon(Icons.call_outlined, size: 18),
+                        tooltip: 'Llamar',
+                        onPressed: () => llamarTelefono(c.telefono),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chat_outlined, size: 18, color: Color(0xFF25D366)),
+                        tooltip: 'WhatsApp',
+                        onPressed: () => abrirWhatsapp(c.telefono),
+                      ),
+                    ],
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: CEColors.danger),
+                      tooltip: 'Eliminar',
+                      onPressed: () => _eliminar(context, ref, c),
+                    ),
+                  ],
+                )),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }

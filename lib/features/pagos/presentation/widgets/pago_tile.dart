@@ -6,6 +6,7 @@ import '../../../../core/models/pago_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../data/recibo_pago_service.dart';
 import '../../providers/pagos_provider.dart';
 
@@ -130,6 +131,113 @@ class PagoTile extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Version tabla de una lista de pagos, solo para escritorio Web (ver
+/// esEscritorioWeb) -- mismas acciones (Reimprimir/Eliminar) que
+/// PagoTile, reusada en Reporte de Cobros e Historial de Pagos por
+/// Préstamo.
+class TablaPagos extends ConsumerWidget {
+  final List<PagoModel> pagos;
+  final bool mostrarPrestamo;
+  final bool puedeEliminar;
+  final ValueChanged<PagoModel> onEliminado;
+
+  const TablaPagos({
+    super.key,
+    required this.pagos,
+    required this.onEliminado,
+    this.mostrarPrestamo = true,
+    this.puedeEliminar = true,
+  });
+
+  Future<void> _eliminar(BuildContext context, WidgetRef ref, PagoModel pago) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar pago'),
+        content: Text(
+          '¿Eliminar este abono de ${formatearLempiras(pago.total)}? '
+          'El saldo del préstamo se va a recalcular sin este pago. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar', style: TextStyle(color: CEColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(pagoRepositoryProvider).eliminarConReversion(pago);
+      onEliminado(pago);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pago eliminado')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo eliminar: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final f = DateFormat('dd/MM/yyyy hh:mm a');
+    return CeCard(
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: ceTableHeadingRowColor,
+          headingTextStyle: ceTableHeadingTextStyle,
+          columns: [
+            const DataColumn(label: Text('Cliente')),
+            if (mostrarPrestamo) const DataColumn(label: Text('N°')),
+            const DataColumn(label: Text('Cobrador')),
+            const DataColumn(label: Text('Fecha')),
+            const DataColumn(label: Text('Abono'), numeric: true),
+            const DataColumn(label: Text('Mora'), numeric: true),
+            const DataColumn(label: Text('Acciones')),
+          ],
+          rows: pagos.map((p) {
+            return DataRow(cells: [
+              DataCell(Text(p.clienteNombre.isEmpty ? 'Cliente' : p.clienteNombre,
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
+              if (mostrarPrestamo) DataCell(Text('#${p.numeroPrestamo}')),
+              DataCell(Text(p.nombreCobrador.isEmpty ? 'N/D' : p.nombreCobrador)),
+              DataCell(Text(p.fechaPago != null ? f.format(p.fechaPago!.toDate()) : '—')),
+              DataCell(Text(formatearLempiras(p.total),
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: CEColors.accent))),
+              DataCell(Text(
+                p.mora > 0 ? formatearLempiras(p.mora) : '—',
+                style: TextStyle(color: p.mora > 0 ? CEColors.danger : null),
+              )),
+              DataCell(Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.print_outlined, size: 18),
+                    tooltip: 'Reimprimir',
+                    onPressed: () => ReciboPagoService.mostrarVistaPrevia(context, p),
+                  ),
+                  if (puedeEliminar)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: CEColors.danger),
+                      tooltip: 'Eliminar',
+                      onPressed: () => _eliminar(context, ref, p),
+                    ),
+                ],
+              )),
+            ]);
+          }).toList(),
+        ),
       ),
     );
   }
