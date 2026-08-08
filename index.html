@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/CapitalExpress/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="capital_express">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>capital_express</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!--
+    El paquete `printing` (usado para las vistas previas de PDF y
+    recibos) carga pdf.js desde un CDN externo (cdnjs.cloudflare.com)
+    por defecto en Web. En redes moviles/corporativas que bloquean o
+    filtran ese dominio, la vista previa se queda en blanco sin ningun
+    error visible ("no pasa nada al abrir el recibo/PDF"). Se bundlea
+    pdf.js localmente para que no dependa de ningun CDN externo.
+  -->
+  <script>
+    var dartPdfJsBaseUrl = "assets/js/pdf/3.2.146/";
+  </script>
+
+  <script>
+    // Boton "Actualizar app" del menu lateral (ver web_refresh_web.dart):
+    // desregistra el service worker y borra las caches del navegador
+    // antes de recargar, para que quien usa la web no tenga que abrir
+    // DevTools ni saber que es un Ctrl+Shift+R cuando queda pegado en
+    // una version vieja.
+    window.limpiarCacheYRecargarApp = async function () {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registros = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registros.map((r) => r.unregister()));
+        }
+      } catch (e) {}
+      try {
+        if ('caches' in window) {
+          const nombres = await caches.keys();
+          await Promise.all(nombres.map((n) => caches.delete(n)));
+        }
+      } catch (e) {}
+      try {
+        // Lo de arriba borra el Cache Storage del service worker, pero
+        // ese es un cache aparte del cache HTTP normal del navegador
+        // -el que respeta el "Cache-Control" que manda GitHub Pages-.
+        // Pedir cada archivo clave con {cache:'reload'} fuerza ir a la
+        // red e ignorar lo guardado, y de paso deja la respuesta nueva
+        // puesta en ese mismo cache HTTP para que el reload de abajo ya
+        // la encuentre.
+        const archivosClave = ['index.html', 'flutter_bootstrap.js', 'flutter.js', 'main.dart.js', 'flutter_service_worker.js', 'version.json'];
+        await Promise.all(archivosClave.map((f) => fetch(f, { cache: 'reload' }).catch(() => {})));
+      } catch (e) {}
+      location.reload();
+    };
+  </script>
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
