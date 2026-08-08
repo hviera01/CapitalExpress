@@ -88,7 +88,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
 
     final prestamos = await ref
         .read(prestamoRepositoryProvider)
-        .obtenerTodos(cobradorUid: esAdmin ? null : usuario?.uid);
+        .obtenerParaNotificaciones(cobradorUid: esAdmin ? null : usuario?.uid);
 
     final hoy = DateTime.now();
     final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);

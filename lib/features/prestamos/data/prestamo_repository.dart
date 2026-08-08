@@ -85,6 +85,54 @@ class PrestamoRepository {
     return prestamos;
   }
 
+  /// Para Cobros/Notificaciones: igual que [obtenerTodos] pero ADEMAS
+  /// incluye los prestamos de clientes asignados a este cobrador aunque
+  /// el prestamo en si no tenga a este cobrador en su propio
+  /// `cobradoresAsignados`. Esto replica una inconsistencia real de los
+  /// datos (confirmada contra Firestore): un cliente puede estar
+  /// asignado a un cobrador mientras que uno de sus prestamos quedo
+  /// asignado a otro (por reasignaciones parciales o datos viejos), y
+  /// NotificacionesScreen.kt en el sistema original SI encuentra esos
+  /// casos combinando varias fuentes (clientes.cobradoresAsignados +
+  /// prestamos.cobradoresAsignados). Sin esto, Cobros mostraba muchos
+  /// menos prestamos que el sistema viejo para el mismo cobrador.
+  Future<List<PrestamoModel>> obtenerParaNotificaciones({String? cobradorUid}) async {
+    if (cobradorUid == null) return obtenerTodos();
+
+    final porPrestamo = await obtenerTodos(cobradorUid: cobradorUid);
+    final porCliente = <PrestamoModel>[];
+
+    final clientesSnap = await _db
+        .collection('clientes')
+        .where('cobradoresAsignados', arrayContains: cobradorUid)
+        .get();
+    final clienteIds = clientesSnap.docs.map((d) => d.id).toList();
+
+    for (var i = 0; i < clienteIds.length; i += 10) {
+      final lote = clienteIds.sublist(i, (i + 10).clamp(0, clienteIds.length));
+      final snap = await _col
+          .where('clienteId', whereIn: lote)
+          .where('eliminado', isEqualTo: false)
+          .get();
+      for (final doc in snap.docs) {
+        try {
+          porCliente.add(PrestamoModel.fromDoc(doc));
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
+    }
+
+    final combinados = <String, PrestamoModel>{};
+    for (final p in porPrestamo) {
+      combinados[p.prestamoId] = p;
+    }
+    for (final p in porCliente) {
+      combinados[p.prestamoId] = p;
+    }
+    return combinados.values.toList();
+  }
+
   /// Cantidad total de prestamos del alcance dado (para el stat "Total"
   /// sin tener que bajar todos los documentos).
   Future<int> contar({String? cobradorUid, bool soloEliminados = false}) async {
