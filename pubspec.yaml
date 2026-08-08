@@ -87,6 +87,9 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/images/logo_capital_express.png"
+  image_path_android: "assets/images/icon_android_foreground.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/icon_android_foreground.png"
   web:
     generate: true
     image_path: "assets/images/logo_capital_express.png"
