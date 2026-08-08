@@ -17,6 +17,7 @@ import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
+import '../../providers/clientes_busqueda_cache.dart';
 import '../../providers/clientes_provider.dart';
 
 const _estados = ['Todos', 'Activo', 'Inactivo'];
@@ -56,10 +57,31 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   @override
   void initState() {
     super.initState();
+    // Si ya se habia buscado antes (y solo se salio y volvio a entrar
+    // a la pantalla), se restaura esa busqueda en vez de arrancar en
+    // blanco -- ver ClientesBusquedaCache.
+    final cache = ref.read(clientesBusquedaCacheProvider);
+    if (cache.seBusco) {
+      _busquedaCtrl.text = cache.texto;
+      _filtroEstado = cache.filtroEstado;
+      _resultados = List.of(cache.resultados);
+      _tienePrestamoReal.addAll(cache.tienePrestamoReal);
+      _seBusco = true;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarStats();
       _cargarNombresCobradores();
     });
+  }
+
+  void _guardarCache() {
+    final cache = ref.read(clientesBusquedaCacheProvider);
+    cache
+      ..texto = _busquedaCtrl.text
+      ..filtroEstado = _filtroEstado
+      ..seBusco = _seBusco
+      ..resultados = _resultados
+      ..tienePrestamoReal = _tienePrestamoReal;
   }
 
   /// Para poder mostrar el nombre real del cobrador asignado en cada
@@ -142,6 +164,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       _buscando = false;
       _seBusco = true;
     });
+    _guardarCache();
 
     // El campo `tienePrestamo` del doc del cliente puede estar
     // desactualizado (ver PrestamoRepository.tienePrestamoActivo); se
@@ -156,6 +179,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
         _tienePrestamoReal[resultados[i].id] = verificaciones[i];
       }
     });
+    _guardarCache();
   }
 
   @override
@@ -195,25 +219,25 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
             CeStatGrid(
               mobileCrossAxisCount: 2,
               mobileChildAspectRatio: 1.3,
-              children: [
-                CeStatCard(
+              items: [
+                CeStatItem(
                   icono: Icons.people_outline,
                   valor: _cargandoStats ? '…' : '$_total',
                   etiqueta: 'Total',
                 ),
-                CeStatCard(
+                CeStatItem(
                   icono: Icons.trending_up,
                   valor: _cargandoStats ? '…' : '$_activos',
                   etiqueta: 'Activos',
                   color: CEColors.success,
                 ),
-                CeStatCard(
+                CeStatItem(
                   icono: Icons.warning_amber_outlined,
                   valor: _cargandoStats ? '…' : '$_pagosTarde',
                   etiqueta: 'Pagos Tarde',
                   color: CEColors.danger,
                 ),
-                CeStatCard(
+                CeStatItem(
                   icono: Icons.account_balance_wallet_outlined,
                   valor: _cargandoStats ? '…' : formatearLempiras(_pendiente),
                   etiqueta: 'Pendiente',
@@ -301,6 +325,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                 nombreCobradorDe: (c) => _nombresCobradores[c.cobradorAsignado],
                 onEliminado: (c) {
                   setState(() => _resultados.removeWhere((r) => r.id == c.id));
+                  _guardarCache();
                   _cargarStats();
                 },
                 onActualizado: (actualizado) {
@@ -308,6 +333,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                     final i = _resultados.indexWhere((r) => r.id == actualizado.id);
                     if (i != -1) _resultados[i] = actualizado;
                   });
+                  _guardarCache();
                 },
               )
             else
@@ -319,6 +345,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                       nombreCobrador: _nombresCobradores[c.cobradorAsignado],
                       onEliminado: () {
                         setState(() => _resultados.removeWhere((r) => r.id == c.id));
+                        _guardarCache();
                         _cargarStats();
                       },
                       onActualizado: (actualizado) {
@@ -326,6 +353,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                           final i = _resultados.indexWhere((r) => r.id == actualizado.id);
                           if (i != -1) _resultados[i] = actualizado;
                         });
+                        _guardarCache();
                       },
                     ),
                   )),
@@ -409,11 +437,10 @@ class _TablaClientes extends ConsumerWidget {
       columns: const [
         DataColumn(label: Text('Cliente')),
         DataColumn(label: Text('Teléfono')),
-        DataColumn(label: Text('Empresa')),
         DataColumn(label: Text('Identidad')),
         DataColumn(label: Text('Cobrador')),
         DataColumn(label: Text('Préstamo')),
-        DataColumn(label: Text('Acciones')),
+        DataColumn(label: Text('')),
       ],
       rows: clientes.map((c) {
             final nombreCobrador = nombreCobradorDe(c);
@@ -422,37 +449,75 @@ class _TablaClientes extends ConsumerWidget {
               cells: [
                 DataCell(Text(c.nombre, style: const TextStyle(fontWeight: FontWeight.w600))),
                 DataCell(Text(c.telefono.isEmpty ? '—' : c.telefono)),
-                DataCell(Text(c.nombreEmpresa.isEmpty ? '—' : c.nombreEmpresa)),
                 DataCell(Text(c.identidad.isEmpty ? '—' : c.identidad)),
                 DataCell(Text(nombreCobrador ??
                     (c.cobradorAsignado.isEmpty ? 'Sin asignar' : c.cobradorAsignado))),
                 DataCell(tienePrestamoDe(c)
                     ? ceTableBadge('Con préstamo', CEColors.accent)
                     : const Text('—')),
-                DataCell(Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      tooltip: 'Editar',
-                      onPressed: () => _editar(context, ref, c),
+                DataCell(PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 18, color: CEColors.textSecondary),
+                  onSelected: (accion) {
+                    switch (accion) {
+                      case 'ver':
+                        _abrirResumen(context, ref, c);
+                        break;
+                      case 'editar':
+                        _editar(context, ref, c);
+                        break;
+                      case 'llamar':
+                        llamarTelefono(c.telefono);
+                        break;
+                      case 'whatsapp':
+                        abrirWhatsapp(c.telefono);
+                        break;
+                      case 'eliminar':
+                        _eliminar(context, ref, c);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'ver',
+                      child: ListTile(
+                        leading: Icon(Icons.visibility_outlined),
+                        title: Text('Ver resumen'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'editar',
+                      child: ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Editar'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
                     if (c.telefono.isNotEmpty) ...[
-                      IconButton(
-                        icon: const Icon(Icons.call_outlined, size: 18),
-                        tooltip: 'Llamar',
-                        onPressed: () => llamarTelefono(c.telefono),
+                      const PopupMenuItem(
+                        value: 'llamar',
+                        child: ListTile(
+                          leading: Icon(Icons.call_outlined),
+                          title: Text('Llamar'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.chat_outlined, size: 18, color: Color(0xFF25D366)),
-                        tooltip: 'WhatsApp',
-                        onPressed: () => abrirWhatsapp(c.telefono),
+                      const PopupMenuItem(
+                        value: 'whatsapp',
+                        child: ListTile(
+                          leading: Icon(Icons.chat_outlined, color: Color(0xFF25D366)),
+                          title: Text('WhatsApp'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
                     ],
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18, color: CEColors.danger),
-                      tooltip: 'Eliminar',
-                      onPressed: () => _eliminar(context, ref, c),
+                    const PopupMenuItem(
+                      value: 'eliminar',
+                      child: ListTile(
+                        leading: Icon(Icons.delete_outline, color: CEColors.danger),
+                        title: Text('Eliminar'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
                   ],
                 )),

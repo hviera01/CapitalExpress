@@ -211,38 +211,38 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                 CeStatGrid(
                   mobileCrossAxisCount: 3,
                   mobileChildAspectRatio: 1.15,
-                  children: [
-                    CeStatCard(icono: Icons.list_alt_outlined, valor: '${filas.length}', etiqueta: 'Total'),
-                    CeStatCard(
+                  items: [
+                    CeStatItem(icono: Icons.list_alt_outlined, valor: '${filas.length}', etiqueta: 'Total'),
+                    CeStatItem(
                         icono: Icons.trending_up,
                         valor: '$activos',
                         etiqueta: 'Activos',
                         color: CEColors.accent),
-                    CeStatCard(
+                    CeStatItem(
                         icono: Icons.warning_amber_outlined,
                         valor: '$vencidos',
                         etiqueta: 'Vencidos',
                         color: CEColors.danger),
-                    CeStatCard(
+                    CeStatItem(
                         icono: Icons.account_balance_outlined,
                         valor: formatearLempiras(montoPrestado),
                         etiqueta: 'Prestado'),
-                    CeStatCard(
+                    CeStatItem(
                         icono: Icons.savings_outlined,
                         valor: formatearLempiras(montoPagado),
                         etiqueta: 'Pagado',
                         color: CEColors.success),
-                    CeStatCard(
+                    CeStatItem(
                         icono: Icons.account_balance_wallet_outlined,
                         valor: formatearLempiras((pendiente - mora).clamp(0, double.infinity)),
                         etiqueta: 'Pendiente sin mora',
                         color: CEColors.danger),
-                    CeStatCard(
+                    CeStatItem(
                         icono: Icons.report_gmailerrorred_outlined,
                         valor: formatearLempiras(mora),
                         etiqueta: 'Mora',
                         color: CEColors.danger),
-                    CeStatCard(
+                    CeStatItem(
                         icono: Icons.warning_amber_outlined,
                         valor: formatearLempiras(pendiente),
                         etiqueta: 'Pendiente con mora',

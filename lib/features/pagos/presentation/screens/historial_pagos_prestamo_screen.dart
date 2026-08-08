@@ -97,17 +97,17 @@ class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPre
                         CeStatGrid(
                           mobileCrossAxisCount: 3,
                           mobileChildAspectRatio: 1.15,
-                          children: [
-                            CeStatCard(
+                          items: [
+                            CeStatItem(
                                 icono: Icons.receipt_long_outlined,
                                 valor: '${pagos.length}',
                                 etiqueta: 'Pagos'),
-                            CeStatCard(
+                            CeStatItem(
                                 icono: Icons.savings_outlined,
                                 valor: formatearLempiras(totalAbonado),
                                 etiqueta: 'Abonado',
                                 color: CEColors.success),
-                            CeStatCard(
+                            CeStatItem(
                                 icono: Icons.report_gmailerrorred_outlined,
                                 valor: formatearLempiras(totalMora),
                                 etiqueta: 'Mora',

@@ -225,19 +225,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     const CeSectionLabel('Cartera'),
                     _grid(columnas, [
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.people_outline, valor: '$_totalClientes', etiqueta: 'Clientes'),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.trending_up,
                           valor: '$_prestamosActivos',
                           etiqueta: 'Préstamos Activos',
                           color: CEColors.accent),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.warning_amber_outlined,
                           valor: '$_prestamosMora',
                           etiqueta: 'En Mora',
                           color: CEColors.danger),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.check_circle_outline,
                           valor: '$_prestamosSaldados',
                           etiqueta: 'Saldados',
@@ -245,21 +245,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ]),
                     const CeSectionLabel('Financiero'),
                     _grid(columnas, [
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.account_balance_outlined,
                           valor: formatearLempiras(_totalPrestado),
                           etiqueta: 'Prestado'),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.savings_outlined,
                           valor: formatearLempiras(_totalPagado),
                           etiqueta: 'Pagado',
                           color: CEColors.success),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.account_balance_wallet_outlined,
                           valor: formatearLempiras(_totalPendiente),
                           etiqueta: 'Pendiente',
                           color: CEColors.danger),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.percent_outlined,
                           valor: formatearLempiras(_totalInteres),
                           etiqueta: 'Interés',
@@ -267,22 +267,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ]),
                     const CeSectionLabel('Indicadores clave'),
                     _grid(columnas, [
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.speed_outlined,
                           valor: '${_tasaCobro.toStringAsFixed(1)}%',
                           etiqueta: 'Tasa de Cobro',
                           color: CEColors.success),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.error_outline,
                           valor: '${_carteraEnMoraPct.toStringAsFixed(1)}%',
                           etiqueta: 'Cartera en Mora',
                           color: CEColors.danger),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.request_quote_outlined,
                           valor: formatearLempiras(_prestamoPromedio),
                           etiqueta: 'Préstamo Promedio',
                           color: CEColors.accent),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.show_chart,
                           valor: '${_rentabilidad.toStringAsFixed(1)}%',
                           etiqueta: 'Rentabilidad',
@@ -290,14 +290,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ]),
                     const CeSectionLabel('Cobros del período'),
                     _grid(columnas, [
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.payments_outlined, valor: '$_totalCobros', etiqueta: 'Cobros'),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.report_gmailerrorred_outlined,
                           valor: formatearLempiras(_totalMoras),
                           etiqueta: 'Moras Cobradas',
                           color: CEColors.danger),
-                      CeStatCard(
+                      CeStatItem(
                           icono: Icons.numbers_outlined,
                           valor: '$_cantidadMoras',
                           etiqueta: 'Cant. Moras'),
@@ -325,11 +325,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _grid(int columnas, List<Widget> cards) {
+  Widget _grid(int columnas, List<CeStatItem> cards) {
     return CeStatGrid(
       mobileCrossAxisCount: columnas,
       mobileChildAspectRatio: 1.2,
-      children: cards,
+      items: cards,
     );
   }
 

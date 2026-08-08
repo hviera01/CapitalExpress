@@ -180,14 +180,14 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
                     CeStatGrid(
                       mobileCrossAxisCount: 3,
                       mobileChildAspectRatio: 1.1,
-                      children: [
-                        CeStatCard(icono: Icons.people_outline, valor: '$total', etiqueta: 'Total'),
-                        CeStatCard(
+                      items: [
+                        CeStatItem(icono: Icons.people_outline, valor: '$total', etiqueta: 'Total'),
+                        CeStatItem(
                             icono: Icons.check_circle_outline,
                             valor: '$activos',
                             etiqueta: 'Activos',
                             color: CEColors.success),
-                        CeStatCard(
+                        CeStatItem(
                             icono: Icons.cancel_outlined,
                             valor: '$inactivos',
                             etiqueta: 'Inactivos',
@@ -299,7 +299,7 @@ class _TablaUsuarios extends StatelessWidget {
         DataColumn(label: Text('Teléfono')),
         DataColumn(label: Text('Préstamos asignados')),
         DataColumn(label: Text('Estado')),
-        DataColumn(label: Text('Acciones')),
+        DataColumn(label: Text('')),
       ],
       rows: usuarios.map((u) {
             final activo = u.estado == 'activo';
@@ -311,19 +311,32 @@ class _TablaUsuarios extends StatelessWidget {
               DataCell(Text(u.rol == 'cobrador' ? '${prestamosAsignados[u.uid] ?? 0}' : '—')),
               DataCell(ceTableBadge(
                   u.estado.toUpperCase(), activo ? CEColors.success : CEColors.danger)),
-              DataCell(Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: 'Editar',
-                    onPressed: () => onEditar(u),
+              DataCell(PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 18, color: CEColors.textSecondary),
+                onSelected: (accion) {
+                  if (accion == 'editar') {
+                    onEditar(u);
+                  } else {
+                    onCambiarEstado(u, activo ? 'inactivo' : 'activo');
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'editar',
+                    child: ListTile(
+                      leading: Icon(Icons.edit_outlined),
+                      title: Text('Editar'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
-                  IconButton(
-                    icon: Icon(activo ? Icons.cancel_outlined : Icons.refresh,
-                        size: 18, color: activo ? CEColors.danger : CEColors.success),
-                    tooltip: activo ? 'Inactivar' : 'Reactivar',
-                    onPressed: () => onCambiarEstado(u, activo ? 'inactivo' : 'activo'),
+                  PopupMenuItem(
+                    value: 'estado',
+                    child: ListTile(
+                      leading: Icon(activo ? Icons.cancel_outlined : Icons.refresh,
+                          color: activo ? CEColors.danger : CEColors.success),
+                      title: Text(activo ? 'Inactivar' : 'Reactivar'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
                 ],
               )),

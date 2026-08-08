@@ -562,22 +562,49 @@ class _TablaCobros extends StatelessWidget {
                           onPressed: () => context.push('/prestamos/${p.prestamoId}/cobrar'),
                           child: const Text('Pagar'),
                         ),
-                        TextButton(
-                          onPressed: () => context.push('/prestamos/${p.prestamoId}/cuotas'),
-                          child: const Text('Cuotas'),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 18, color: CEColors.textSecondary),
+                          onSelected: (accion) {
+                            switch (accion) {
+                              case 'cuotas':
+                                context.push('/prestamos/${p.prestamoId}/cuotas');
+                                break;
+                              case 'whatsapp':
+                                onWhatsapp(p);
+                                break;
+                              case 'mora':
+                                onAplicarMora(n);
+                                break;
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'cuotas',
+                              child: ListTile(
+                                leading: Icon(Icons.list_alt_outlined),
+                                title: Text('Ver cuotas'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'whatsapp',
+                              child: ListTile(
+                                leading: Icon(Icons.chat_outlined, color: Color(0xFF25D366)),
+                                title: Text('WhatsApp'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            if (esAdmin && puedeAplicarMora)
+                              const PopupMenuItem(
+                                value: 'mora',
+                                child: ListTile(
+                                  leading: Icon(Icons.warning_amber_outlined, color: CEColors.danger),
+                                  title: Text('Aplicar mora'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                          ],
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.chat_outlined, size: 18, color: Color(0xFF25D366)),
-                          tooltip: 'WhatsApp',
-                          onPressed: () => onWhatsapp(p),
-                        ),
-                        if (esAdmin && puedeAplicarMora)
-                          IconButton(
-                            icon: const Icon(Icons.warning_amber_outlined,
-                                size: 18, color: CEColors.danger),
-                            tooltip: 'Aplicar Mora',
-                            onPressed: () => onAplicarMora(n),
-                          ),
                       ],
                     )
                   : const Text('—')),

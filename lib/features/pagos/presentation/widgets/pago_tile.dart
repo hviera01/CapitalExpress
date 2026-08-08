@@ -198,7 +198,7 @@ class TablaPagos extends ConsumerWidget {
         const DataColumn(label: Text('Fecha')),
         const DataColumn(label: Text('Abono'), numeric: true),
         const DataColumn(label: Text('Mora'), numeric: true),
-        const DataColumn(label: Text('Acciones')),
+        const DataColumn(label: Text('')),
       ],
       rows: pagos.map((p) {
             return DataRow(cells: [
@@ -213,19 +213,32 @@ class TablaPagos extends ConsumerWidget {
                 p.mora > 0 ? formatearLempiras(p.mora) : '—',
                 style: TextStyle(color: p.mora > 0 ? CEColors.danger : null),
               )),
-              DataCell(Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.print_outlined, size: 18),
-                    tooltip: 'Reimprimir',
-                    onPressed: () => ReciboPagoService.mostrarVistaPrevia(context, p),
+              DataCell(PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 18, color: CEColors.textSecondary),
+                onSelected: (accion) {
+                  if (accion == 'reimprimir') {
+                    ReciboPagoService.mostrarVistaPrevia(context, p);
+                  } else if (accion == 'eliminar') {
+                    _eliminar(context, ref, p);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'reimprimir',
+                    child: ListTile(
+                      leading: Icon(Icons.print_outlined),
+                      title: Text('Reimprimir'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
                   if (puedeEliminar)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18, color: CEColors.danger),
-                      tooltip: 'Eliminar',
-                      onPressed: () => _eliminar(context, ref, p),
+                    const PopupMenuItem(
+                      value: 'eliminar',
+                      child: ListTile(
+                        leading: Icon(Icons.delete_outline, color: CEColors.danger),
+                        title: Text('Eliminar'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
                 ],
               )),

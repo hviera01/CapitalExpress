@@ -12,6 +12,7 @@ import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../providers/prestamos_busqueda_cache.dart';
 import '../../providers/prestamos_provider.dart';
 
 const _estadosFiltro = ['Todos', 'Activo', 'Mora', 'Saldado'];
@@ -46,6 +47,17 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
   @override
   void initState() {
     super.initState();
+    // Igual que Ver Clientes: si ya se habia buscado antes, se
+    // restaura esa busqueda en vez de arrancar en blanco -- ver
+    // PrestamosBusquedaCache.
+    final cache = ref.read(prestamosBusquedaCacheProvider);
+    if (cache.seBusco) {
+      _busquedaCtrl.text = cache.texto;
+      _filtroEstado = cache.filtroEstado;
+      _verEliminados = cache.verEliminados;
+      _resultados = List.of(cache.resultados);
+      _seBusco = true;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargarStats());
   }
 
@@ -53,6 +65,16 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
   void dispose() {
     _busquedaCtrl.dispose();
     super.dispose();
+  }
+
+  void _guardarCache() {
+    final cache = ref.read(prestamosBusquedaCacheProvider);
+    cache
+      ..texto = _busquedaCtrl.text
+      ..filtroEstado = _filtroEstado
+      ..verEliminados = _verEliminados
+      ..seBusco = _seBusco
+      ..resultados = _resultados;
   }
 
   Future<void> _cargarStats() async {
@@ -102,6 +124,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
       _buscando = false;
       _seBusco = true;
     });
+    _guardarCache();
   }
 
   Future<void> _eliminarTodos() async {
@@ -180,19 +203,19 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
             CeStatGrid(
               mobileCrossAxisCount: 3,
               mobileChildAspectRatio: 1.0,
-              children: [
-                CeStatCard(
+              items: [
+                CeStatItem(
                   icono: Icons.payments_outlined,
                   valor: _cargandoStats ? '…' : '$_total',
                   etiqueta: 'TOTAL',
                 ),
-                CeStatCard(
+                CeStatItem(
                   icono: Icons.check_circle_outline,
                   valor: _cargandoStats ? '…' : '$_activos',
                   etiqueta: 'ACTIVOS',
                   color: CEColors.success,
                 ),
-                CeStatCard(
+                CeStatItem(
                   icono: Icons.history_toggle_off,
                   valor: _cargandoStats ? '…' : '$_saldados',
                   etiqueta: 'SALDADOS',
@@ -334,9 +357,11 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
                   final i = _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
                   if (i != -1) _resultados[i] = actualizado;
                 });
+                _guardarCache();
               },
               onEliminado: (p) {
                 setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
+                _guardarCache();
                 _cargarStats();
               },
             )
@@ -351,9 +376,11 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
                         final i = _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
                         if (i != -1) _resultados[i] = actualizado;
                       });
+                      _guardarCache();
                     },
                     onEliminado: () {
                       setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
+                      _guardarCache();
                       _cargarStats();
                     },
                   ),
@@ -453,10 +480,9 @@ class _TablaPrestamos extends ConsumerWidget {
         DataColumn(label: Text('N°')),
         DataColumn(label: Text('Saldo'), numeric: true),
         DataColumn(label: Text('Estado')),
-        DataColumn(label: Text('Cuota'), numeric: true),
         DataColumn(label: Text('Cuotas')),
         DataColumn(label: Text('Cobrador')),
-        DataColumn(label: Text('Acciones')),
+        DataColumn(label: Text('')),
       ],
       rows: prestamos.map((p) {
             return DataRow(
@@ -467,34 +493,63 @@ class _TablaPrestamos extends ConsumerWidget {
                 DataCell(Text(formatearLempiras(p.saldo),
                     style: const TextStyle(fontWeight: FontWeight.w700, color: CEColors.accent))),
                 DataCell(ceTableBadge(p.estado.toUpperCase(), _colorEstado(p.estado))),
-                DataCell(Text(formatearLempiras(p.cuota))),
                 DataCell(Text('${p.cuotas}')),
                 DataCell(Text(p.cobrador.isEmpty ? 'Sin asignar' : p.cobrador)),
-                DataCell(Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                DataCell(PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 18, color: CEColors.textSecondary),
+                  onSelected: (accion) {
+                    switch (accion) {
+                      case 'ver':
+                        _verDetalle(context, ref, p);
+                        break;
+                      case 'editar':
+                        _editar(context, ref, p);
+                        break;
+                      case 'eliminar_restaurar':
+                        _eliminarORestaurar(context, ref, p);
+                        break;
+                      case 'eliminar_permanente':
+                        _eliminarPermanente(context, ref, p);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'ver',
+                      child: ListTile(
+                        leading: Icon(Icons.visibility_outlined),
+                        title: Text('Ver detalle'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                     if (!eliminadoView)
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        tooltip: 'Editar',
-                        onPressed: () => _editar(context, ref, p),
+                      const PopupMenuItem(
+                        value: 'editar',
+                        child: ListTile(
+                          leading: Icon(Icons.edit_outlined),
+                          title: Text('Editar'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
                     if (esAdmin)
-                      IconButton(
-                        icon: Icon(
-                          eliminadoView ? Icons.restore_outlined : Icons.delete_outline,
-                          size: 18,
-                          color: eliminadoView ? CEColors.success : CEColors.danger,
+                      PopupMenuItem(
+                        value: 'eliminar_restaurar',
+                        child: ListTile(
+                          leading: Icon(
+                              eliminadoView ? Icons.restore_outlined : Icons.delete_outline,
+                              color: eliminadoView ? CEColors.success : CEColors.danger),
+                          title: Text(eliminadoView ? 'Restaurar' : 'Eliminar'),
+                          contentPadding: EdgeInsets.zero,
                         ),
-                        tooltip: eliminadoView ? 'Restaurar' : 'Eliminar',
-                        onPressed: () => _eliminarORestaurar(context, ref, p),
                       ),
                     if (eliminadoView)
-                      IconButton(
-                        icon: const Icon(Icons.delete_forever_outlined,
-                            size: 18, color: CEColors.danger),
-                        tooltip: 'Eliminar permanentemente',
-                        onPressed: () => _eliminarPermanente(context, ref, p),
+                      const PopupMenuItem(
+                        value: 'eliminar_permanente',
+                        child: ListTile(
+                          leading: Icon(Icons.delete_forever_outlined, color: CEColors.danger),
+                          title: Text('Eliminar permanentemente'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
                   ],
                 )),
