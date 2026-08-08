@@ -44,6 +44,7 @@ class CeTopNav extends ConsumerWidget {
         const _CeNavItem(Icons.assignment_outlined, 'Solicitudes', '/solicitudes'),
         const _CeNavItem(Icons.bar_chart_outlined, 'Reportes', '/reportes'),
         const _CeNavItem(Icons.manage_accounts_outlined, 'Usuarios', '/usuarios'),
+        const _CeNavItem(Icons.devices_outlined, 'Dispositivos', '/dispositivos'),
       ] else
         const _CeNavItem(Icons.payments_outlined, 'Mis Pagos', '/reportes/cobros'),
     ];

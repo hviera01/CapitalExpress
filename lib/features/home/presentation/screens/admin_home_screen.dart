@@ -168,6 +168,12 @@ class AdminHomeScreen extends ConsumerWidget {
                 subtitulo: '',
                 onTap: () => context.push('/usuarios'),
               ),
+              CeMenuCard(
+                icono: Icons.devices_outlined,
+                titulo: 'Dispositivos',
+                subtitulo: '',
+                onTap: () => context.push('/dispositivos'),
+              ),
             ],
           ),
           const CeSectionLabel('Reportes'),

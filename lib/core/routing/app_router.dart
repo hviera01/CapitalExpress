@@ -32,6 +32,7 @@ import '../../features/solicitudes/presentation/screens/solicitudes_screen.dart'
 import '../../features/solicitudes/presentation/screens/solicitud_detalle_screen.dart';
 import '../../features/usuarios/presentation/screens/usuarios_list_screen.dart';
 import '../../features/usuarios/presentation/screens/usuario_form_screen.dart';
+import '../../features/dispositivos/presentation/screens/dispositivos_screen.dart';
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
@@ -199,6 +200,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      GoRoute(path: '/dispositivos', builder: (context, state) => const DispositivosScreen()),
       GoRoute(
         path: '/reportes',
         builder: (context, state) => const ReportesScreen(),

@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/actualizacion_provider.dart';
 import '../routing/app_router.dart';
 import '../services/actualizacion_service.dart';
+import '../version_app.dart';
 import '../widgets/actualizacion_dialog.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/dispositivos/providers/dispositivos_provider.dart';
 
 const _tiempoInactividad = Duration(hours: 1);
 const _intervaloChequeoActualizacion = Duration(minutes: 10);
@@ -45,6 +47,18 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
     });
   }
 
+  /// Registra este equipo en el modulo de Dispositivos (ver
+  /// DispositivoRepository.reportar) -- version instalada + quien
+  /// inicio sesion ahora. Igual que el chequeo de actualizaciones, va
+  /// aca porque es el unico widget que vive durante toda la sesion.
+  void _reportarDispositivo() {
+    final usuario = ref.read(authProvider).usuario;
+    ref.read(dispositivoRepositoryProvider).reportar(
+          versionApp: versionApp,
+          usuario: usuario?.nombre ?? '',
+        );
+  }
+
   void _iniciarChequeoActualizacion() {
     if (!ActualizacionService.aplica) return;
     _chequearActualizacion();
@@ -67,7 +81,10 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
   void initState() {
     super.initState();
     _reiniciar();
-    if (ref.read(authProvider).autenticado) _iniciarChequeoActualizacion();
+    if (ref.read(authProvider).autenticado) {
+      _iniciarChequeoActualizacion();
+      _reportarDispositivo();
+    }
   }
 
   @override
@@ -82,7 +99,10 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.autenticado) {
         _reiniciar();
-        if (previous?.autenticado != true) _iniciarChequeoActualizacion();
+        if (previous?.autenticado != true) {
+          _iniciarChequeoActualizacion();
+          _reportarDispositivo();
+        }
       } else {
         _timer?.cancel();
         _timerActualizacion?.cancel();
