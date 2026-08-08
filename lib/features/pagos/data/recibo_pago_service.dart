@@ -41,7 +41,14 @@ class ReciboPagoService {
     }
 
     final fecha = p.fechaPago?.toDate() ?? DateTime.now();
-    final proximo = p.proximaFechaProgramada?.toDate();
+    // Si la "proxima cuota pendiente" es la misma que quedo parcial con
+    // este abono y su vencimiento ya paso (ej. cuota del dia 4, se paga
+    // parcial el dia 8), no tiene sentido imprimir esa fecha vencida --
+    // se muestra la proxima fecha real DESPUES de hoy, la proxima vez
+    // que el cobrador pasaria.
+    final proximo = p.proximaFechaProgramada != null
+        ? proximaFechaVisitaDespuesDe(p.proximaFechaProgramada!.toDate(), p.plazo, fecha)
+        : null;
     final montoPagado = p.total;
     // Igual formula que obtenerDatosReciboPago en el sistema viejo: el
     // saldo de ANTES de este pago se reconstruye sumando lo que ya se

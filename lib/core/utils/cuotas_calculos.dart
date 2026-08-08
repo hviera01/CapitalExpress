@@ -13,6 +13,24 @@ DateTime calcularFechaCuota(DateTime fechaInicio, String plazo, int numeroCuota)
   return fecha;
 }
 
+/// Cuando la "proxima fecha de pago" a MOSTRAR (recibo, avisos) ya
+/// paso -- la cuota quedo parcial y su vencimiento es anterior al dia
+/// que se esta mirando -- no tiene sentido decirle al cliente/cobrador
+/// que la proxima fecha es una que ya paso. Esto avanza la fecha de a
+/// un plazo a la vez hasta encontrar una que caiga DESPUES de `hoy`,
+/// que es la proxima vez que el cobrador realisticamente pasaria. Si
+/// la fecha ya estaba en el futuro, se devuelve igual sin tocar.
+DateTime proximaFechaVisitaDespuesDe(DateTime fecha, String plazo, DateTime hoy) {
+  final hoySolo = DateTime(hoy.year, hoy.month, hoy.day);
+  var candidato = fecha;
+  var intentos = 0;
+  while (!candidato.isAfter(hoySolo) && intentos < 60) {
+    candidato = calcularProximaFecha(candidato, plazo);
+    intentos++;
+  }
+  return candidato;
+}
+
 enum EstadoCuota { pagada, parcial, pendiente }
 
 class CuotaInfo {
