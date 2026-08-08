@@ -11,22 +11,13 @@ import 'ce_card.dart';
 /// CeTarjetaValor).
 class CeDashboardHeader extends StatelessWidget {
   final String saludo;
-  final String subtitulo;
 
-  const CeDashboardHeader({super.key, required this.saludo, required this.subtitulo});
+  const CeDashboardHeader({super.key, required this.saludo});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(saludo,
-            style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
-        const SizedBox(height: 4),
-        Text(subtitulo, style: const TextStyle(fontSize: 13, color: CEColors.textSecondary)),
-      ],
-    );
+    return Text(saludo,
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: CEColors.textPrimary));
   }
 }
 
@@ -149,13 +140,13 @@ class CeTarjetaExplorar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CeCard(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Stack(
         children: [
           Positioned(
             top: 0,
             right: 0,
-            child: Icon(icono, size: 22, color: CEColors.border),
+            child: Icon(icono, size: 20, color: CEColors.border),
           ),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -166,17 +157,17 @@ class CeTarjetaExplorar extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 12.5, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
               if (valor.isNotEmpty) ...[
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(valor,
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
+                        fontSize: 15, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
               ],
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(subtitulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 10.5, color: CEColors.textSecondary)),
-              const SizedBox(height: 4),
+              const SizedBox(height: 1),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

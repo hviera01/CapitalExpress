@@ -235,7 +235,6 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
               children: [
                 CeDashboardHeader(
                   saludo: '$saludo, ${nombreUsuario.isEmpty ? '' : nombreUsuario.split(' ').first}.',
-                  subtitulo: 'Esto es lo que está pasando hoy en tu cartera.',
                 ),
                 const SizedBox(height: 20),
                 CeAccionesRapidasFila(
@@ -270,7 +269,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 2.4,
+                  childAspectRatio: 3.1,
                   children: [
                     CeTarjetaExplorar(
                       icono: Icons.people_outline,

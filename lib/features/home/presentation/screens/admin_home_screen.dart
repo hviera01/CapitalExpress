@@ -329,7 +329,6 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
               children: [
                 CeDashboardHeader(
                   saludo: '$saludo, ${nombreUsuario.isEmpty ? 'Admin' : nombreUsuario.split(' ').first}.',
-                  subtitulo: 'Esto es lo que está pasando hoy en Capital Express.',
                 ),
                 const SizedBox(height: 20),
                 CeAccionesRapidasFila(
@@ -369,7 +368,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 2.4,
+                  childAspectRatio: 3.1,
                   children: [
                     CeTarjetaExplorar(
                       icono: Icons.forum_outlined,

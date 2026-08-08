@@ -38,16 +38,17 @@ class CeAppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (esEscritorioWeb(context)) {
+      // Sin _HeaderEscritorio aca: era una franja con el titulo de la
+      // pagina + la campana de notificaciones que solo empujaba el
+      // contenido mas abajo -- el titulo ya es redundante con la
+      // pestaña activa de CeTopNav, y la campana se movio al propio
+      // CeTopNav (siempre visible, no solo en el panel).
       return Scaffold(
         backgroundColor: CEColors.surface,
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const CeTopNav(),
-            _HeaderEscritorio(
-              titulo: tituloPagina,
-              onNotificaciones: onNotificaciones,
-            ),
             Expanded(
               child: Align(
                 alignment: Alignment.topCenter,
