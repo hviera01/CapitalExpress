@@ -29,6 +29,26 @@ class PagoRepository {
     return query;
   }
 
+  /// Los ultimos pagos registrados (Panel Admin/Cobrador: "Actividad
+  /// reciente"), sin importar la fecha.
+  Future<List<PagoModel>> obtenerRecientes({int limite = 6, String? cobradorUid}) async {
+    Query<Map<String, dynamic>> query = _col;
+    if (cobradorUid != null) {
+      query = query.where('registradoPor', isEqualTo: cobradorUid);
+    }
+    query = query.orderBy('fechaPago', descending: true).limit(limite);
+    final snap = await query.get();
+    final pagos = <PagoModel>[];
+    for (final doc in snap.docs) {
+      try {
+        pagos.add(PagoModel.fromDoc(doc));
+      } catch (_) {
+        // documento con formato inesperado: se omite.
+      }
+    }
+    return pagos;
+  }
+
   /// Pagos en un rango de fechas (Dashboard, Reporte de Cobros). Sin
   /// rango trae los ultimos 200 para no descargar el historico entero.
   Future<List<PagoModel>> obtenerConRango({

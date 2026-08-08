@@ -5,14 +5,22 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
-import '../services/pdf_web_service.dart';
+import '../services/pdf_embed_service.dart';
 
-/// Vista previa de un PDF en pantalla, con imprimir/compartir incluidos
-/// (el paquete `printing` ya trae esos botones en `PdfPreview`). El
-/// sistema Kotlin original NO tenia esto -- ahi "vista previa" era solo
-/// un resumen de texto antes de generar el archivo; esto es una mejora
-/// real sobre el original, pedida explicitamente.
-class PdfPreviewScreen extends StatelessWidget {
+/// Vista previa de un PDF en pantalla. En Windows/Android usa
+/// `PdfPreview` del paquete `printing` (con imprimir/compartir
+/// incluidos). En Web usa un visor embebido propio (ver
+/// construirVisorPdfEmbebido) en vez de `PdfPreview`: ese widget
+/// renderiza con pdf.js, que depende de cargar y ejecutar bien un
+/// bundle JS externo -- en la practica se quedaba "cargando" para
+/// siempre en varios navegadores/redes sin ningun error visible. El
+/// visor propio usa el mismo visor NATIVO del navegador (como si
+/// abrieras el PDF directo), sin esa dependencia.
+///
+/// El sistema Kotlin original NO tenia vista previa -- ahi "vista
+/// previa" era solo un resumen de texto antes de generar el archivo;
+/// esto es una mejora real sobre el original, pedida explicitamente.
+class PdfPreviewScreen extends StatefulWidget {
   final String titulo;
   final Future<Uint8List> Function() generar;
   final String nombreArchivo;
@@ -25,45 +33,96 @@ class PdfPreviewScreen extends StatelessWidget {
   });
 
   @override
+  State<PdfPreviewScreen> createState() => _PdfPreviewScreenState();
+}
+
+class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
+  late final Future<Uint8List> _future = widget.generar();
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
-      body: PdfPreview(
-        build: (format) => generar(),
-        pdfFileName: nombreArchivo,
-        canChangePageFormat: false,
-        canChangeOrientation: false,
-        loadingWidget: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Generando recibo...'),
-              ],
+    if (!kIsWeb) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.titulo)),
+        body: PdfPreview(
+          build: (format) => widget.generar(),
+          pdfFileName: widget.nombreArchivo,
+          canChangePageFormat: false,
+          canChangeOrientation: false,
+          loadingWidget: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Generando recibo...'),
+                ],
+              ),
             ),
           ),
+          onError: (context, error) => _vistaError('$error'),
         ),
-        // Si algo falla (generando el PDF, o el visor de PDF.js en Web),
-        // antes se quedaba en blanco/cargando para siempre sin ningun
-        // aviso. Esto al menos muestra el error real y deja reintentar.
-        onError: (context, error) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 40),
-                const SizedBox(height: 12),
-                const Text('No se pudo generar la vista previa',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                Text('$error', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.titulo),
+        actions: [
+          FutureBuilder<Uint8List>(
+            future: _future,
+            builder: (context, snap) {
+              if (!snap.hasData) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.download_outlined),
+                tooltip: 'Descargar',
+                onPressed: () => Printing.sharePdf(bytes: snap.data!, filename: widget.nombreArchivo),
+              );
+            },
           ),
+        ],
+      ),
+      body: FutureBuilder<Uint8List>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Generando recibo...'),
+                  ],
+                ),
+              ),
+            );
+          }
+          if (snap.hasError) return _vistaError('${snap.error}');
+          return construirVisorPdfEmbebido(snap.data!);
+        },
+      ),
+    );
+  }
+
+  Widget _vistaError(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 40),
+            const SizedBox(height: 12),
+            const Text('No se pudo generar la vista previa',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(error, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+          ],
         ),
       ),
     );
@@ -81,33 +140,6 @@ Future<void> abrirVistaPreviaPdf(
   required Future<Uint8List> Function() generar,
   String nombreArchivo = 'reporte.pdf',
 }) async {
-  if (kIsWeb) {
-    // En Web, en vez de una vista previa embebida con pdf.js (fragil:
-    // depende de que el navegador cargue y ejecute bien un bundle JS
-    // externo -- en la practica se quedaba "cargando" para siempre en
-    // varios navegadores/redes sin ningun error visible), se abre el
-    // PDF directo en una pestaña nueva. El visor nativo del navegador
-    // es universalmente confiable y ya trae sus propios botones de
-    // imprimir/descargar/zoom.
-    //
-    // La pestaña se abre AHORA MISMO, antes de generar el PDF (que es
-    // async): si se esperara a tener los bytes primero, el navegador
-    // bloquearia la pestaña por no estar ya asociada al gesto del
-    // usuario que dio origen a este llamado.
-    final ventana = abrirPdfEnPestanaWeb();
-    try {
-      final bytes = await generar();
-      escribirPdfEnPestana(ventana, bytes);
-    } catch (e) {
-      cerrarPestana(ventana);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('No se pudo generar el PDF: $e')));
-      }
-    }
-    return;
-  }
-
   await Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (context) => PdfPreviewScreen(

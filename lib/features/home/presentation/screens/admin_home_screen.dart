@@ -3,20 +3,89 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/models/pago_model.dart';
+import '../../../../core/models/solicitud_model.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/ce_dashboard_widgets.dart';
 import '../../../../core/widgets/ce_dashed_card.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_menu_row.dart';
-import '../../../../core/widgets/ce_panel_escritorio.dart';
 import '../../../../core/widgets/ce_section_label.dart';
 import '../../../../core/widgets/ce_shell.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../clientes/providers/clientes_provider.dart';
+import '../../../pagos/providers/pagos_provider.dart';
+import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../../solicitudes/providers/solicitudes_provider.dart';
 
 const _colorSubtitulo = Color(0xFF2DD9B8);
 
-class AdminHomeScreen extends ConsumerWidget {
+class AdminHomeScreen extends ConsumerStatefulWidget {
   const AdminHomeScreen({super.key});
+
+  @override
+  ConsumerState<AdminHomeScreen> createState() => _AdminHomeScreenState();
+}
+
+class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
+  bool _cargando = true;
+  double _valorPortafolio = 0;
+  double _cobradoHoy = 0;
+  int _clientesCount = 0;
+  int _prestamosCount = 0;
+  int _solicitudesCount = 0;
+  List<PagoModel> _pagosRecientes = const [];
+  List<SolicitudModel> _solicitudesRecientes = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Los datos del dashboard (valor de cartera, cobrado hoy, etc.)
+    // solo se usan en el diseno de escritorio Web -- en mobile/Windows
+    // no hace falta gastar esas consultas.
+    if (esEscritorioWeb(context)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _cargarDashboard());
+    }
+  }
+
+  Future<void> _cargarDashboard() async {
+    setState(() => _cargando = true);
+    final prestamoRepo = ref.read(prestamoRepositoryProvider);
+    final clienteRepo = ref.read(clienteRepositoryProvider);
+    final pagoRepo = ref.read(pagoRepositoryProvider);
+    final solicitudRepo = ref.read(solicitudRepositoryProvider);
+    final hoy = DateTime.now();
+    final hoyInicio = DateTime(hoy.year, hoy.month, hoy.day);
+
+    try {
+      final resultados = await Future.wait([
+        prestamoRepo.sumarSaldoPendiente(),
+        clienteRepo.contar(),
+        prestamoRepo.contar(),
+        solicitudRepo.contarPendientes(),
+        pagoRepo.obtenerConRango(inicio: hoyInicio, fin: hoy),
+        pagoRepo.obtenerRecientes(limite: 5),
+        solicitudRepo.streamPendientes().first,
+      ]);
+      if (!mounted) return;
+      final pagosHoy = resultados[4] as List<PagoModel>;
+      setState(() {
+        _valorPortafolio = resultados[0] as double;
+        _clientesCount = resultados[1] as int;
+        _prestamosCount = resultados[2] as int;
+        _solicitudesCount = resultados[3] as int;
+        _cobradoHoy = pagosHoy.fold<double>(0, (a, p) => a + p.total);
+        _pagosRecientes = resultados[5] as List<PagoModel>;
+        _solicitudesRecientes = (resultados[6] as List<SolicitudModel>).take(4).toList();
+        _cargando = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cargando = false);
+    }
+  }
 
   void _proximamente(BuildContext context, String modulo) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -25,7 +94,7 @@ class AdminHomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final usuario = ref.watch(authProvider).usuario;
     final escritorio = esEscritorio(context);
     final columnas = escritorio ? 4 : 2;
@@ -38,7 +107,9 @@ class AdminHomeScreen extends ConsumerWidget {
       rolUsuario: 'Administrador',
       onLogout: () => ref.read(authProvider.notifier).logout(),
       onNotificaciones: () => context.push('/cobros'),
-      body: esEscritorioWeb(context) ? _cuerpoEscritorio(context) : ListView(
+      body: esEscritorioWeb(context)
+          ? _cuerpoEscritorio(context, usuario?.nombre ?? '')
+          : ListView(
         padding: EdgeInsets.fromLTRB(
           escritorio ? 32 : 16,
           escritorio ? 0 : 16,
@@ -236,67 +307,179 @@ class AdminHomeScreen extends ConsumerWidget {
     );
   }
 
-  /// Panel de escritorio Web: accesos rapidos en forma de botones
-  /// chicos tipo barra de herramientas (ver CePanelSeccionEscritorio),
-  /// en vez de la grilla de tarjetas grandes de mobile/Windows -- esa
-  /// grilla, aunque con mas columnas, seguia siendo un "launcher de
-  /// celular" reacomodado.
-  Widget _cuerpoEscritorio(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
-      children: [
-        CePanelSeccionEscritorio(
-          titulo: 'ACCIONES RÁPIDAS',
-          acciones: [
-            CePanelAccion(
-                icono: Icons.notifications_outlined,
-                titulo: 'Cobros',
-                onTap: () => context.push('/cobros')),
-            CePanelAccion(
-                icono: Icons.add,
-                titulo: 'Crear Préstamo',
-                onTap: () => context.push('/prestamos/nuevo')),
-            CePanelAccion(
-                icono: Icons.person_add_alt_1_outlined,
-                titulo: 'Crear Cliente',
-                onTap: () => context.push('/clientes/nuevo')),
-            CePanelAccion(
-                icono: Icons.badge_outlined,
-                titulo: 'Crear Usuario',
-                onTap: () => context.push('/usuarios/nuevo')),
-          ],
-        ),
-        const SizedBox(height: 24),
-        CePanelSeccionEscritorio(
-          titulo: 'EXPLORAR',
-          acciones: [
-            CePanelAccion(
-                icono: Icons.forum_outlined,
-                titulo: 'Solicitudes',
-                onTap: () => context.push('/solicitudes')),
-            CePanelAccion(
-                icono: Icons.people_outline,
-                titulo: 'Ver Clientes',
-                onTap: () => context.push('/clientes')),
-            CePanelAccion(
-                icono: Icons.account_balance_outlined,
-                titulo: 'Ver Préstamos',
-                onTap: () => context.push('/prestamos')),
-            CePanelAccion(
-                icono: Icons.manage_accounts_outlined,
-                titulo: 'Ver Usuarios',
-                onTap: () => context.push('/usuarios')),
-            CePanelAccion(
-                icono: Icons.devices_outlined,
-                titulo: 'Dispositivos',
-                onTap: () => context.push('/dispositivos')),
-            CePanelAccion(
-                icono: Icons.summarize_outlined,
-                titulo: 'Reportes',
-                onTap: () => context.push('/reportes')),
-          ],
-        ),
-      ],
+  /// Panel de escritorio Web: saludo + valor de cartera arriba, accesos
+  /// rapidos, tarjetas de "explorar" con datos en vivo y un panel de
+  /// actividad reciente a la derecha -- ya no es la grilla de tarjetas
+  /// grandes de mobile/Windows reacomodada.
+  Widget _cuerpoEscritorio(BuildContext context, String nombreUsuario) {
+    final hora = DateTime.now().hour;
+    final saludo = hora < 12 ? 'Buenos días' : (hora < 19 ? 'Buenas tardes' : 'Buenas noches');
+
+    return RefreshIndicator(
+      onRefresh: _cargarDashboard,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
+        children: [
+          CeDashboardHeader(
+            saludo: '$saludo, ${nombreUsuario.isEmpty ? 'Admin' : nombreUsuario.split(' ').first}.',
+            subtitulo: 'Esto es lo que está pasando hoy en Capital Express.',
+            etiquetaValor: 'VALOR DE CARTERA',
+            valor: _cargando ? '…' : formatearLempiras(_valorPortafolio),
+          ),
+          const SizedBox(height: 24),
+          const Text('ACCIONES RÁPIDAS',
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700, color: CEColors.textSecondary, letterSpacing: 0.4)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              CeAccionRapidaTile(
+                  icono: Icons.notifications_outlined, titulo: 'Cobros', onTap: () => context.push('/cobros')),
+              CeAccionRapidaTile(
+                  icono: Icons.add,
+                  titulo: 'Crear Préstamo',
+                  color: CEColors.accent,
+                  onTap: () => context.push('/prestamos/nuevo')),
+              CeAccionRapidaTile(
+                  icono: Icons.person_add_alt_1_outlined,
+                  titulo: 'Crear Cliente',
+                  color: CEColors.warning,
+                  onTap: () => context.push('/clientes/nuevo')),
+              CeAccionRapidaTile(
+                  icono: Icons.badge_outlined,
+                  titulo: 'Crear Usuario',
+                  color: CEColors.textSecondary,
+                  onTap: () => context.push('/usuarios/nuevo')),
+            ],
+          ),
+          const SizedBox(height: 24),
+          LayoutBuilder(builder: (context, constraints) {
+            final angosto = constraints.maxWidth < 900;
+            final izquierda = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('EXPLORAR PORTAFOLIO',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: CEColors.textSecondary,
+                        letterSpacing: 0.4)),
+                const SizedBox(height: 10),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.5,
+                  children: [
+                    CeTarjetaExplorar(
+                      icono: Icons.forum_outlined,
+                      titulo: 'Solicitudes',
+                      valor: _cargando ? '…' : '$_solicitudesCount',
+                      subtitulo: 'pendientes de revisión',
+                      enlace: 'Ver todas',
+                      onTap: () => context.push('/solicitudes'),
+                    ),
+                    CeTarjetaExplorar(
+                      icono: Icons.people_outline,
+                      titulo: 'Ver Clientes',
+                      valor: _cargando ? '…' : '$_clientesCount',
+                      subtitulo: 'perfiles activos',
+                      enlace: 'Directorio',
+                      onTap: () => context.push('/clientes'),
+                    ),
+                    CeTarjetaExplorar(
+                      icono: Icons.account_balance_outlined,
+                      titulo: 'Ver Préstamos',
+                      valor: _cargando ? '…' : '$_prestamosCount',
+                      subtitulo: 'préstamos registrados',
+                      enlace: 'Gestionar',
+                      onTap: () => context.push('/prestamos'),
+                    ),
+                    CeTarjetaExplorar(
+                      icono: Icons.summarize_outlined,
+                      titulo: 'Reportes',
+                      valor: '',
+                      subtitulo: 'Financiero y por cobrador',
+                      enlace: 'Generar',
+                      onTap: () => context.push('/reportes'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    CeAccionRapidaTile(
+                        icono: Icons.manage_accounts_outlined,
+                        titulo: 'Usuarios',
+                        onTap: () => context.push('/usuarios')),
+                    CeAccionRapidaTile(
+                        icono: Icons.devices_outlined,
+                        titulo: 'Dispositivos',
+                        onTap: () => context.push('/dispositivos')),
+                  ],
+                ),
+              ],
+            );
+
+            final derecha = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CeTarjetaDestacada(
+                  etiqueta: 'Cobrado hoy',
+                  valor: _cargando ? '…' : formatearLempiras(_cobradoHoy),
+                ),
+                const SizedBox(height: 16),
+                CePanelActividad(
+                  titulo: 'Actividad reciente',
+                  onRefrescar: _cargarDashboard,
+                  onVerTodo: () => context.push('/reportes/cobros'),
+                  items: _cargando
+                      ? const []
+                      : [
+                          ..._pagosRecientes.map((p) => CeActividadItem(
+                                icono: Icons.payments_outlined,
+                                color: CEColors.success,
+                                titulo: 'Abono recibido: ${formatearLempiras(p.total)}',
+                                subtitulo:
+                                    '${p.clienteNombre} · ${p.nombreCobrador.isEmpty ? 'N/D' : p.nombreCobrador}',
+                                tiempo: p.fechaPago != null
+                                    ? tiempoRelativoCorto(p.fechaPago!.toDate())
+                                    : '',
+                              )),
+                          ..._solicitudesRecientes.map((s) => CeActividadItem(
+                                icono: Icons.forum_outlined,
+                                color: CEColors.accent,
+                                titulo: 'Nueva solicitud: ${formatearLempiras(s.monto)}',
+                                subtitulo: '${s.cliente} · ${s.cobradorSolicitante}',
+                                tiempo: s.fechaCreacion != null
+                                    ? tiempoRelativoCorto(s.fechaCreacion!.toDate())
+                                    : '',
+                              )),
+                        ],
+                ),
+              ],
+            );
+
+            if (angosto) {
+              return Column(children: [izquierda, const SizedBox(height: 20), derecha]);
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 2, child: izquierda),
+                const SizedBox(width: 20),
+                SizedBox(width: 300, child: derecha),
+              ],
+            );
+          }),
+        ],
+      ),
     );
   }
 }
