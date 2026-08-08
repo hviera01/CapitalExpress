@@ -105,7 +105,7 @@ class PagoModel {
       firma: (d['firma'] ?? '') as String,
       metodoPago: (d['metodoPago'] ?? 'Efectivo') as String,
       plazo: (d['plazo'] ?? '') as String,
-      proximaFechaProgramada: asTimestamp(d['proximaFechaProgramada']),
+      proximaFechaProgramada: asTimestampFlexible(d['proximaFechaProgramada']),
       totalCuotasCompletas: (d['totalCuotasCompletas'] as num?)?.toInt() ?? 0,
       descripcionCuotas: (d['descripcionCuotas'] ?? '') as String,
       sistemaPagoEnCascada: (d['sistemaPagoEnCascada'] ?? false) as bool,

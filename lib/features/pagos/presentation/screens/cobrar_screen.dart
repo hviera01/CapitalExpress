@@ -111,9 +111,15 @@ class _CobrarScreenState extends ConsumerState<CobrarScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
-                ReciboPagoService.imprimir(resultado.pago);
+                try {
+                  await ReciboPagoService.imprimir(resultado.pago);
+                } catch (e) {
+                  messenger.showSnackBar(
+                      SnackBar(content: Text('No se pudo generar el recibo: $e')));
+                }
               },
               child: const Text('Imprimir recibo'),
             ),

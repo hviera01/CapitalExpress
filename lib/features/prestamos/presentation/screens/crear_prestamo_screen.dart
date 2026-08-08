@@ -189,22 +189,34 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
         );
       }
 
-      await ReciboPrestamoService.imprimir(PrestamoModel(
-        prestamoId: prestamoId,
-        clienteId: _clienteSeleccionado!.id,
-        cliente: _clienteSeleccionado!.nombre,
-        monto: monto,
-        interes: calculo.interesCalculado,
-        totalPagar: calculo.totalAPagar,
-        cuota: calculo.cuotaEstimada,
-        cuotas: cuotas,
-        plazo: _plazo,
-        fecha: Timestamp.fromDate(_fechaInicio),
-        lugar: _lugarCtrl.text.trim(),
-        cobrador: usuario.nombre,
-        numeroPrestamo: numeroPrestamo,
-        proximoPago: Timestamp.fromDate(proximaFecha),
-      ));
+      // Aparte, en su propio try/catch: si esto falla el prestamo YA se
+      // creo (el catch de abajo es para errores de creacion, mostrar
+      // ese mensaje aca seria confuso -- "no se pudo crear" cuando en
+      // realidad si se creo y solo fallo la impresion).
+      try {
+        await ReciboPrestamoService.imprimir(PrestamoModel(
+          prestamoId: prestamoId,
+          clienteId: _clienteSeleccionado!.id,
+          cliente: _clienteSeleccionado!.nombre,
+          monto: monto,
+          interes: calculo.interesCalculado,
+          totalPagar: calculo.totalAPagar,
+          cuota: calculo.cuotaEstimada,
+          cuotas: cuotas,
+          plazo: _plazo,
+          fecha: Timestamp.fromDate(_fechaInicio),
+          lugar: _lugarCtrl.text.trim(),
+          cobrador: usuario.nombre,
+          numeroPrestamo: numeroPrestamo,
+          proximoPago: Timestamp.fromDate(proximaFecha),
+        ));
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('El préstamo se creó, pero no se pudo generar el recibo: $e')),
+          );
+        }
+      }
 
       if (mounted) context.pop();
     } catch (e) {

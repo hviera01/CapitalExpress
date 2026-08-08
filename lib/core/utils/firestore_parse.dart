@@ -12,6 +12,26 @@ Timestamp? asTimestamp(dynamic valor) {
   return null;
 }
 
+/// Parseo compartido de una fecha "dd/MM/yyyy" (con o sin hora pegada
+/// atras). Devuelve null si el texto esta vacio, es "saldado", o no
+/// tiene forma de fecha.
+DateTime? _parseFechaTexto(String valor) {
+  final texto = valor.trim();
+  if (texto.isEmpty || texto.toLowerCase() == 'saldado') return null;
+  final match = RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{2,4})').firstMatch(texto);
+  if (match == null) return null;
+  final dia = int.tryParse(match.group(1)!);
+  final mes = int.tryParse(match.group(2)!);
+  var anio = int.tryParse(match.group(3)!);
+  if (dia == null || mes == null || anio == null) return null;
+  if (anio < 100) anio += 2000;
+  try {
+    return DateTime(anio, mes, dia);
+  } catch (_) {
+    return null;
+  }
+}
+
 /// El campo `proximoPago` de un prestamo es historicamente inconsistente
 /// en Firestore: Timestamp (escrituras nuevas), String "dd/MM/yyyy"
 /// (formato que usaba el sistema Kotlin viejo en varios flujos), el
@@ -24,21 +44,20 @@ DateTime? asProximoPagoFecha(dynamic valor) {
   if (valor == null) return null;
   if (valor is Timestamp) return valor.toDate();
   if (valor is int) return DateTime.fromMillisecondsSinceEpoch(valor);
+  if (valor is String) return _parseFechaTexto(valor);
+  return null;
+}
+
+/// Igual que [asProximoPagoFecha] pero devuelve Timestamp -- para campos
+/// como `pagos.proximaFechaProgramada`, que en datos reales tambien
+/// aparece guardado como string "dd/MM/yyyy" (confirmado leyendo un
+/// documento real via la API de Firestore), no solo como Timestamp.
+Timestamp? asTimestampFlexible(dynamic valor) {
+  if (valor is Timestamp) return valor;
+  if (valor is int) return Timestamp.fromMillisecondsSinceEpoch(valor);
   if (valor is String) {
-    final texto = valor.trim();
-    if (texto.isEmpty || texto.toLowerCase() == 'saldado') return null;
-    final match = RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{2,4})').firstMatch(texto);
-    if (match == null) return null;
-    final dia = int.tryParse(match.group(1)!);
-    final mes = int.tryParse(match.group(2)!);
-    var anio = int.tryParse(match.group(3)!);
-    if (dia == null || mes == null || anio == null) return null;
-    if (anio < 100) anio += 2000;
-    try {
-      return DateTime(anio, mes, dia);
-    } catch (_) {
-      return null;
-    }
+    final fecha = _parseFechaTexto(valor);
+    return fecha != null ? Timestamp.fromDate(fecha) : null;
   }
   return null;
 }

@@ -24,6 +24,17 @@ class PagoTile extends ConsumerWidget {
     this.mostrarPrestamo = true,
   });
 
+  Future<void> _reimprimir(BuildContext context) async {
+    try {
+      await ReciboPagoService.imprimir(pago);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo generar el recibo: $e')));
+      }
+    }
+  }
+
   Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -102,7 +113,7 @@ class PagoTile extends ConsumerWidget {
             icon: const Icon(Icons.more_vert, color: CEColors.textSecondary),
             onSelected: (accion) {
               if (accion == 'reimprimir') {
-                ReciboPagoService.imprimir(pago);
+                _reimprimir(context);
               } else if (accion == 'eliminar') {
                 _eliminar(context, ref);
               }

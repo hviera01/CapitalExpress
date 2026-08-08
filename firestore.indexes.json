@@ -68,6 +68,14 @@
       ]
     },
     {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "interesTotal", "order": "ASCENDING" },
+        { "fieldPath": "monto", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "pagos",
       "queryScope": "COLLECTION",
       "fields": [

@@ -43,6 +43,17 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
     await ref.read(prestamoRepositoryProvider).restaurar(widget.prestamoId);
   }
 
+  Future<void> _reimprimir(BuildContext context, PrestamoModel p) async {
+    try {
+      await ReciboPrestamoService.imprimir(p);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo generar el recibo: $e')));
+      }
+    }
+  }
+
   Color _colorEstado(String estado) {
     switch (estado) {
       case 'saldado':
@@ -346,7 +357,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
           SizedBox(
             height: 50,
             child: OutlinedButton.icon(
-              onPressed: () => ReciboPrestamoService.imprimir(p),
+              onPressed: () => _reimprimir(context, p),
               icon: const Icon(Icons.print_outlined),
               label: const Text('Reimprimir Recibo del Préstamo'),
             ),

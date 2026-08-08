@@ -42,7 +42,19 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
 
       final prestamo = await ref.read(prestamoRepositoryProvider).obtenerPorId(resultado.prestamoId);
       if (prestamo != null) {
-        await ReciboPrestamoService.imprimir(prestamo);
+        // Ya se aprobo y se salio de la pantalla -- si esto falla no es
+        // "no se pudo aprobar" (ya se aprobo), es solo que no se pudo
+        // imprimir el recibo. Se avisa por separado sin volver a tocar
+        // _procesando (la pantalla ya se esta cerrando).
+        try {
+          await ReciboPrestamoService.imprimir(prestamo);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('La solicitud se aprobó, pero no se pudo generar el recibo: $e')),
+            );
+          }
+        }
       }
     } catch (e) {
       if (!mounted) return;
