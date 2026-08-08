@@ -253,13 +253,9 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.05,
+          CeStatGrid(
+            mobileCrossAxisCount: 3,
+            mobileChildAspectRatio: 1.05,
             children: [
               CeStatCard(
                   icono: Icons.account_balance_outlined,

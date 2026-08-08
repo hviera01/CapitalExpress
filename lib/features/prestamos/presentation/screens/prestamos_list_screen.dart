@@ -177,13 +177,9 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
               ),
             )
           else
-            GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.0,
+            CeStatGrid(
+              mobileCrossAxisCount: 3,
+              mobileChildAspectRatio: 1.0,
               children: [
                 CeStatCard(
                   icono: Icons.payments_outlined,
@@ -451,24 +447,18 @@ class _TablaPrestamos extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: const [
-            DataColumn(label: Text('Cliente')),
-            DataColumn(label: Text('N°')),
-            DataColumn(label: Text('Saldo'), numeric: true),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Cuota'), numeric: true),
-            DataColumn(label: Text('Cuotas')),
-            DataColumn(label: Text('Cobrador')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: prestamos.map((p) {
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Cliente')),
+        DataColumn(label: Text('N°')),
+        DataColumn(label: Text('Saldo'), numeric: true),
+        DataColumn(label: Text('Estado')),
+        DataColumn(label: Text('Cuota'), numeric: true),
+        DataColumn(label: Text('Cuotas')),
+        DataColumn(label: Text('Cobrador')),
+        DataColumn(label: Text('Acciones')),
+      ],
+      rows: prestamos.map((p) {
             return DataRow(
               onSelectChanged: (_) => _verDetalle(context, ref, p),
               cells: [
@@ -511,8 +501,6 @@ class _TablaPrestamos extends ConsumerWidget {
               ],
             );
           }).toList(),
-        ),
-      ),
     );
   }
 }

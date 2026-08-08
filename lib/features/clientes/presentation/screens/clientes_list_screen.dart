@@ -192,13 +192,9 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
               ),
             )
           else
-            GridView.count(
-              crossAxisCount: esEscritorio(context) ? 4 : 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.3,
+            CeStatGrid(
+              mobileCrossAxisCount: 2,
+              mobileChildAspectRatio: 1.3,
               children: [
                 CeStatCard(
                   icono: Icons.people_outline,
@@ -409,23 +405,17 @@ class _TablaClientes extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: const [
-            DataColumn(label: Text('Cliente')),
-            DataColumn(label: Text('Teléfono')),
-            DataColumn(label: Text('Empresa')),
-            DataColumn(label: Text('Identidad')),
-            DataColumn(label: Text('Cobrador')),
-            DataColumn(label: Text('Préstamo')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: clientes.map((c) {
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Cliente')),
+        DataColumn(label: Text('Teléfono')),
+        DataColumn(label: Text('Empresa')),
+        DataColumn(label: Text('Identidad')),
+        DataColumn(label: Text('Cobrador')),
+        DataColumn(label: Text('Préstamo')),
+        DataColumn(label: Text('Acciones')),
+      ],
+      rows: clientes.map((c) {
             final nombreCobrador = nombreCobradorDe(c);
             return DataRow(
               onSelectChanged: (_) => _abrirResumen(context, ref, c),
@@ -469,8 +459,6 @@ class _TablaClientes extends ConsumerWidget {
               ],
             );
           }).toList(),
-        ),
-      ),
     );
   }
 }

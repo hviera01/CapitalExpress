@@ -530,23 +530,17 @@ class _TablaCobros extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = DateFormat('dd/MM/yyyy');
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: const [
-            DataColumn(label: Text('Cliente')),
-            DataColumn(label: Text('N°')),
-            DataColumn(label: Text('Saldo'), numeric: true),
-            DataColumn(label: Text('Próxima cuota')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Cuota')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: notificaciones.map((n) {
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Cliente')),
+        DataColumn(label: Text('N°')),
+        DataColumn(label: Text('Saldo'), numeric: true),
+        DataColumn(label: Text('Próxima cuota')),
+        DataColumn(label: Text('Estado')),
+        DataColumn(label: Text('Cuota')),
+        DataColumn(label: Text('Acciones')),
+      ],
+      rows: notificaciones.map((n) {
             final p = n.prestamo;
             final color = colorUrgencia(n.diferenciaDias);
             final mostrarAcciones = p.estado.toLowerCase() != 'inactivo';
@@ -589,8 +583,6 @@ class _TablaCobros extends StatelessWidget {
                   : const Text('—')),
             ]);
           }).toList(),
-        ),
-      ),
     );
   }
 }

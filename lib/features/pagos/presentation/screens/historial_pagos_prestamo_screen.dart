@@ -94,13 +94,9 @@ class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPre
                         Text('Préstamo N° ${widget.numeroPrestamo}',
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                         const SizedBox(height: 12),
-                        GridView.count(
-                          crossAxisCount: 3,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 1.15,
+                        CeStatGrid(
+                          mobileCrossAxisCount: 3,
+                          mobileChildAspectRatio: 1.15,
                           children: [
                             CeStatCard(
                                 icono: Icons.receipt_long_outlined,

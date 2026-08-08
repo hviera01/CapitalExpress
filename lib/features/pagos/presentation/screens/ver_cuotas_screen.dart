@@ -239,21 +239,15 @@ class _TablaCuotas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: const [
-            DataColumn(label: Text('Cuota')),
-            DataColumn(label: Text('Vence')),
-            DataColumn(label: Text('Pagado / Esperado')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Acción')),
-          ],
-          rows: cuotas.map((c) {
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Cuota')),
+        DataColumn(label: Text('Vence')),
+        DataColumn(label: Text('Pagado / Esperado')),
+        DataColumn(label: Text('Estado')),
+        DataColumn(label: Text('Acción')),
+      ],
+      rows: cuotas.map((c) {
             return DataRow(cells: [
               DataCell(Text('#${c.numero}', style: const TextStyle(fontWeight: FontWeight.w600))),
               DataCell(Text(fechaFormato.format(c.fechaVencimiento))),
@@ -269,8 +263,6 @@ class _TablaCuotas extends StatelessWidget {
                   : const Text('—')),
             ]);
           }).toList(),
-        ),
-      ),
     );
   }
 }

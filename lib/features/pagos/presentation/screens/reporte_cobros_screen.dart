@@ -191,13 +191,9 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.15,
+                CeStatGrid(
+                  mobileCrossAxisCount: 3,
+                  mobileChildAspectRatio: 1.15,
                   children: [
                     CeStatCard(
                         icono: Icons.receipt_long_outlined,

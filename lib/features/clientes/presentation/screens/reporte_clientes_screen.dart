@@ -11,6 +11,7 @@ import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/reporte_clientes_calculos.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -304,46 +305,30 @@ class _TablaClientes extends StatelessWidget {
   Widget build(BuildContext context) {
     final formatoFecha = DateFormat('dd/MM/yyyy');
 
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(CEColors.primary),
-          headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
-          columns: const [
-            DataColumn(label: Text('Cliente')),
-            DataColumn(label: Text('Teléfono')),
-            DataColumn(label: Text('Cobrador')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Prestado'), numeric: true),
-            DataColumn(label: Text('Abonado'), numeric: true),
-            DataColumn(label: Text('Pendiente'), numeric: true),
-            DataColumn(label: Text('Próximo pago')),
-          ],
-          rows: filas
-              .map((f) => DataRow(cells: [
-                    DataCell(Text(f.cliente.nombre)),
-                    DataCell(Text(f.cliente.telefono.isEmpty ? 'N/D' : f.cliente.telefono)),
-                    DataCell(Text(nombreCobradorDe(f.cliente))),
-                    DataCell(Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _colorEstado(f.estado).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(f.estado,
-                          style: TextStyle(color: _colorEstado(f.estado), fontWeight: FontWeight.w700, fontSize: 11)),
-                    )),
-                    DataCell(Text(formatearLempiras(f.totales.prestado))),
-                    DataCell(Text(formatearLempiras(f.totales.abonado))),
-                    DataCell(Text(formatearLempiras(f.totales.pendiente),
-                        style: const TextStyle(color: CEColors.accent, fontWeight: FontWeight.w700))),
-                    DataCell(Text(f.proximoPago == null ? '—' : formatoFecha.format(f.proximoPago!))),
-                  ]))
-              .toList(),
-        ),
-      ),
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Cliente')),
+        DataColumn(label: Text('Teléfono')),
+        DataColumn(label: Text('Cobrador')),
+        DataColumn(label: Text('Estado')),
+        DataColumn(label: Text('Prestado'), numeric: true),
+        DataColumn(label: Text('Abonado'), numeric: true),
+        DataColumn(label: Text('Pendiente'), numeric: true),
+        DataColumn(label: Text('Próximo pago')),
+      ],
+      rows: filas
+          .map((f) => DataRow(cells: [
+                DataCell(Text(f.cliente.nombre)),
+                DataCell(Text(f.cliente.telefono.isEmpty ? 'N/D' : f.cliente.telefono)),
+                DataCell(Text(nombreCobradorDe(f.cliente))),
+                DataCell(ceTableBadge(f.estado, _colorEstado(f.estado))),
+                DataCell(Text(formatearLempiras(f.totales.prestado))),
+                DataCell(Text(formatearLempiras(f.totales.abonado))),
+                DataCell(Text(formatearLempiras(f.totales.pendiente),
+                    style: const TextStyle(color: CEColors.accent, fontWeight: FontWeight.w700))),
+                DataCell(Text(f.proximoPago == null ? '—' : formatoFecha.format(f.proximoPago!))),
+              ]))
+          .toList(),
     );
   }
 }

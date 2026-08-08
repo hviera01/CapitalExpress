@@ -326,13 +326,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _grid(int columnas, List<Widget> cards) {
-    return GridView.count(
-      crossAxisCount: columnas,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.2,
+    return CeStatGrid(
+      mobileCrossAxisCount: columnas,
+      mobileChildAspectRatio: 1.2,
       children: cards,
     );
   }

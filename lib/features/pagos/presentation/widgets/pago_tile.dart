@@ -190,23 +190,17 @@ class TablaPagos extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final f = DateFormat('dd/MM/yyyy hh:mm a');
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: [
-            const DataColumn(label: Text('Cliente')),
-            if (mostrarPrestamo) const DataColumn(label: Text('N°')),
-            const DataColumn(label: Text('Cobrador')),
-            const DataColumn(label: Text('Fecha')),
-            const DataColumn(label: Text('Abono'), numeric: true),
-            const DataColumn(label: Text('Mora'), numeric: true),
-            const DataColumn(label: Text('Acciones')),
-          ],
-          rows: pagos.map((p) {
+    return CeDataTableCard(
+      columns: [
+        const DataColumn(label: Text('Cliente')),
+        if (mostrarPrestamo) const DataColumn(label: Text('N°')),
+        const DataColumn(label: Text('Cobrador')),
+        const DataColumn(label: Text('Fecha')),
+        const DataColumn(label: Text('Abono'), numeric: true),
+        const DataColumn(label: Text('Mora'), numeric: true),
+        const DataColumn(label: Text('Acciones')),
+      ],
+      rows: pagos.map((p) {
             return DataRow(cells: [
               DataCell(Text(p.clienteNombre.isEmpty ? 'Cliente' : p.clienteNombre,
                   style: const TextStyle(fontWeight: FontWeight.w600))),
@@ -237,8 +231,6 @@ class TablaPagos extends ConsumerWidget {
               )),
             ]);
           }).toList(),
-        ),
-      ),
     );
   }
 }

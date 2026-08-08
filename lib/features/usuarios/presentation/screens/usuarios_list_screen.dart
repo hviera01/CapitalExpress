@@ -177,13 +177,9 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                   children: [
-                    GridView.count(
-                      crossAxisCount: 3,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: esEscritorio(context) ? 1.6 : 1.1,
+                    CeStatGrid(
+                      mobileCrossAxisCount: 3,
+                      mobileChildAspectRatio: 1.1,
                       children: [
                         CeStatCard(icono: Icons.people_outline, valor: '$total', etiqueta: 'Total'),
                         CeStatCard(
@@ -295,23 +291,17 @@ class _TablaUsuarios extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: const [
-            DataColumn(label: Text('Nombre')),
-            DataColumn(label: Text('Código')),
-            DataColumn(label: Text('Rol')),
-            DataColumn(label: Text('Teléfono')),
-            DataColumn(label: Text('Préstamos asignados')),
-            DataColumn(label: Text('Estado')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: usuarios.map((u) {
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Nombre')),
+        DataColumn(label: Text('Código')),
+        DataColumn(label: Text('Rol')),
+        DataColumn(label: Text('Teléfono')),
+        DataColumn(label: Text('Préstamos asignados')),
+        DataColumn(label: Text('Estado')),
+        DataColumn(label: Text('Acciones')),
+      ],
+      rows: usuarios.map((u) {
             final activo = u.estado == 'activo';
             return DataRow(cells: [
               DataCell(Text(u.nombre, style: const TextStyle(fontWeight: FontWeight.w600))),
@@ -339,8 +329,6 @@ class _TablaUsuarios extends StatelessWidget {
               )),
             ]);
           }).toList(),
-        ),
-      ),
     );
   }
 }

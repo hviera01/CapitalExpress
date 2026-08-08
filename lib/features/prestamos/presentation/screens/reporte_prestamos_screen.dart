@@ -208,13 +208,9 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.15,
+                CeStatGrid(
+                  mobileCrossAxisCount: 3,
+                  mobileChildAspectRatio: 1.15,
                   children: [
                     CeStatCard(icono: Icons.list_alt_outlined, valor: '${filas.length}', etiqueta: 'Total'),
                     CeStatCard(
@@ -339,21 +335,15 @@ class _TablaReportePrestamos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: const [
-            DataColumn(label: Text('Cliente')),
-            DataColumn(label: Text('N°')),
-            DataColumn(label: Text('Fecha')),
-            DataColumn(label: Text('Saldo'), numeric: true),
-            DataColumn(label: Text('Estado')),
-          ],
-          rows: filas.map((p) {
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Cliente')),
+        DataColumn(label: Text('N°')),
+        DataColumn(label: Text('Fecha')),
+        DataColumn(label: Text('Saldo'), numeric: true),
+        DataColumn(label: Text('Estado')),
+      ],
+      rows: filas.map((p) {
             final estado = estadoEfectivoPrestamo(p);
             return DataRow(
               onSelectChanged: (_) => context.push('/prestamos/${p.prestamoId}'),
@@ -368,8 +358,6 @@ class _TablaReportePrestamos extends StatelessWidget {
               ],
             );
           }).toList(),
-        ),
-      ),
     );
   }
 }

@@ -133,22 +133,16 @@ class _TablaSolicitudes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CeCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: ceTableHeadingRowColor,
-          headingTextStyle: ceTableHeadingTextStyle,
-          columns: const [
-            DataColumn(label: Text('Cliente')),
-            DataColumn(label: Text('Monto'), numeric: true),
-            DataColumn(label: Text('Cuotas')),
-            DataColumn(label: Text('Cobrador solicitante')),
-            DataColumn(label: Text('Fecha')),
-            DataColumn(label: Text('Acciones')),
-          ],
-          rows: solicitudes.map((s) {
+    return CeDataTableCard(
+      columns: const [
+        DataColumn(label: Text('Cliente')),
+        DataColumn(label: Text('Monto'), numeric: true),
+        DataColumn(label: Text('Cuotas')),
+        DataColumn(label: Text('Cobrador solicitante')),
+        DataColumn(label: Text('Fecha')),
+        DataColumn(label: Text('Acciones')),
+      ],
+      rows: solicitudes.map((s) {
             return DataRow(
               onSelectChanged: (_) => context.push('/solicitudes/${s.id}'),
               cells: [
@@ -166,8 +160,6 @@ class _TablaSolicitudes extends StatelessWidget {
               ],
             );
           }).toList(),
-        ),
-      ),
     );
   }
 }
