@@ -29,70 +29,8 @@ import '../../../usuarios/presentation/screens/usuario_form_screen.dart';
 
 const _colorSubtitulo = Color(0xFF2DD9B8);
 
-class AdminHomeScreen extends ConsumerStatefulWidget {
+class AdminHomeScreen extends ConsumerWidget {
   const AdminHomeScreen({super.key});
-
-  @override
-  ConsumerState<AdminHomeScreen> createState() => _AdminHomeScreenState();
-}
-
-class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
-  bool _cargando = true;
-  double _valorPortafolio = 0;
-  double _cobradoHoy = 0;
-  int _clientesCount = 0;
-  int _prestamosCount = 0;
-  int _solicitudesCount = 0;
-  List<PagoModel> _pagosRecientes = const [];
-  List<SolicitudModel> _solicitudesRecientes = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    // Los datos del dashboard (valor de cartera, cobrado hoy, etc.)
-    // solo se usan en el diseno de escritorio Web -- en mobile/Windows
-    // no hace falta gastar esas consultas.
-    if (esEscritorioWeb(context)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _cargarDashboard());
-    }
-  }
-
-  Future<void> _cargarDashboard() async {
-    setState(() => _cargando = true);
-    final prestamoRepo = ref.read(prestamoRepositoryProvider);
-    final clienteRepo = ref.read(clienteRepositoryProvider);
-    final pagoRepo = ref.read(pagoRepositoryProvider);
-    final solicitudRepo = ref.read(solicitudRepositoryProvider);
-    final hoy = DateTime.now();
-    final hoyInicio = DateTime(hoy.year, hoy.month, hoy.day);
-
-    try {
-      final resultados = await Future.wait([
-        prestamoRepo.sumarSaldoPendiente(),
-        clienteRepo.contar(),
-        prestamoRepo.contar(),
-        solicitudRepo.contarPendientes(),
-        pagoRepo.obtenerConRango(inicio: hoyInicio, fin: hoy),
-        pagoRepo.obtenerRecientes(limite: 5),
-        solicitudRepo.streamPendientes().first,
-      ]);
-      if (!mounted) return;
-      final pagosHoy = resultados[4] as List<PagoModel>;
-      setState(() {
-        _valorPortafolio = resultados[0] as double;
-        _clientesCount = resultados[1] as int;
-        _prestamosCount = resultados[2] as int;
-        _solicitudesCount = resultados[3] as int;
-        _cobradoHoy = pagosHoy.fold<double>(0, (a, p) => a + p.total);
-        _pagosRecientes = resultados[5] as List<PagoModel>;
-        _solicitudesRecientes = (resultados[6] as List<SolicitudModel>).take(4).toList();
-        _cargando = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _cargando = false);
-    }
-  }
 
   void _proximamente(BuildContext context, String modulo) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +39,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
     final escritorio = esEscritorio(context);
     final columnas = escritorio ? 4 : 2;
@@ -110,7 +48,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       return CeWebShell(
         tituloInicial: 'Panel',
         iconoInicial: Icons.home_outlined,
-        contenidoInicial: (context) => _cuerpoEscritorio(context, usuario?.nombre ?? ''),
+        contenidoInicial: (context) => const _PanelEscritorioAdmin(),
       );
     }
 
@@ -319,14 +257,85 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       ),
     );
   }
+}
 
-  /// Panel de escritorio Web: saludo arriba (ancho completo), acciones
-  /// rapidas en una fila que llena el ancho, tarjetas de "explorar" con
-  /// datos en vivo mas chicas, y a la derecha SIEMPRE el valor de
-  /// cartera + cobrado hoy + actividad reciente juntos en una sola
-  /// seccion -- ya no es la grilla de tarjetas grandes de mobile/
-  /// Windows reacomodada.
-  Widget _cuerpoEscritorio(BuildContext context, String nombreUsuario) {
+/// Cuerpo del panel de escritorio Web, con su PROPIO estado (no el de
+/// AdminHomeScreen): esta pantalla vive dentro de la pestaña "Panel" de
+/// CeWebShell, y esa pestaña se construye UNA sola vez y se mantiene
+/// viva en memoria (ver WebTabsNotifier) -- si los datos vivieran en
+/// AdminHomeScreen, un setState() ahi jamas llegaria a refrescar lo que
+/// ya se dibujo dentro de la pestaña. Al ser un widget con estado
+/// propio, sus setState() SI refrescan su propio contenido sin
+/// importar lo que pase con la pantalla que la abrio.
+///
+/// Saludo arriba (ancho completo), acciones rapidas en una fila que
+/// llena el ancho, tarjetas de "explorar" con datos en vivo mas
+/// chicas, y a la derecha SIEMPRE el valor de cartera + cobrado hoy +
+/// actividad reciente juntos en una sola seccion.
+class _PanelEscritorioAdmin extends ConsumerStatefulWidget {
+  const _PanelEscritorioAdmin();
+
+  @override
+  ConsumerState<_PanelEscritorioAdmin> createState() => _PanelEscritorioAdminState();
+}
+
+class _PanelEscritorioAdminState extends ConsumerState<_PanelEscritorioAdmin> {
+  bool _cargando = true;
+  double _valorPortafolio = 0;
+  double _cobradoHoy = 0;
+  int _clientesCount = 0;
+  int _prestamosCount = 0;
+  int _solicitudesCount = 0;
+  List<PagoModel> _pagosRecientes = const [];
+  List<SolicitudModel> _solicitudesRecientes = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _cargarDashboard());
+  }
+
+  Future<void> _cargarDashboard() async {
+    setState(() => _cargando = true);
+    final prestamoRepo = ref.read(prestamoRepositoryProvider);
+    final clienteRepo = ref.read(clienteRepositoryProvider);
+    final pagoRepo = ref.read(pagoRepositoryProvider);
+    final solicitudRepo = ref.read(solicitudRepositoryProvider);
+    final hoy = DateTime.now();
+    final hoyInicio = DateTime(hoy.year, hoy.month, hoy.day);
+
+    try {
+      final resultados = await Future.wait([
+        prestamoRepo.sumarSaldoPendiente(),
+        clienteRepo.contar(),
+        prestamoRepo.contar(),
+        solicitudRepo.contarPendientes(),
+        pagoRepo.obtenerConRango(inicio: hoyInicio, fin: hoy),
+        pagoRepo.obtenerRecientes(limite: 5),
+        solicitudRepo.streamPendientes().first,
+      ]);
+      if (!mounted) return;
+      final pagosHoy = resultados[4] as List<PagoModel>;
+      setState(() {
+        _valorPortafolio = resultados[0] as double;
+        _clientesCount = resultados[1] as int;
+        _prestamosCount = resultados[2] as int;
+        _solicitudesCount = resultados[3] as int;
+        _cobradoHoy = pagosHoy.fold<double>(0, (a, p) => a + p.total);
+        _pagosRecientes = resultados[5] as List<PagoModel>;
+        _solicitudesRecientes = (resultados[6] as List<SolicitudModel>).take(4).toList();
+        _cargando = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cargando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final usuario = ref.watch(authProvider).usuario;
+    final nombreUsuario = usuario?.nombre ?? '';
     final hora = DateTime.now().hour;
     final saludo = hora < 12 ? 'Buenos días' : (hora < 19 ? 'Buenas tardes' : 'Buenas noches');
 

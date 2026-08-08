@@ -25,72 +25,11 @@ import '../../../solicitudes/providers/solicitudes_provider.dart';
 
 const _colorSubtitulo = Color(0xFF2DD9B8);
 
-class CobradorHomeScreen extends ConsumerStatefulWidget {
+class CobradorHomeScreen extends ConsumerWidget {
   const CobradorHomeScreen({super.key});
 
   @override
-  ConsumerState<CobradorHomeScreen> createState() => _CobradorHomeScreenState();
-}
-
-class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
-  bool _cargando = true;
-  double _valorCartera = 0;
-  double _cobradoHoy = 0;
-  int _clientesCount = 0;
-  int _prestamosCount = 0;
-  int _solicitudesCount = 0;
-  List<PagoModel> _pagosRecientes = const [];
-  List<SolicitudModel> _solicitudesRecientes = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    if (esEscritorioWeb(context)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _cargarDashboard());
-    }
-  }
-
-  Future<void> _cargarDashboard() async {
-    final uid = ref.read(authProvider).usuario?.uid;
-    if (uid == null) return;
-    setState(() => _cargando = true);
-    final prestamoRepo = ref.read(prestamoRepositoryProvider);
-    final clienteRepo = ref.read(clienteRepositoryProvider);
-    final pagoRepo = ref.read(pagoRepositoryProvider);
-    final solicitudRepo = ref.read(solicitudRepositoryProvider);
-    final hoy = DateTime.now();
-    final hoyInicio = DateTime(hoy.year, hoy.month, hoy.day);
-
-    try {
-      final resultados = await Future.wait([
-        prestamoRepo.sumarSaldoPendiente(cobradorUid: uid),
-        clienteRepo.contar(cobradorUid: uid),
-        prestamoRepo.contar(cobradorUid: uid),
-        solicitudRepo.contarPendientes(cobradorUid: uid),
-        pagoRepo.obtenerConRango(inicio: hoyInicio, fin: hoy, cobradorUid: uid),
-        pagoRepo.obtenerRecientes(limite: 5, cobradorUid: uid),
-        solicitudRepo.streamPendientes(cobradorUid: uid).first,
-      ]);
-      if (!mounted) return;
-      final pagosHoy = resultados[4] as List<PagoModel>;
-      setState(() {
-        _valorCartera = resultados[0] as double;
-        _clientesCount = resultados[1] as int;
-        _prestamosCount = resultados[2] as int;
-        _solicitudesCount = resultados[3] as int;
-        _cobradoHoy = pagosHoy.fold<double>(0, (a, p) => a + p.total);
-        _pagosRecientes = resultados[5] as List<PagoModel>;
-        _solicitudesRecientes = (resultados[6] as List<SolicitudModel>).take(4).toList();
-        _cargando = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _cargando = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
     final escritorio = esEscritorio(context);
     final columnas = escritorio ? 4 : 2;
@@ -99,7 +38,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       return CeWebShell(
         tituloInicial: 'Panel',
         iconoInicial: Icons.home_outlined,
-        contenidoInicial: (context) => _cuerpoEscritorio(context, usuario?.nombre ?? ''),
+        contenidoInicial: (context) => const _PanelEscritorioCobrador(),
       );
     }
 
@@ -226,11 +165,80 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       ),
     );
   }
+}
 
-  /// Panel de escritorio Web: ver AdminHomeScreen._cuerpoEscritorio
-  /// (mismo patron), con los datos acotados a la cartera de este
-  /// cobrador en vez de todo el sistema.
-  Widget _cuerpoEscritorio(BuildContext context, String nombreUsuario) {
+/// Cuerpo del panel de escritorio Web, con su PROPIO estado (ver
+/// AdminHomeScreen._PanelEscritorioAdmin, mismo motivo: esta pantalla
+/// vive dentro de la pestaña "Panel" de CeWebShell, que se construye
+/// una sola vez y se mantiene viva en memoria, asi que necesita su
+/// propio setState() para poder refrescarse). Datos acotados a la
+/// cartera de este cobrador en vez de todo el sistema.
+class _PanelEscritorioCobrador extends ConsumerStatefulWidget {
+  const _PanelEscritorioCobrador();
+
+  @override
+  ConsumerState<_PanelEscritorioCobrador> createState() => _PanelEscritorioCobradorState();
+}
+
+class _PanelEscritorioCobradorState extends ConsumerState<_PanelEscritorioCobrador> {
+  bool _cargando = true;
+  double _valorCartera = 0;
+  double _cobradoHoy = 0;
+  int _clientesCount = 0;
+  int _prestamosCount = 0;
+  int _solicitudesCount = 0;
+  List<PagoModel> _pagosRecientes = const [];
+  List<SolicitudModel> _solicitudesRecientes = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _cargarDashboard());
+  }
+
+  Future<void> _cargarDashboard() async {
+    final uid = ref.read(authProvider).usuario?.uid;
+    if (uid == null) return;
+    setState(() => _cargando = true);
+    final prestamoRepo = ref.read(prestamoRepositoryProvider);
+    final clienteRepo = ref.read(clienteRepositoryProvider);
+    final pagoRepo = ref.read(pagoRepositoryProvider);
+    final solicitudRepo = ref.read(solicitudRepositoryProvider);
+    final hoy = DateTime.now();
+    final hoyInicio = DateTime(hoy.year, hoy.month, hoy.day);
+
+    try {
+      final resultados = await Future.wait([
+        prestamoRepo.sumarSaldoPendiente(cobradorUid: uid),
+        clienteRepo.contar(cobradorUid: uid),
+        prestamoRepo.contar(cobradorUid: uid),
+        solicitudRepo.contarPendientes(cobradorUid: uid),
+        pagoRepo.obtenerConRango(inicio: hoyInicio, fin: hoy, cobradorUid: uid),
+        pagoRepo.obtenerRecientes(limite: 5, cobradorUid: uid),
+        solicitudRepo.streamPendientes(cobradorUid: uid).first,
+      ]);
+      if (!mounted) return;
+      final pagosHoy = resultados[4] as List<PagoModel>;
+      setState(() {
+        _valorCartera = resultados[0] as double;
+        _clientesCount = resultados[1] as int;
+        _prestamosCount = resultados[2] as int;
+        _solicitudesCount = resultados[3] as int;
+        _cobradoHoy = pagosHoy.fold<double>(0, (a, p) => a + p.total);
+        _pagosRecientes = resultados[5] as List<PagoModel>;
+        _solicitudesRecientes = (resultados[6] as List<SolicitudModel>).take(4).toList();
+        _cargando = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cargando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final usuario = ref.watch(authProvider).usuario;
+    final nombreUsuario = usuario?.nombre ?? '';
     final hora = DateTime.now().hour;
     final saludo = hora < 12 ? 'Buenos días' : (hora < 19 ? 'Buenas tardes' : 'Buenas noches');
 
