@@ -19,11 +19,11 @@ import '../../../core/widgets/pdf_preview_screen.dart';
 /// compacto, total, proximo pago, telefono/dirección del cliente,
 /// firma).
 class ReciboPrestamoService {
-  /// Abre una vista previa del recibo en una pantalla nueva -- igual
-  /// que ReciboPagoService, para evitar el dialogo de impresion
-  /// bloqueado en silencio por el navegador.
-  static void mostrarVistaPrevia(BuildContext context, PrestamoModel p) {
-    abrirVistaPreviaPdf(
+  /// En Android abre directo el panel de compartir (ahi es donde
+  /// aparece RawBT para imprimir por Bluetooth); en Web/Windows abre la
+  /// vista previa normal. Ver mostrarOCompartirRecibo.
+  static Future<void> mostrarVistaPrevia(BuildContext context, PrestamoModel p) {
+    return mostrarOCompartirRecibo(
       context,
       titulo: 'Recibo de Préstamo',
       nombreArchivo: 'recibo_prestamo_${p.numeroPrestamo}.pdf',

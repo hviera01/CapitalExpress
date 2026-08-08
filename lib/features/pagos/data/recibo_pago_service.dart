@@ -19,15 +19,12 @@ import '../../../core/widgets/pdf_preview_screen.dart';
 /// fecha, cobrador -- para que el recibo reimpreso sea igual al que
 /// salio impreso quando se registro el pago originalmente.
 class ReciboPagoService {
-  /// Abre una vista previa del recibo en una pantalla nueva, con
-  /// imprimir/compartir/descargar ya incluidos (mismo widget que usan
-  /// los reportes). Esto evita por completo el problema de navegadores
-  /// que bloquean en silencio un dialogo de impresion disparado despues
-  /// de un `await` -- ahora el unico gesto directo del usuario es
-  /// "entrar a ver el recibo", y el boton de imprimir vive DENTRO de esa
-  /// pantalla, se preciona aparte y ahi si es un click directo.
+  /// En Android abre directo el panel de compartir (ahi es donde
+  /// aparece RawBT para imprimir por Bluetooth); en Web/Windows abre la
+  /// vista previa normal con imprimir/compartir/descargar. Ver
+  /// mostrarOCompartirRecibo.
   static Future<void> mostrarVistaPrevia(BuildContext context, PagoModel p) {
-    return abrirVistaPreviaPdf(
+    return mostrarOCompartirRecibo(
       context,
       titulo: 'Recibo de Abono',
       nombreArchivo: 'recibo_abono_${p.numeroPrestamo}.pdf',

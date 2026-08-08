@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
@@ -86,4 +88,28 @@ Future<void> abrirVistaPreviaPdf(
       ),
     ),
   );
+}
+
+/// Para RECIBOS (abono/prestamo) en Android especificamente: en vez de
+/// la vista previa -- ahi el boton "Imprimir" manda al dialogo de
+/// impresion NATIVO de Android, donde RawBT no aparece como opcion,
+/// confirmado probando en un equipo real -- se abre DIRECTO el panel
+/// de compartir de Android (Intent.ACTION_SEND, mismo mecanismo que
+/// compartirReciboPDF en el sistema viejo), que es donde SI aparece
+/// RawBT como destino para imprimir por Bluetooth. Asi el cobrador no
+/// tiene que entrar a la vista previa y tocar "Compartir" a mano cada
+/// vez. En cualquier otra plataforma (Web, Windows) se mantiene la
+/// vista previa normal, con imprimir/compartir/descargar.
+Future<void> mostrarOCompartirRecibo(
+  BuildContext context, {
+  required String titulo,
+  required Future<Uint8List> Function() generar,
+  String nombreArchivo = 'recibo.pdf',
+}) async {
+  if (!kIsWeb && Platform.isAndroid) {
+    final bytes = await generar();
+    await Printing.sharePdf(bytes: bytes, filename: nombreArchivo);
+    return;
+  }
+  await abrirVistaPreviaPdf(context, titulo: titulo, generar: generar, nombreArchivo: nombreArchivo);
 }
