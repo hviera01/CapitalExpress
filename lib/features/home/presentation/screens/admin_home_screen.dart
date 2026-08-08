@@ -307,10 +307,12 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     );
   }
 
-  /// Panel de escritorio Web: saludo + valor de cartera arriba, accesos
-  /// rapidos, tarjetas de "explorar" con datos en vivo y un panel de
-  /// actividad reciente a la derecha -- ya no es la grilla de tarjetas
-  /// grandes de mobile/Windows reacomodada.
+  /// Panel de escritorio Web: saludo arriba (ancho completo), acciones
+  /// rapidas en una fila que llena el ancho, tarjetas de "explorar" con
+  /// datos en vivo mas chicas, y a la derecha SIEMPRE el valor de
+  /// cartera + cobrado hoy + actividad reciente juntos en una sola
+  /// seccion -- ya no es la grilla de tarjetas grandes de mobile/
+  /// Windows reacomodada.
   Widget _cuerpoEscritorio(BuildContext context, String nombreUsuario) {
     final hora = DateTime.now().hour;
     final saludo = hora < 12 ? 'Buenos días' : (hora < 19 ? 'Buenas tardes' : 'Buenas noches');
@@ -323,18 +325,10 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
           CeDashboardHeader(
             saludo: '$saludo, ${nombreUsuario.isEmpty ? 'Admin' : nombreUsuario.split(' ').first}.',
             subtitulo: 'Esto es lo que está pasando hoy en Capital Express.',
-            etiquetaValor: 'VALOR DE CARTERA',
-            valor: _cargando ? '…' : formatearLempiras(_valorPortafolio),
           ),
-          const SizedBox(height: 24),
-          const Text('ACCIONES RÁPIDAS',
-              style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700, color: CEColors.textSecondary, letterSpacing: 0.4)),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
+          const SizedBox(height: 20),
+          CeAccionesRapidasFila(
+            acciones: [
               CeAccionRapidaTile(
                   icono: Icons.notifications_outlined, titulo: 'Cobros', onTap: () => context.push('/cobros')),
               CeAccionRapidaTile(
@@ -373,7 +367,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.5,
+                  childAspectRatio: 2.0,
                   children: [
                     CeTarjetaExplorar(
                       icono: Icons.forum_outlined,
@@ -407,21 +401,22 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                       enlace: 'Generar',
                       onTap: () => context.push('/reportes'),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    CeAccionRapidaTile(
-                        icono: Icons.manage_accounts_outlined,
-                        titulo: 'Usuarios',
-                        onTap: () => context.push('/usuarios')),
-                    CeAccionRapidaTile(
-                        icono: Icons.devices_outlined,
-                        titulo: 'Dispositivos',
-                        onTap: () => context.push('/dispositivos')),
+                    CeTarjetaExplorar(
+                      icono: Icons.manage_accounts_outlined,
+                      titulo: 'Usuarios',
+                      valor: '',
+                      subtitulo: 'Gestión interna',
+                      enlace: 'Ver',
+                      onTap: () => context.push('/usuarios'),
+                    ),
+                    CeTarjetaExplorar(
+                      icono: Icons.devices_outlined,
+                      titulo: 'Dispositivos',
+                      valor: '',
+                      subtitulo: 'Equipos con acceso',
+                      enlace: 'Ver',
+                      onTap: () => context.push('/dispositivos'),
+                    ),
                   ],
                 ),
               ],
@@ -430,6 +425,11 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
             final derecha = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                CeTarjetaValor(
+                  etiqueta: 'Valor de cartera',
+                  valor: _cargando ? '…' : formatearLempiras(_valorPortafolio),
+                ),
+                const SizedBox(height: 16),
                 CeTarjetaDestacada(
                   etiqueta: 'Cobrado hoy',
                   valor: _cargando ? '…' : formatearLempiras(_cobradoHoy),

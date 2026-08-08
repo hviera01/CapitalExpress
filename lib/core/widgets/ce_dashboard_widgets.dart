@@ -6,64 +6,65 @@ import 'ce_card.dart';
 /// Piezas del panel principal ("dashboard") de escritorio Web -- ver
 /// AdminHomeScreen/CobradorHomeScreen._cuerpoEscritorio.
 
-/// Encabezado: saludo a la izquierda, un valor grande destacado a la
-/// derecha (ej. valor de cartera).
+/// Encabezado: solo el saludo, ancho completo (el valor de cartera
+/// ahora va en su propia tarjeta en la columna de la derecha, ver
+/// CeTarjetaValor).
 class CeDashboardHeader extends StatelessWidget {
   final String saludo;
   final String subtitulo;
-  final String? etiquetaValor;
-  final String? valor;
 
-  const CeDashboardHeader({
-    super.key,
-    required this.saludo,
-    required this.subtitulo,
-    this.etiquetaValor,
-    this.valor,
-  });
+  const CeDashboardHeader({super.key, required this.saludo, required this.subtitulo});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(saludo,
-                  style: const TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
-              const SizedBox(height: 4),
-              Text(subtitulo, style: const TextStyle(fontSize: 13, color: CEColors.textSecondary)),
-            ],
-          ),
-        ),
-        if (valor != null) ...[
-          const SizedBox(width: 20),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(etiquetaValor ?? '',
-                  style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: CEColors.textSecondary,
-                      letterSpacing: 0.5)),
-              const SizedBox(height: 2),
-              Text(valor!,
-                  style: const TextStyle(
-                      fontSize: 26, fontWeight: FontWeight.w800, color: CEColors.primary)),
-            ],
-          ),
-        ],
+        Text(saludo,
+            style: const TextStyle(
+                fontSize: 22, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
+        const SizedBox(height: 4),
+        Text(subtitulo, style: const TextStyle(fontSize: 13, color: CEColors.textSecondary)),
       ],
     );
   }
 }
 
-/// Boton de accion rapida chico: circulo con icono arriba, etiqueta
-/// abajo -- para la fila "Acciones rapidas" del dashboard.
+/// Tarjeta clara con una etiqueta + un valor grande (ej. "Valor de
+/// Cartera") -- para la columna de la derecha del dashboard, arriba de
+/// CeTarjetaDestacada.
+class CeTarjetaValor extends StatelessWidget {
+  final String etiqueta;
+  final String valor;
+
+  const CeTarjetaValor({super.key, required this.etiqueta, required this.valor});
+
+  @override
+  Widget build(BuildContext context) {
+    return CeCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(etiqueta.toUpperCase(),
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: CEColors.textSecondary,
+                  letterSpacing: 0.5)),
+          const SizedBox(height: 6),
+          Text(valor,
+              style: const TextStyle(
+                  fontSize: 24, fontWeight: FontWeight.w800, color: CEColors.primary)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Boton de accion rapida: circulo con icono arriba, etiqueta abajo --
+/// para la fila "Acciones rapidas" del dashboard. Sin ancho fijo: el
+/// que llama lo mete en un Expanded para que la fila entera llene el
+/// ancho disponible (parejo entre todos los botones).
 class CeAccionRapidaTile extends StatelessWidget {
   final IconData icono;
   final String titulo;
@@ -80,33 +81,52 @@ class CeAccionRapidaTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 110,
-      child: CeCard(
-        onTap: onTap,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-              child: Icon(icono, color: color, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(titulo,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: CEColors.textPrimary)),
-          ],
-        ),
+    return CeCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+            child: Icon(icono, color: color, size: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(titulo,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: CEColors.textPrimary)),
+        ],
       ),
     );
   }
 }
 
+/// Fila de acciones rapidas que llena todo el ancho disponible (cada
+/// boton, en partes iguales) -- ver CeAccionRapidaTile.
+class CeAccionesRapidasFila extends StatelessWidget {
+  final List<Widget> acciones;
+
+  const CeAccionesRapidasFila({super.key, required this.acciones});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < acciones.length; i++) ...[
+          if (i > 0) const SizedBox(width: 12),
+          Expanded(child: acciones[i]),
+        ],
+      ],
+    );
+  }
+}
+
 /// Tarjeta de "explorar" (Solicitudes/Ver Clientes/etc.): icono tenue
-/// arriba a la derecha, titulo, valor+subtitulo y un link abajo.
+/// arriba a la derecha, titulo, valor+subtitulo y un link abajo. Mas
+/// compacta que una CeCard normal (menos padding/tipografia mas
+/// chica), para que la grilla 2x2 no ocupe tanto espacio.
 class CeTarjetaExplorar extends StatelessWidget {
   final IconData icono;
   final String titulo;
@@ -129,34 +149,37 @@ class CeTarjetaExplorar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CeCard(
       onTap: onTap,
+      padding: const EdgeInsets.all(14),
       child: Stack(
         children: [
           Positioned(
             top: 0,
             right: 0,
-            child: Icon(icono, size: 34, color: CEColors.border),
+            child: Icon(icono, size: 26, color: CEColors.border),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(titulo,
                   style: const TextStyle(
-                      fontSize: 14.5, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
-              const SizedBox(height: 8),
+                      fontSize: 12.5, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
+              const SizedBox(height: 4),
               Text(valor,
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
-              const SizedBox(height: 2),
-              Text(subtitulo, style: const TextStyle(fontSize: 11.5, color: CEColors.textSecondary)),
-              const SizedBox(height: 10),
+                      fontSize: 16, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
+              Text(subtitulo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10.5, color: CEColors.textSecondary)),
+              const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(enlace,
                       style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700, color: CEColors.accent)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward, size: 13, color: CEColors.accent),
+                          fontSize: 11, fontWeight: FontWeight.w700, color: CEColors.accent)),
+                  const SizedBox(width: 3),
+                  const Icon(Icons.arrow_forward, size: 11, color: CEColors.accent),
                 ],
               ),
             ],

@@ -231,18 +231,10 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
           CeDashboardHeader(
             saludo: '$saludo, ${nombreUsuario.isEmpty ? '' : nombreUsuario.split(' ').first}.',
             subtitulo: 'Esto es lo que está pasando hoy en tu cartera.',
-            etiquetaValor: 'MI CARTERA',
-            valor: _cargando ? '…' : formatearLempiras(_valorCartera),
           ),
-          const SizedBox(height: 24),
-          const Text('ACCIONES RÁPIDAS',
-              style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700, color: CEColors.textSecondary, letterSpacing: 0.4)),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
+          const SizedBox(height: 20),
+          CeAccionesRapidasFila(
+            acciones: [
               CeAccionRapidaTile(
                   icono: Icons.notifications_active_outlined,
                   titulo: 'Cobros',
@@ -278,7 +270,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.5,
+                  childAspectRatio: 2.0,
                   children: [
                     CeTarjetaExplorar(
                       icono: Icons.people_outline,
@@ -320,6 +312,11 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
             final derecha = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                CeTarjetaValor(
+                  etiqueta: 'Mi cartera',
+                  valor: _cargando ? '…' : formatearLempiras(_valorCartera),
+                ),
+                const SizedBox(height: 16),
                 CeTarjetaDestacada(
                   etiqueta: 'Cobrado hoy',
                   valor: _cargando ? '…' : formatearLempiras(_cobradoHoy),

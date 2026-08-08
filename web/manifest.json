@@ -1,11 +1,11 @@
 {
-    "name": "capital_express",
-    "short_name": "capital_express",
+    "name": "Capital Express",
+    "short_name": "Capital Express",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Capital Express - Sistema de gestión de préstamos",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
