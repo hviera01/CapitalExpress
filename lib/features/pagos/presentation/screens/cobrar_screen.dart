@@ -63,6 +63,28 @@ class _CobrarScreenState extends ConsumerState<CobrarScreen> {
     super.dispose();
   }
 
+  /// Igual que el flujo real de RegistrarPagoScreen.kt al terminar un
+  /// abono: se muestra el recibo (con imprimir/compartir/descargar ya
+  /// resuelto por la vista previa) y, apenas el usuario vuelve de verlo,
+  /// se le pregunta si necesita otra copia -- si dice que si, se le
+  /// vuelve a mostrar.
+  Future<void> _imprimirConCopia(PagoModel pago) async {
+    await ReciboPagoService.mostrarVistaPrevia(context, pago);
+    if (!mounted) return;
+    final quiereCopia = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Necesita otra copia?'),
+        content: const Text('¿Querés ver/imprimir el recibo de nuevo?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sí')),
+        ],
+      ),
+    );
+    if (quiereCopia == true) await _imprimirConCopia(pago);
+  }
+
   void _prefillSiHaceFalta(PrestamoModel p) {
     if (_prefilled) return;
     _prefilled = true;
@@ -116,7 +138,7 @@ class _CobrarScreenState extends ConsumerState<CobrarScreen> {
                 // `this.context` (de CobrarScreen), no el del dialogo
                 // que se acaba de cerrar -- la vista previa se abre
                 // sobre la pantalla de atras, no dentro del dialogo.
-                ReciboPagoService.mostrarVistaPrevia(this.context, resultado.pago);
+                _imprimirConCopia(resultado.pago);
               },
               child: const Text('Imprimir recibo'),
             ),

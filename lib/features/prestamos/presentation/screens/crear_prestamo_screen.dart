@@ -173,6 +173,10 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
         'numeroCobrador': usuario.codigo,
         'cobradorUid': usuario.uid,
         'cobradorAsignado': usuario.uid,
+        // El campo real que usan las consultas por cobrador es el array
+        // -- sin esto el prestamo recien creado no aparece en Ver
+        // Prestamos/Cobros del cobrador hasta reasignarlo a mano.
+        'cobradoresAsignados': [usuario.uid],
         'proximoPago': Timestamp.fromDate(proximaFecha),
         'montoPagado': 0.0,
         'saldoAnterior': monto,

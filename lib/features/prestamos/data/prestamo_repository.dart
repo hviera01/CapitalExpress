@@ -46,7 +46,7 @@ class PrestamoRepository {
   }) {
     Query<Map<String, dynamic>> query = _col;
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     return query.snapshots().map((snap) {
       final prestamos = <PrestamoModel>[];
@@ -71,7 +71,7 @@ class PrestamoRepository {
   Future<List<PrestamoModel>> obtenerTodos({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: false);
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     final snap = await query.get();
     final prestamos = <PrestamoModel>[];
@@ -90,7 +90,7 @@ class PrestamoRepository {
   Future<int> contar({String? cobradorUid, bool soloEliminados = false}) async {
     Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: soloEliminados);
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     final agg = await query.count().get();
     return agg.count ?? 0;
@@ -100,7 +100,7 @@ class PrestamoRepository {
     Query<Map<String, dynamic>> query =
         _col.where('estado', isEqualTo: estado).where('eliminado', isEqualTo: false);
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     final agg = await query.count().get();
     return agg.count ?? 0;
@@ -117,7 +117,7 @@ class PrestamoRepository {
   }) async {
     Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: incluirEliminados);
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     if (estado != null) {
       query = query.where('estado', isEqualTo: estado);
@@ -195,10 +195,18 @@ class PrestamoRepository {
   }
 
   /// Reasigna el cobrador del prestamo (usado al "Asignar Cobrador" a un
-  /// cliente, que cascadea a todos sus prestamos activos).
+  /// cliente, que cascadea a todos sus prestamos activos). Un prestamo
+  /// real puede tener VARIOS cobradores en `cobradoresAsignados` (el
+  /// campo real de acceso, confirmado contra datos reales -- por eso
+  /// las consultas por cobrador filtran por ese array, no por
+  /// `cobradorAsignado`); reasignar desde esta pantalla reemplaza esa
+  /// lista por el unico cobrador elegido, a proposito (la UI es un
+  /// selector de uno solo). `cobradorAsignado` se mantiene en paralelo
+  /// solo para mostrar el nombre en pantalla.
   Future<void> reasignarCobrador(String id, String cobradorUid) async {
     await _col.doc(id).update({
       'cobradorAsignado': cobradorUid,
+      'cobradoresAsignados': [cobradorUid],
       'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
     });
   }
@@ -288,7 +296,7 @@ class PrestamoRepository {
   Future<int> contarEnMora({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col.where('estado', isEqualTo: 'mora');
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     final agg = await query.count().get();
     return agg.count ?? 0;
@@ -300,7 +308,7 @@ class PrestamoRepository {
   Future<double> sumarSaldoPendiente({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: false);
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     final agg = await query.aggregate(sum('saldo')).get();
     return (agg.getSum('saldo') ?? 0).toDouble();
@@ -364,7 +372,7 @@ class PrestamoRepository {
   Future<int> eliminarTodosLosEliminados({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: true);
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     final snap = await query.get();
     var borrados = 0;

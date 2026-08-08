@@ -261,6 +261,14 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     return CEColors.textSecondary;
   }
 
+  // Mismo badge de dias que UrgenciaStyle en NotificacionesScreen.kt:
+  // "Xd" (dias de atraso/faltantes), "Hoy" cuando cae justo hoy.
+  String _etiquetaDias(int diferenciaDias) {
+    if (diferenciaDias == 0) return 'Hoy';
+    if (diferenciaDias < 0) return '${-diferenciaDias}d';
+    return '${diferenciaDias}d';
+  }
+
   String _etiquetaUrgencia(int diferenciaDias) {
     if (diferenciaDias < -3) return 'EN MORA';
     if (diferenciaDias < 0) return 'VENCIDO';
@@ -367,20 +375,50 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                     color: color.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(_etiquetaUrgencia(n.diferenciaDias),
-                                      style: TextStyle(
-                                          fontSize: 10, color: color, fontWeight: FontWeight.w800)),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(_etiquetaUrgencia(n.diferenciaDias),
+                                          style: TextStyle(
+                                              fontSize: 10, color: color, fontWeight: FontWeight.w800)),
+                                      const SizedBox(width: 4),
+                                      Text(_etiquetaDias(n.diferenciaDias),
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: color.withValues(alpha: 0.8),
+                                              fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 10),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(formatearLempiras(p.saldo),
-                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-                                Text('Próxima cuota: ${f.format(n.proximoPago)}',
-                                    style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Saldo pendiente',
+                                        style: TextStyle(fontSize: 11, color: CEColors.textSecondary)),
+                                    const SizedBox(height: 2),
+                                    Text(formatearLempiras(p.saldo),
+                                        style:
+                                            const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    const Text('Próxima cuota',
+                                        style: TextStyle(fontSize: 11, color: CEColors.textSecondary)),
+                                    const SizedBox(height: 2),
+                                    Text(f.format(n.proximoPago),
+                                        style: TextStyle(
+                                            fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+                                  ],
+                                ),
                               ],
                             ),
                             if (p.cuotas > 0) ...[

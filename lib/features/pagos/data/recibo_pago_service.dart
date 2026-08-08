@@ -26,8 +26,8 @@ class ReciboPagoService {
   /// de un `await` -- ahora el unico gesto directo del usuario es
   /// "entrar a ver el recibo", y el boton de imprimir vive DENTRO de esa
   /// pantalla, se preciona aparte y ahi si es un click directo.
-  static void mostrarVistaPrevia(BuildContext context, PagoModel p) {
-    abrirVistaPreviaPdf(
+  static Future<void> mostrarVistaPrevia(BuildContext context, PagoModel p) {
+    return abrirVistaPreviaPdf(
       context,
       titulo: 'Recibo de Abono',
       nombreArchivo: 'recibo_abono_${p.numeroPrestamo}.pdf',

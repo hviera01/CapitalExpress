@@ -34,14 +34,18 @@ class PdfPreviewScreen extends StatelessWidget {
   }
 }
 
-/// Abre la vista previa en una pantalla nueva.
-void abrirVistaPreviaPdf(
+/// Abre la vista previa en una pantalla nueva. Devuelve el Future del
+/// push (se completa cuando el usuario vuelve/cierra la vista previa)
+/// para que quien la abre pueda encadenar algo despues -- ej. el
+/// dialogo de "¿Necesita otra copia?" al terminar de registrar un
+/// abono, igual que RegistrarPagoScreen.kt.
+Future<void> abrirVistaPreviaPdf(
   BuildContext context, {
   required String titulo,
   required Future<Uint8List> Function() generar,
   String nombreArchivo = 'reporte.pdf',
 }) {
-  Navigator.of(context).push(
+  return Navigator.of(context).push(
     MaterialPageRoute(
       builder: (context) => PdfPreviewScreen(
         titulo: titulo,

@@ -11,7 +11,7 @@ class ClienteRepository {
   Stream<List<ClienteModel>> streamClientes({String? cobradorUid}) {
     Query<Map<String, dynamic>> query = _col;
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     return query.snapshots().map((snap) {
       final clientes = <ClienteModel>[];
@@ -39,7 +39,7 @@ class ClienteRepository {
   }) async {
     Query<Map<String, dynamic>> query = _col;
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     if (estado != null) {
       query = query.where('estado', isEqualTo: estado);
@@ -73,7 +73,7 @@ class ClienteRepository {
   Future<List<ClienteModel>> obtenerTodos({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col;
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     final snap = await query.get();
     final clientes = <ClienteModel>[];
@@ -91,7 +91,7 @@ class ClienteRepository {
   Future<int> contar({String? cobradorUid, String? estado}) async {
     Query<Map<String, dynamic>> query = _col;
     if (cobradorUid != null) {
-      query = query.where('cobradorAsignado', isEqualTo: cobradorUid);
+      query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
     if (estado != null) {
       query = query.where('estado', isEqualTo: estado);
@@ -115,6 +115,13 @@ class ClienteRepository {
   Future<String> crear(ClienteModel cliente) async {
     final doc = await _col.add({
       ...cliente.toMap(),
+      // `cobradoresAsignados` (array) es el campo real que usan las
+      // consultas por cobrador -- sin esto, un cliente recien creado
+      // quedaria invisible para su cobrador hasta que alguien lo
+      // reasignara a mano. `actualizar()` NO toca este campo (para no
+      // pisar un cliente viejo que ya tenga varios cobradores en el
+      // array real).
+      'cobradoresAsignados': cliente.cobradorAsignado.isNotEmpty ? [cliente.cobradorAsignado] : [],
       'fechaCreacion': FieldValue.serverTimestamp(),
       'ultimaActividad': FieldValue.serverTimestamp(),
     });
@@ -133,10 +140,14 @@ class ClienteRepository {
   }
 
   /// Reasigna el cobrador de un cliente puntual (usado por "Asignar
-  /// Cobrador" en el Resumen del Cliente).
+  /// Cobrador" en el Resumen del Cliente). `cobradoresAsignados` (array)
+  /// es el campo real que usan las consultas por cobrador -- un cliente
+  /// puede tener varios en datos reales, pero reasignar desde aca
+  /// reemplaza la lista por el unico elegido a proposito.
   Future<void> actualizarCobrador(String id, String cobradorUid) async {
     await _col.doc(id).update({
       'cobradorAsignado': cobradorUid,
+      'cobradoresAsignados': [cobradorUid],
       'ultimaActividad': FieldValue.serverTimestamp(),
     });
   }

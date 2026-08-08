@@ -53,6 +53,8 @@ Future<SolicitudAprobada> aprobarSolicitud({
     'numeroCobrador': '',
     'cobradorUid': s.cobradorUid ?? '',
     'cobradorAsignado': s.cobradorUid ?? '',
+    // El campo real que usan las consultas por cobrador es el array.
+    'cobradoresAsignados': (s.cobradorUid ?? '').isNotEmpty ? [s.cobradorUid] : [],
     'proximoPago': Timestamp.now(),
     'montoPagado': 0.0,
     'saldoAnterior': s.monto,
@@ -72,6 +74,7 @@ Future<SolicitudAprobada> aprobarSolicitud({
     final cobradorActual = (clienteDoc.data()?['cobradorAsignado'] ?? '') as String;
     if (cobradorActual.isEmpty && (s.cobradorUid ?? '').isNotEmpty) {
       data['cobradorAsignado'] = s.cobradorUid;
+      data['cobradoresAsignados'] = [s.cobradorUid];
     }
     await clienteRef.update(data);
   } catch (_) {
