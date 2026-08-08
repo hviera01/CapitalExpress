@@ -149,24 +149,29 @@ class CeTarjetaExplorar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CeCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Stack(
         children: [
           Positioned(
             top: 0,
             right: 0,
-            child: Icon(icono, size: 26, color: CEColors.border),
+            child: Icon(icono, size: 22, color: CEColors.border),
           ),
           Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(titulo,
                   style: const TextStyle(
                       fontSize: 12.5, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
-              const SizedBox(height: 4),
-              Text(valor,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
+              if (valor.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(valor,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w800, color: CEColors.textPrimary)),
+              ],
+              const SizedBox(height: 2),
               Text(subtitulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

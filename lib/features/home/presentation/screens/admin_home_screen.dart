@@ -322,38 +322,40 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
         children: [
-          CeDashboardHeader(
-            saludo: '$saludo, ${nombreUsuario.isEmpty ? 'Admin' : nombreUsuario.split(' ').first}.',
-            subtitulo: 'Esto es lo que está pasando hoy en Capital Express.',
-          ),
-          const SizedBox(height: 20),
-          CeAccionesRapidasFila(
-            acciones: [
-              CeAccionRapidaTile(
-                  icono: Icons.notifications_outlined, titulo: 'Cobros', onTap: () => context.push('/cobros')),
-              CeAccionRapidaTile(
-                  icono: Icons.add,
-                  titulo: 'Crear Préstamo',
-                  color: CEColors.accent,
-                  onTap: () => context.push('/prestamos/nuevo')),
-              CeAccionRapidaTile(
-                  icono: Icons.person_add_alt_1_outlined,
-                  titulo: 'Crear Cliente',
-                  color: CEColors.warning,
-                  onTap: () => context.push('/clientes/nuevo')),
-              CeAccionRapidaTile(
-                  icono: Icons.badge_outlined,
-                  titulo: 'Crear Usuario',
-                  color: CEColors.textSecondary,
-                  onTap: () => context.push('/usuarios/nuevo')),
-            ],
-          ),
-          const SizedBox(height: 24),
           LayoutBuilder(builder: (context, constraints) {
             final angosto = constraints.maxWidth < 900;
             final izquierda = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                CeDashboardHeader(
+                  saludo: '$saludo, ${nombreUsuario.isEmpty ? 'Admin' : nombreUsuario.split(' ').first}.',
+                  subtitulo: 'Esto es lo que está pasando hoy en Capital Express.',
+                ),
+                const SizedBox(height: 20),
+                CeAccionesRapidasFila(
+                  acciones: [
+                    CeAccionRapidaTile(
+                        icono: Icons.notifications_outlined,
+                        titulo: 'Cobros',
+                        onTap: () => context.push('/cobros')),
+                    CeAccionRapidaTile(
+                        icono: Icons.add,
+                        titulo: 'Crear Préstamo',
+                        color: CEColors.accent,
+                        onTap: () => context.push('/prestamos/nuevo')),
+                    CeAccionRapidaTile(
+                        icono: Icons.person_add_alt_1_outlined,
+                        titulo: 'Crear Cliente',
+                        color: CEColors.warning,
+                        onTap: () => context.push('/clientes/nuevo')),
+                    CeAccionRapidaTile(
+                        icono: Icons.badge_outlined,
+                        titulo: 'Crear Usuario',
+                        color: CEColors.textSecondary,
+                        onTap: () => context.push('/usuarios/nuevo')),
+                  ],
+                ),
+                const SizedBox(height: 24),
                 const Text('EXPLORAR PORTAFOLIO',
                     style: TextStyle(
                         fontSize: 12,
@@ -367,7 +369,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 2.0,
+                  childAspectRatio: 2.4,
                   children: [
                     CeTarjetaExplorar(
                       icono: Icons.forum_outlined,

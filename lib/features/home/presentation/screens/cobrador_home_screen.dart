@@ -228,35 +228,35 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
         children: [
-          CeDashboardHeader(
-            saludo: '$saludo, ${nombreUsuario.isEmpty ? '' : nombreUsuario.split(' ').first}.',
-            subtitulo: 'Esto es lo que está pasando hoy en tu cartera.',
-          ),
-          const SizedBox(height: 20),
-          CeAccionesRapidasFila(
-            acciones: [
-              CeAccionRapidaTile(
-                  icono: Icons.notifications_active_outlined,
-                  titulo: 'Cobros',
-                  onTap: () => context.push('/cobros')),
-              CeAccionRapidaTile(
-                  icono: Icons.person_add_alt_1_outlined,
-                  titulo: 'Registrar Cliente',
-                  color: CEColors.warning,
-                  onTap: () => context.push('/clientes/nuevo')),
-              CeAccionRapidaTile(
-                  icono: Icons.add_card_outlined,
-                  titulo: 'Solicitar Préstamo',
-                  color: CEColors.accent,
-                  onTap: () => context.push('/prestamos/solicitar')),
-            ],
-          ),
-          const SizedBox(height: 24),
           LayoutBuilder(builder: (context, constraints) {
             final angosto = constraints.maxWidth < 900;
             final izquierda = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                CeDashboardHeader(
+                  saludo: '$saludo, ${nombreUsuario.isEmpty ? '' : nombreUsuario.split(' ').first}.',
+                  subtitulo: 'Esto es lo que está pasando hoy en tu cartera.',
+                ),
+                const SizedBox(height: 20),
+                CeAccionesRapidasFila(
+                  acciones: [
+                    CeAccionRapidaTile(
+                        icono: Icons.notifications_active_outlined,
+                        titulo: 'Cobros',
+                        onTap: () => context.push('/cobros')),
+                    CeAccionRapidaTile(
+                        icono: Icons.person_add_alt_1_outlined,
+                        titulo: 'Registrar Cliente',
+                        color: CEColors.warning,
+                        onTap: () => context.push('/clientes/nuevo')),
+                    CeAccionRapidaTile(
+                        icono: Icons.add_card_outlined,
+                        titulo: 'Solicitar Préstamo',
+                        color: CEColors.accent,
+                        onTap: () => context.push('/prestamos/solicitar')),
+                  ],
+                ),
+                const SizedBox(height: 24),
                 const Text('MI CARTERA',
                     style: TextStyle(
                         fontSize: 12,
@@ -270,7 +270,7 @@ class _CobradorHomeScreenState extends ConsumerState<CobradorHomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 2.0,
+                  childAspectRatio: 2.4,
                   children: [
                     CeTarjetaExplorar(
                       icono: Icons.people_outline,
