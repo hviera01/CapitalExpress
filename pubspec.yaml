@@ -59,6 +59,9 @@ dependencies:
   pdf: ^3.12.0
   printing: ^5.14.3
 
+  # Abrir el PDF en una pestaña nueva en Web (ver pdf_web_web.dart)
+  web: ^1.1.1
+
   # Fotos de cliente/prestamo
   image_picker: ^1.1.2
   image: ^4.1.2

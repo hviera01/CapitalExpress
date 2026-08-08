@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
+import '../services/pdf_web_service.dart';
+
 /// Vista previa de un PDF en pantalla, con imprimir/compartir incluidos
 /// (el paquete `printing` ya trae esos botones en `PdfPreview`). El
 /// sistema Kotlin original NO tenia esto -- ahi "vista previa" era solo
@@ -78,8 +80,35 @@ Future<void> abrirVistaPreviaPdf(
   required String titulo,
   required Future<Uint8List> Function() generar,
   String nombreArchivo = 'reporte.pdf',
-}) {
-  return Navigator.of(context).push(
+}) async {
+  if (kIsWeb) {
+    // En Web, en vez de una vista previa embebida con pdf.js (fragil:
+    // depende de que el navegador cargue y ejecute bien un bundle JS
+    // externo -- en la practica se quedaba "cargando" para siempre en
+    // varios navegadores/redes sin ningun error visible), se abre el
+    // PDF directo en una pestaña nueva. El visor nativo del navegador
+    // es universalmente confiable y ya trae sus propios botones de
+    // imprimir/descargar/zoom.
+    //
+    // La pestaña se abre AHORA MISMO, antes de generar el PDF (que es
+    // async): si se esperara a tener los bytes primero, el navegador
+    // bloquearia la pestaña por no estar ya asociada al gesto del
+    // usuario que dio origen a este llamado.
+    final ventana = abrirPdfEnPestanaWeb();
+    try {
+      final bytes = await generar();
+      escribirPdfEnPestana(ventana, bytes);
+    } catch (e) {
+      cerrarPestana(ventana);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo generar el PDF: $e')));
+      }
+    }
+    return;
+  }
+
+  await Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (context) => PdfPreviewScreen(
         titulo: titulo,

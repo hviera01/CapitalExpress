@@ -82,6 +82,11 @@ class CeScaffold extends StatelessWidget {
 /// debajo del menu superior fijo, en vez de una AppBar navy de ancho
 /// completo pensada para telefono -- conserva todas sus acciones (no
 /// se pierde nada), solo cambia como se ve.
+///
+/// Tambien le saca el boton de "atras": en escritorio Web se navega
+/// con las pestañas de CeTopNav (`context.go`, que REEMPLAZA la
+/// ubicacion en vez de apilarla), asi que casi nunca hay algo para
+/// hacer pop -- el boton quedaba ahi sin responder al tocarlo.
 class _BarraPagina extends StatelessWidget implements PreferredSizeWidget {
   final PreferredSizeWidget appBar;
 
@@ -89,6 +94,17 @@ class _BarraPagina extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final barra = appBar;
+    final sinAtras = barra is AppBar
+        ? AppBar(
+            title: barra.title,
+            actions: barra.actions,
+            bottom: barra.bottom,
+            backgroundColor: barra.backgroundColor,
+            automaticallyImplyLeading: false,
+          )
+        : barra;
+
     return Theme(
       data: Theme.of(context).copyWith(
         appBarTheme: Theme.of(context).appBarTheme.copyWith(
@@ -104,7 +120,7 @@ class _BarraPagina extends StatelessWidget implements PreferredSizeWidget {
               shape: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
             ),
       ),
-      child: appBar,
+      child: sinAtras,
     );
   }
 

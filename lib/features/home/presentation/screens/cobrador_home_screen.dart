@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_menu_card.dart';
 import '../../../../core/widgets/ce_menu_row.dart';
+import '../../../../core/widgets/ce_panel_escritorio.dart';
 import '../../../../core/widgets/ce_section_label.dart';
 import '../../../../core/widgets/ce_shell.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -28,7 +29,7 @@ class CobradorHomeScreen extends ConsumerWidget {
       nombreUsuario: usuario?.nombre ?? '',
       rolUsuario: 'Cobrador',
       onLogout: () => ref.read(authProvider.notifier).logout(),
-      body: ListView(
+      body: esEscritorioWeb(context) ? _cuerpoEscritorio(context) : ListView(
         padding: EdgeInsets.fromLTRB(
           escritorio ? 32 : 16,
           escritorio ? 0 : 16,
@@ -142,6 +143,52 @@ class CobradorHomeScreen extends ConsumerWidget {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  /// Panel de escritorio Web: ver AdminHomeScreen._cuerpoEscritorio
+  /// (mismo patron -- botones chicos tipo barra de herramientas en vez
+  /// de la grilla de tarjetas grandes de mobile/Windows).
+  Widget _cuerpoEscritorio(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
+      children: [
+        CePanelSeccionEscritorio(
+          titulo: 'ACCIONES RÁPIDAS',
+          acciones: [
+            CePanelAccion(
+                icono: Icons.notifications_active_outlined,
+                titulo: 'Cobros',
+                onTap: () => context.push('/cobros')),
+            CePanelAccion(
+                icono: Icons.person_add_alt_1_outlined,
+                titulo: 'Registrar Cliente',
+                onTap: () => context.push('/clientes/nuevo')),
+            CePanelAccion(
+                icono: Icons.add_card_outlined,
+                titulo: 'Solicitar Préstamo',
+                onTap: () => context.push('/prestamos/solicitar')),
+          ],
+        ),
+        const SizedBox(height: 24),
+        CePanelSeccionEscritorio(
+          titulo: 'EXPLORAR',
+          acciones: [
+            CePanelAccion(
+                icono: Icons.people_outline,
+                titulo: 'Ver Clientes',
+                onTap: () => context.push('/clientes')),
+            CePanelAccion(
+                icono: Icons.account_balance_outlined,
+                titulo: 'Ver Préstamos',
+                onTap: () => context.push('/prestamos')),
+            CePanelAccion(
+                icono: Icons.payments_outlined,
+                titulo: 'Mis Pagos',
+                onTap: () => context.push('/reportes/cobros')),
+          ],
+        ),
+      ],
     );
   }
 }
