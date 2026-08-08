@@ -40,14 +40,16 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
   @override
   void initState() {
     super.initState();
-    // Si ya se habia cargado antes, se muestra de una en vez de
-    // arrancar en blanco -- ver UsuariosCache. Se sigue refrescando
-    // abajo, pero calladito (sin tapar la lista con el spinner).
-    final cache = ref.read(usuariosCacheProvider);
-    if (cache.tieneDatos) {
-      _usuarios = List.of(cache.usuarios);
-      _prestamosAsignados.addAll(cache.prestamosAsignados);
-      _cargando = false;
+    // Cache es SOLO para escritorio Web -- ver ClientesListScreen
+    // (mismo patron). En mobile/Windows cada entrada arranca en
+    // blanco y recarga todo, como siempre.
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(usuariosCacheProvider);
+      if (cache.tieneDatos) {
+        _usuarios = List.of(cache.usuarios);
+        _prestamosAsignados.addAll(cache.prestamosAsignados);
+        _cargando = false;
+      }
     }
     _cargar();
   }
@@ -59,7 +61,7 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
   }
 
   Future<void> _cargar() async {
-    final primeraVez = _usuarios.isEmpty;
+    final primeraVez = !esEscritorioWeb(context) || _usuarios.isEmpty;
     if (primeraVez) {
       setState(() {
         _cargando = true;
@@ -85,11 +87,13 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
           _prestamosAsignados[cobradores[i].uid] = conteos[i];
         }
       });
-      final cache = ref.read(usuariosCacheProvider);
-      cache
-        ..tieneDatos = true
-        ..usuarios = usuarios
-        ..prestamosAsignados = _prestamosAsignados;
+      if (esEscritorioWeb(context)) {
+        final cache = ref.read(usuariosCacheProvider);
+        cache
+          ..tieneDatos = true
+          ..usuarios = usuarios
+          ..prestamosAsignados = _prestamosAsignados;
+      }
     } catch (e) {
       if (!mounted) return;
       if (primeraVez) {

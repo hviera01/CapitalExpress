@@ -57,26 +57,34 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   @override
   void initState() {
     super.initState();
-    // Si ya se habia buscado antes (y solo se salio y volvio a entrar
-    // a la pantalla), se restaura esa busqueda en vez de arrancar en
-    // blanco -- ver ClientesBusquedaCache. Igual con las estadisticas
-    // del encabezado: si ya las teniamos, se muestran de una (sin el
-    // parpadeo de "..." al volver) y se refrescan calladitas atras.
-    final cache = ref.read(clientesBusquedaCacheProvider);
-    if (cache.seBusco) {
-      _busquedaCtrl.text = cache.texto;
-      _filtroEstado = cache.filtroEstado;
-      _resultados = List.of(cache.resultados);
-      _tienePrestamoReal.addAll(cache.tienePrestamoReal);
-      _seBusco = true;
-    }
-    if (cache.tieneStats) {
-      _total = cache.total;
-      _activos = cache.activos;
-      _pagosTarde = cache.pagosTarde;
-      _pendiente = cache.pendiente;
-      _nombresCobradores = Map.of(cache.nombresCobradores);
-      _cargandoStats = false;
+    // Guardar/restaurar en cache es SOLO para escritorio Web (ver
+    // esEscritorioWeb) -- ahi es donde se pidio que las pantallas ya
+    // visitadas no se sientan lentas al volver. En mobile/Windows se
+    // deja el comportamiento de siempre: cada entrada arranca en
+    // blanco y vuelve a cargar todo.
+    if (esEscritorioWeb(context)) {
+      // Si ya se habia buscado antes (y solo se salio y volvio a
+      // entrar a la pantalla), se restaura esa busqueda en vez de
+      // arrancar en blanco -- ver ClientesBusquedaCache. Igual con
+      // las estadisticas del encabezado: si ya las teniamos, se
+      // muestran de una (sin el parpadeo de "..." al volver) y se
+      // refrescan calladitas atras.
+      final cache = ref.read(clientesBusquedaCacheProvider);
+      if (cache.seBusco) {
+        _busquedaCtrl.text = cache.texto;
+        _filtroEstado = cache.filtroEstado;
+        _resultados = List.of(cache.resultados);
+        _tienePrestamoReal.addAll(cache.tienePrestamoReal);
+        _seBusco = true;
+      }
+      if (cache.tieneStats) {
+        _total = cache.total;
+        _activos = cache.activos;
+        _pagosTarde = cache.pagosTarde;
+        _pendiente = cache.pendiente;
+        _nombresCobradores = Map.of(cache.nombresCobradores);
+        _cargandoStats = false;
+      }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarStats();
@@ -85,6 +93,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   }
 
   void _guardarCache() {
+    if (!esEscritorioWeb(context)) return;
     final cache = ref.read(clientesBusquedaCacheProvider);
     cache
       ..texto = _busquedaCtrl.text
@@ -95,6 +104,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   }
 
   void _guardarStatsEnCache() {
+    if (!esEscritorioWeb(context)) return;
     final cache = ref.read(clientesBusquedaCacheProvider);
     cache
       ..tieneStats = true
@@ -136,13 +146,15 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     _esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = _esAdmin ? null : usuario?.uid;
 
-    // Si ya hay datos (de cache o de una carga anterior), el refresco
-    // pasa calladito: sin spinner ni "...", los numeros viejos se ven
-    // hasta que llegan los nuevos. Solo la PRIMERA carga real (sin
-    // nada que mostrar todavia) bloquea con el spinner.
-    final primeraVez = _cargandoStats;
+    // Solo en escritorio Web: si ya hay datos (de cache o de una carga
+    // anterior), el refresco pasa calladito, sin spinner ni "...". En
+    // mobile/Windows siempre se muestra el spinner, como siempre.
+    final primeraVez = !esEscritorioWeb(context) || _cargandoStats;
     if (primeraVez) {
-      setState(() => _errorStats = null);
+      setState(() {
+        _cargandoStats = true;
+        _errorStats = null;
+      });
     }
     final clienteRepo = ref.read(clienteRepositoryProvider);
     final prestamoRepo = ref.read(prestamoRepositoryProvider);

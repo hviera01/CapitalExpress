@@ -41,13 +41,15 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
   @override
   void initState() {
     super.initState();
-    // Si ya se habia cargado antes, se muestra de una en vez de
-    // arrancar en blanco -- ver ReportePrestamosCache. Se sigue
-    // refrescando abajo, pero calladito.
-    final cache = ref.read(reportePrestamosCacheProvider);
-    if (cache.tieneDatos) {
-      _prestamos = List.of(cache.prestamos);
-      _cargando = false;
+    // Cache es SOLO para escritorio Web -- ver ClientesListScreen
+    // (mismo patron). En mobile/Windows cada entrada arranca en
+    // blanco y recarga todo, como siempre.
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(reportePrestamosCacheProvider);
+      if (cache.tieneDatos) {
+        _prestamos = List.of(cache.prestamos);
+        _cargando = false;
+      }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargar());
   }
@@ -61,7 +63,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
-    final primeraVez = _prestamos.isEmpty;
+    final primeraVez = !esEscritorioWeb(context) || _prestamos.isEmpty;
     if (primeraVez) {
       setState(() => _cargando = true);
     }
@@ -73,10 +75,12 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
       _prestamos = prestamos;
       _cargando = false;
     });
-    final cache = ref.read(reportePrestamosCacheProvider);
-    cache
-      ..tieneDatos = true
-      ..prestamos = prestamos;
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(reportePrestamosCacheProvider);
+      cache
+        ..tieneDatos = true
+        ..prestamos = prestamos;
+    }
   }
 
   bool _pasaFecha(PrestamoModel p) {

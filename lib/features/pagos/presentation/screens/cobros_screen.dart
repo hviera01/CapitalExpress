@@ -75,14 +75,15 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   @override
   void initState() {
     super.initState();
-    // Si ya se habia calculado antes (y solo se salio y volvio a
-    // entrar a la pantalla), se muestra de una en vez de arrancar en
-    // blanco -- ver CobrosCache. El calculo real se repite igual
-    // abajo, pero calladito (sin tapar la lista con el spinner).
-    final cache = ref.read(cobrosCacheProvider);
-    if (cache.tieneDatos) {
-      _notificaciones = List.of(cache.notificaciones);
-      _cargando = false;
+    // Cache es SOLO para escritorio Web -- ver ClientesListScreen
+    // (mismo patron). En mobile/Windows cada entrada arranca en
+    // blanco y recalcula todo, como siempre.
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(cobrosCacheProvider);
+      if (cache.tieneDatos) {
+        _notificaciones = List.of(cache.notificaciones);
+        _cargando = false;
+      }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargar());
   }
@@ -96,10 +97,10 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
     final esAdmin = usuario?.rol == Roles.admin;
-    // Si ya hay datos (de cache o de una carga anterior), el refresco
-    // pasa calladito: sin spinner, la lista vieja se ve hasta que
-    // llega la nueva.
-    if (_notificaciones.isEmpty) {
+    // Solo en escritorio Web: si ya hay datos, el refresco pasa
+    // calladito, sin spinner. En mobile/Windows siempre se muestra el
+    // spinner, como siempre.
+    if (!esEscritorioWeb(context) || _notificaciones.isEmpty) {
       setState(() => _cargando = true);
     }
 
@@ -187,10 +188,12 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       _notificaciones = notificaciones;
       _cargando = false;
     });
-    final cache = ref.read(cobrosCacheProvider);
-    cache
-      ..tieneDatos = true
-      ..notificaciones = notificaciones;
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(cobrosCacheProvider);
+      cache
+        ..tieneDatos = true
+        ..notificaciones = notificaciones;
+    }
   }
 
   List<NotifCobro> get _filtradas {

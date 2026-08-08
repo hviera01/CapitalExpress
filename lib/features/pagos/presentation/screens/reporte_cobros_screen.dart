@@ -47,17 +47,20 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
   @override
   void initState() {
     super.initState();
-    // Si ya se habia cargado antes, se restaura el mismo filtro de
-    // fechas/cobrador y se muestra de una -- ver ReporteCobrosCache.
-    // Se sigue refrescando abajo, pero calladito.
-    final cache = ref.read(reporteCobrosCacheProvider);
-    if (cache.tieneDatos) {
-      _fechaInicio = cache.fechaInicio;
-      _fechaFin = cache.fechaFin;
-      _filtroCobradorUid = cache.filtroCobradorUid;
-      _pagos = List.of(cache.pagos);
-      _cobradores = List.of(cache.cobradores);
-      _cargando = false;
+    // Cache es SOLO para escritorio Web -- ver ClientesListScreen
+    // (mismo patron). En mobile/Windows cada entrada arranca en
+    // blanco y recarga todo (filtro de fechas incluido, siempre "hoy"
+    // por defecto), como siempre.
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(reporteCobrosCacheProvider);
+      if (cache.tieneDatos) {
+        _fechaInicio = cache.fechaInicio;
+        _fechaFin = cache.fechaFin;
+        _filtroCobradorUid = cache.filtroCobradorUid;
+        _pagos = List.of(cache.pagos);
+        _cobradores = List.of(cache.cobradores);
+        _cargando = false;
+      }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
@@ -84,7 +87,7 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
   }
 
   Future<void> _cargar() async {
-    final primeraVez = _pagos.isEmpty;
+    final primeraVez = !esEscritorioWeb(context) || _pagos.isEmpty;
     if (primeraVez) {
       setState(() => _cargando = true);
     }
@@ -97,14 +100,16 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
       _pagos = pagos;
       _cargando = false;
     });
-    final cache = ref.read(reporteCobrosCacheProvider);
-    cache
-      ..tieneDatos = true
-      ..fechaInicio = _fechaInicio
-      ..fechaFin = _fechaFin
-      ..filtroCobradorUid = _filtroCobradorUid
-      ..pagos = pagos
-      ..cobradores = _cobradores;
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(reporteCobrosCacheProvider);
+      cache
+        ..tieneDatos = true
+        ..fechaInicio = _fechaInicio
+        ..fechaFin = _fechaFin
+        ..filtroCobradorUid = _filtroCobradorUid
+        ..pagos = pagos
+        ..cobradores = _cobradores;
+    }
   }
 
   List<PagoModel> get _pagosFiltrados {

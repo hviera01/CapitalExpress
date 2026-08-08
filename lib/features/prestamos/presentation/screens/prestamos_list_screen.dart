@@ -47,22 +47,24 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
   @override
   void initState() {
     super.initState();
-    // Igual que Ver Clientes: si ya se habia buscado antes, se
-    // restaura esa busqueda en vez de arrancar en blanco -- ver
-    // PrestamosBusquedaCache.
-    final cache = ref.read(prestamosBusquedaCacheProvider);
-    if (cache.seBusco) {
-      _busquedaCtrl.text = cache.texto;
-      _filtroEstado = cache.filtroEstado;
-      _verEliminados = cache.verEliminados;
-      _resultados = List.of(cache.resultados);
-      _seBusco = true;
-    }
-    if (cache.tieneStats) {
-      _total = cache.total;
-      _activos = cache.activos;
-      _saldados = cache.saldados;
-      _cargandoStats = false;
+    // Guardar/restaurar en cache es SOLO para escritorio Web -- ver
+    // ClientesListScreen (mismo patron). En mobile/Windows cada
+    // entrada arranca en blanco y vuelve a cargar todo, como siempre.
+    if (esEscritorioWeb(context)) {
+      final cache = ref.read(prestamosBusquedaCacheProvider);
+      if (cache.seBusco) {
+        _busquedaCtrl.text = cache.texto;
+        _filtroEstado = cache.filtroEstado;
+        _verEliminados = cache.verEliminados;
+        _resultados = List.of(cache.resultados);
+        _seBusco = true;
+      }
+      if (cache.tieneStats) {
+        _total = cache.total;
+        _activos = cache.activos;
+        _saldados = cache.saldados;
+        _cargandoStats = false;
+      }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargarStats());
   }
@@ -74,6 +76,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
   }
 
   void _guardarCache() {
+    if (!esEscritorioWeb(context)) return;
     final cache = ref.read(prestamosBusquedaCacheProvider);
     cache
       ..texto = _busquedaCtrl.text
@@ -84,6 +87,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
   }
 
   void _guardarStatsEnCache() {
+    if (!esEscritorioWeb(context)) return;
     final cache = ref.read(prestamosBusquedaCacheProvider);
     cache
       ..tieneStats = true
@@ -97,12 +101,15 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
     final esAdmin = usuario?.rol == Roles.admin;
     _cobradorUid = esAdmin ? null : usuario?.uid;
 
-    // Si ya hay datos (de cache o de una carga anterior), el refresco
-    // pasa calladito: sin spinner, los numeros viejos se ven hasta que
-    // llegan los nuevos.
-    final primeraVez = _cargandoStats;
+    // Solo en escritorio Web: si ya hay datos, el refresco pasa
+    // calladito, sin spinner. En mobile/Windows siempre se muestra el
+    // spinner, como siempre.
+    final primeraVez = !esEscritorioWeb(context) || _cargandoStats;
     if (primeraVez) {
-      setState(() => _errorStats = null);
+      setState(() {
+        _cargandoStats = true;
+        _errorStats = null;
+      });
     }
     final repo = ref.read(prestamoRepositoryProvider);
     try {
