@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../constants/roles.dart';
 import '../providers/actualizacion_provider.dart';
 import '../providers/web_tabs_provider.dart';
 import '../routing/app_router.dart';
@@ -62,11 +61,13 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
         );
   }
 
-  /// Notificacion push de tickets nuevos: solo admin la recibe (ver
-  /// PushNotificationsService), igual criterio que el resto de este
-  /// widget -- se dispara apenas hay sesion iniciada.
+  /// Notificacion push de tickets nuevos: SOLO la recibe la cuenta que
+  /// se llama exactamente "admin" (no cualquier usuario con rol admin
+  /// -- puede haber varias cuentas admin, pero el push es personal,
+  /// solo para este dispositivo/usuario especifico). Ver
+  /// PushNotificationsService.
   void _iniciarPushSiEsAdmin() {
-    if (ref.read(authProvider).usuario?.rol == Roles.admin) {
+    if (ref.read(authProvider).usuario?.nombre.trim().toLowerCase() == 'admin') {
       PushNotificationsService.init();
     }
   }
