@@ -6,6 +6,7 @@ import '../providers/web_tabs_provider.dart';
 import '../services/web_refresh_service.dart';
 import '../theme/app_theme.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/tickets/providers/tickets_provider.dart';
 import 'ce_web_sections.dart';
 
 /// Chrome de escritorio Web: barra superior fija (marca, usuario,
@@ -71,6 +72,7 @@ class _CeWebShellState extends ConsumerState<CeWebShell> {
       'prestamos',
       'cobros',
       if (esAdmin) ...['solicitudes', 'reportes', 'usuarios', 'dispositivos', 'bitacora'] else 'mis-pagos',
+      'tickets',
     ];
 
     return Scaffold(
@@ -239,7 +241,7 @@ class _BarraSuperior extends StatelessWidget {
   }
 }
 
-class _MenuLateral extends StatelessWidget {
+class _MenuLateral extends ConsumerWidget {
   final List<String> idsMenu;
   final String tituloPanel;
   final IconData iconoPanel;
@@ -255,7 +257,8 @@ class _MenuLateral extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ticketsNoLeidos = ref.watch(ticketsNoLeidosProvider).value ?? 0;
     return Container(
       width: 230,
       color: CEColors.primary,
@@ -283,13 +286,26 @@ class _MenuLateral extends StatelessWidget {
                   children: [
                     Icon(icono, color: activo ? Colors.white : Colors.white60, size: 19),
                     const SizedBox(width: 12),
-                    Text(titulo,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: activo ? Colors.white : Colors.white60,
-                          fontSize: 13,
-                          fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
-                        )),
+                    Flexible(
+                      child: Text(titulo,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: activo ? Colors.white : Colors.white60,
+                            fontSize: 13,
+                            fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+                          )),
+                    ),
+                    if (id == 'tickets' && ticketsNoLeidos > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration:
+                            BoxDecoration(color: CEColors.danger, borderRadius: BorderRadius.circular(20)),
+                        child: Text('$ticketsNoLeidos',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -34,6 +34,9 @@ import '../../features/usuarios/presentation/screens/usuarios_list_screen.dart';
 import '../../features/usuarios/presentation/screens/usuario_form_screen.dart';
 import '../../features/dispositivos/presentation/screens/dispositivos_screen.dart';
 import '../../features/bitacora/presentation/screens/bitacora_screen.dart';
+import '../../features/tickets/presentation/screens/tickets_screen.dart';
+import '../../features/tickets/presentation/screens/crear_ticket_screen.dart';
+import '../../features/tickets/presentation/screens/ticket_detalle_screen.dart';
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
@@ -203,6 +206,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/dispositivos', builder: (context, state) => const DispositivosScreen()),
       GoRoute(path: '/bitacora', builder: (context, state) => const BitacoraScreen()),
+      GoRoute(
+        path: '/tickets',
+        builder: (context, state) => const TicketsScreen(),
+        routes: [
+          GoRoute(
+            path: 'nuevo',
+            builder: (context, state) => const CrearTicketScreen(),
+          ),
+          GoRoute(
+            path: ':id',
+            builder: (context, state) => TicketDetalleScreen(ticketId: state.pathParameters['id']!),
+          ),
+        ],
+      ),
       GoRoute(
         path: '/reportes',
         builder: (context, state) => const ReportesScreen(),

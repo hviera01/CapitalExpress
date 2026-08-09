@@ -10,6 +10,7 @@ import '../services/web_refresh_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/actualizacion_dialog.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/tickets/providers/tickets_provider.dart';
 
 /// Menu lateral con todas las secciones de la app, para poder saltar de
 /// una pantalla a otra sin tener que volver primero al panel principal.
@@ -92,6 +93,7 @@ class CeNavDrawer extends ConsumerWidget {
                         () => ir('/bitacora')),
                   ] else
                     _item(context, Icons.payments_outlined, 'Mis Pagos', () => ir('/reportes/cobros')),
+                  _itemTickets(context, ref, () => ir('/tickets')),
                 ],
               ),
             ),
@@ -158,6 +160,26 @@ class CeNavDrawer extends ConsumerWidget {
     return ListTile(
       leading: Icon(icono, color: Colors.white),
       title: Text(texto, style: const TextStyle(color: Colors.white)),
+      onTap: onTap,
+    );
+  }
+
+  /// "Tickets" con contador de no leidos (solo admin lo ve distinto de
+  /// cero, ver ticketsNoLeidosProvider) -- visible para todos, admin y
+  /// cobrador.
+  Widget _itemTickets(BuildContext context, WidgetRef ref, VoidCallback onTap) {
+    final noLeidos = ref.watch(ticketsNoLeidosProvider).value ?? 0;
+    return ListTile(
+      leading: const Icon(Icons.confirmation_number_outlined, color: Colors.white),
+      title: const Text('Tickets', style: TextStyle(color: Colors.white)),
+      trailing: noLeidos > 0
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(color: CEColors.danger, borderRadius: BorderRadius.circular(20)),
+              child: Text('$noLeidos',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+            )
+          : null,
       onTap: onTap,
     );
   }

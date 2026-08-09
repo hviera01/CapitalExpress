@@ -129,11 +129,22 @@ class ClienteRepository {
     return doc.id;
   }
 
-  Future<void> actualizar(ClienteModel cliente) async {
+  Future<void> actualizar(
+    ClienteModel cliente, {
+    required String usuarioUid,
+    required String usuarioNombre,
+  }) async {
     await _col.doc(cliente.id).update({
       ...cliente.toMap(),
       'ultimaActividad': FieldValue.serverTimestamp(),
     });
+    BitacoraRepository().registrar(
+      accion: 'editar_cliente',
+      entidadTipo: 'cliente',
+      descripcion: cliente.nombre.isNotEmpty ? cliente.nombre : 'Cliente (ID: ${cliente.id})',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   Future<void> eliminar(

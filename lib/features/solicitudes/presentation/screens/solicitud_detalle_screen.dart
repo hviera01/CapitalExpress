@@ -8,6 +8,7 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../../core/widgets/visor_foto_zoom.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/data/recibo_prestamo_service.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../data/aprobar_solicitud.dart';
@@ -28,10 +29,13 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
   Future<void> _aceptar(SolicitudModel s) async {
     setState(() => _procesando = true);
     try {
+      final usuario = ref.read(authProvider).usuario!;
       final resultado = await aprobarSolicitud(
         prestamoRepo: ref.read(prestamoRepositoryProvider),
         solicitudRepo: ref.read(solicitudRepositoryProvider),
         s: s,
+        usuarioUid: usuario.uid,
+        usuarioNombre: usuario.nombre,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,7 +80,11 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
 
     setState(() => _procesando = true);
     try {
-      await ref.read(solicitudRepositoryProvider).rechazar(s.id);
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(solicitudRepositoryProvider).rechazar(s.id,
+          usuarioUid: usuario.uid,
+          usuarioNombre: usuario.nombre,
+          descripcionSolicitud: '${s.cliente} - ${formatearLempiras(s.monto)}');
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Solicitud rechazada')));

@@ -112,6 +112,16 @@ class BitacoraScreen extends ConsumerWidget {
       return (Icons.delete_outline, CEColors.danger);
     case 'eliminar_pago':
       return (Icons.money_off_outlined, CEColors.danger);
+    case 'editar_cliente':
+      return (Icons.person_outline, CEColors.warning);
+    case 'editar_prestamo':
+      return (Icons.edit_outlined, CEColors.warning);
+    case 'editar_usuario':
+      return (Icons.manage_accounts_outlined, CEColors.warning);
+    case 'aprobar_solicitud':
+      return (Icons.check_circle_outline, CEColors.success);
+    case 'rechazar_solicitud':
+      return (Icons.cancel_outlined, CEColors.danger);
     default:
       return (Icons.history, CEColors.textSecondary);
   }
@@ -127,6 +137,16 @@ String _tituloAccion(String accion) {
       return 'Préstamo eliminado permanentemente';
     case 'eliminar_pago':
       return 'Pago eliminado';
+    case 'editar_cliente':
+      return 'Cliente editado';
+    case 'editar_prestamo':
+      return 'Préstamo editado';
+    case 'editar_usuario':
+      return 'Usuario editado';
+    case 'aprobar_solicitud':
+      return 'Solicitud aprobada';
+    case 'rechazar_solicitud':
+      return 'Solicitud rechazada';
     default:
       return 'Movimiento';
   }

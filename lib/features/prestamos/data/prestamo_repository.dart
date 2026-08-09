@@ -385,11 +385,24 @@ class PrestamoRepository {
     return docRef.id;
   }
 
-  Future<void> actualizar(String id, Map<String, dynamic> datos) async {
+  Future<void> actualizar(
+    String id,
+    Map<String, dynamic> datos, {
+    required String usuarioUid,
+    required String usuarioNombre,
+    String descripcionPrestamo = '',
+  }) async {
     await _col.doc(id).update({
       ...datos,
       'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
     });
+    BitacoraRepository().registrar(
+      accion: 'editar_prestamo',
+      entidadTipo: 'prestamo',
+      descripcion: descripcionPrestamo.isNotEmpty ? descripcionPrestamo : 'Préstamo (ID: $id)',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   Future<void> marcarEliminado(

@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/models/usuario_model.dart';
 import '../../../core/models/usuario_simple.dart';
+import '../../bitacora/data/bitacora_repository.dart';
 
 class UsuarioRepository {
   final _col = FirebaseFirestore.instance.collection('usuarios');
@@ -42,8 +43,19 @@ class UsuarioRepository {
     return uid;
   }
 
-  Future<void> actualizar(UsuarioModel usuario) async {
+  Future<void> actualizar(
+    UsuarioModel usuario, {
+    required String usuarioUid,
+    required String usuarioNombre,
+  }) async {
     await _col.doc(usuario.uid).update(usuario.toMap());
+    BitacoraRepository().registrar(
+      accion: 'editar_usuario',
+      entidadTipo: 'usuario',
+      descripcion: usuario.nombre.isNotEmpty ? usuario.nombre : 'Usuario (UID: ${usuario.uid})',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   Future<void> actualizarEstado(String uid, String estado) async {

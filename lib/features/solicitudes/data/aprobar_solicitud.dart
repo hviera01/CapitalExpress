@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/solicitud_model.dart';
+import '../../../core/utils/currency_utils.dart';
 import '../../prestamos/data/prestamo_repository.dart';
 import 'solicitud_repository.dart';
 
@@ -26,6 +27,8 @@ Future<SolicitudAprobada> aprobarSolicitud({
   required PrestamoRepository prestamoRepo,
   required SolicitudRepository solicitudRepo,
   required SolicitudModel s,
+  required String usuarioUid,
+  required String usuarioNombre,
 }) async {
   final numeroPrestamo = await prestamoRepo.generarNumeroPrestamo(s.cliente);
 
@@ -81,7 +84,12 @@ Future<SolicitudAprobada> aprobarSolicitud({
     // best-effort, no debe tumbar la aprobacion si esto falla.
   }
 
-  await solicitudRepo.aprobar(s.id);
+  await solicitudRepo.aprobar(
+    s.id,
+    usuarioUid: usuarioUid,
+    usuarioNombre: usuarioNombre,
+    descripcionSolicitud: '${s.cliente} - ${formatearLempiras(s.monto)}',
+  );
 
   return SolicitudAprobada(prestamoId: prestamoId, numeroPrestamo: numeroPrestamo);
 }

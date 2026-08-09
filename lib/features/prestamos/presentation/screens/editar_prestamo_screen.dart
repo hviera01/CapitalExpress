@@ -5,6 +5,7 @@ import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../providers/prestamos_provider.dart';
 
 const _estadosPrestamo = ['activo', 'mora', 'saldado'];
@@ -75,13 +76,21 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
     try {
-      await ref.read(prestamoRepositoryProvider).actualizar(widget.prestamoId, {
-        'lugar': _lugarCtrl.text.trim(),
-        'garantia': _garantiaCtrl.text.trim(),
-        'observaciones': _observacionesCtrl.text.trim(),
-        'plazo': _plazo,
-        'estado': _estado,
-      });
+      final usuario = ref.read(authProvider).usuario!;
+      final p = _prestamo;
+      await ref.read(prestamoRepositoryProvider).actualizar(
+        widget.prestamoId,
+        {
+          'lugar': _lugarCtrl.text.trim(),
+          'garantia': _garantiaCtrl.text.trim(),
+          'observaciones': _observacionesCtrl.text.trim(),
+          'plazo': _plazo,
+          'estado': _estado,
+        },
+        usuarioUid: usuario.uid,
+        usuarioNombre: usuario.nombre,
+        descripcionPrestamo: p != null ? 'N° ${p.numeroPrestamo} - ${p.cliente}' : '',
+      );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

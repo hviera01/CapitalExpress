@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/solicitud_model.dart';
 import '../../../core/utils/prestamo_calculos.dart';
+import '../../bitacora/data/bitacora_repository.dart';
 
 class SolicitudRepository {
   final _col = FirebaseFirestore.instance.collection('solicitudes_prestamo');
@@ -110,14 +111,42 @@ class SolicitudRepository {
   /// Prestamo) y borra la solicitud -- igual que
   /// SolicitudesAdminScreen.kt (no se guarda un historial de aprobadas,
   /// se elimina el doc al aprobar).
-  Future<void> aprobar(String solicitudId) async {
+  Future<void> aprobar(
+    String solicitudId, {
+    required String usuarioUid,
+    required String usuarioNombre,
+    String descripcionSolicitud = '',
+  }) async {
     await _col.doc(solicitudId).delete();
+    BitacoraRepository().registrar(
+      accion: 'aprobar_solicitud',
+      entidadTipo: 'solicitud',
+      descripcion: descripcionSolicitud.isNotEmpty
+          ? descripcionSolicitud
+          : 'Solicitud (ID: $solicitudId)',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   /// Rechazar: borrado directo, sin dejar rastro -- igual que el
   /// original (no existe un estado "rechazada" persistido).
-  Future<void> rechazar(String solicitudId) async {
+  Future<void> rechazar(
+    String solicitudId, {
+    required String usuarioUid,
+    required String usuarioNombre,
+    String descripcionSolicitud = '',
+  }) async {
     await _col.doc(solicitudId).delete();
+    BitacoraRepository().registrar(
+      accion: 'rechazar_solicitud',
+      entidadTipo: 'solicitud',
+      descripcion: descripcionSolicitud.isNotEmpty
+          ? descripcionSolicitud
+          : 'Solicitud (ID: $solicitudId)',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   Future<int> contarPendientes({String? cobradorUid}) async {

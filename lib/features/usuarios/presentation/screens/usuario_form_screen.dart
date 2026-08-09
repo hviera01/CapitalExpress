@@ -8,6 +8,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../../core/widgets/selector_foto.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../providers/usuarios_provider.dart';
 
 const _roles = ['admin', 'cobrador'];
@@ -123,7 +124,8 @@ class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
       if (_esNuevo) {
         await repo.crear(usuario);
       } else {
-        await repo.actualizar(usuario);
+        final actor = ref.read(authProvider).usuario!;
+        await repo.actualizar(usuario, usuarioUid: actor.uid, usuarioNombre: actor.nombre);
       }
       ref.invalidate(cobradoresCacheProvider);
 

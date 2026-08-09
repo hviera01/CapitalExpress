@@ -229,7 +229,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
       if (_clienteOriginal == null) {
         await repo.crear(cliente);
       } else {
-        await repo.actualizar(cliente);
+        await repo.actualizar(cliente, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
       }
 
       if (mounted) Navigator.of(context).pop();

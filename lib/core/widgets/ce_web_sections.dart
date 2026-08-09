@@ -5,6 +5,7 @@ import '../providers/web_tabs_provider.dart';
 import 'ce_web_shell.dart';
 import '../../features/bitacora/presentation/screens/bitacora_screen.dart';
 import '../../features/clientes/presentation/screens/clientes_list_screen.dart';
+import '../../features/tickets/presentation/screens/tickets_screen.dart';
 import '../../features/dispositivos/presentation/screens/dispositivos_screen.dart';
 import '../../features/pagos/presentation/screens/cobros_screen.dart';
 import '../../features/pagos/presentation/screens/reporte_cobros_screen.dart';
@@ -88,6 +89,12 @@ const Map<String, CeSeccionWeb> ceSeccionesWeb = {
     icono: Icons.payments_outlined,
     construir: _misPagos,
   ),
+  'tickets': CeSeccionWeb(
+    id: 'tickets',
+    titulo: 'Tickets',
+    icono: Icons.confirmation_number_outlined,
+    construir: _tickets,
+  ),
 };
 
 Widget _clientes(BuildContext context) => const ClientesListScreen();
@@ -99,6 +106,7 @@ Widget _usuarios(BuildContext context) => const UsuariosListScreen();
 Widget _dispositivos(BuildContext context) => const DispositivosScreen();
 Widget _bitacora(BuildContext context) => const BitacoraScreen();
 Widget _misPagos(BuildContext context) => const ReporteCobrosScreen();
+Widget _tickets(BuildContext context) => const TicketsScreen();
 
 /// Abre (o enfoca, si ya estaba abierta) una seccion como pestaña --
 /// usar esto en vez de `context.push('/ruta')` para cualquier link
