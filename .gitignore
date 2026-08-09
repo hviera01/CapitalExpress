@@ -46,3 +46,7 @@ app.*.map.json
 
 # APKs generados para publicar como release (van a GitHub Releases, no al repo)
 *.apk
+
+# Cloud Functions (functions/index.js SI se versiona, solo el output)
+functions/node_modules
+functions/.runtimeconfig.json

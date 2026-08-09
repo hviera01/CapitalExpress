@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/roles.dart';
 import '../providers/actualizacion_provider.dart';
 import '../providers/web_tabs_provider.dart';
 import '../routing/app_router.dart';
 import '../services/actualizacion_service.dart';
+import '../services/push_notifications_service.dart';
 import '../version_app.dart';
 import '../widgets/actualizacion_dialog.dart';
 import '../../features/auth/providers/auth_provider.dart';
@@ -60,6 +62,15 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
         );
   }
 
+  /// Notificacion push de tickets nuevos: solo admin la recibe (ver
+  /// PushNotificationsService), igual criterio que el resto de este
+  /// widget -- se dispara apenas hay sesion iniciada.
+  void _iniciarPushSiEsAdmin() {
+    if (ref.read(authProvider).usuario?.rol == Roles.admin) {
+      PushNotificationsService.init();
+    }
+  }
+
   void _iniciarChequeoActualizacion() {
     if (!ActualizacionService.aplica) return;
     _chequearActualizacion();
@@ -85,6 +96,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
     if (ref.read(authProvider).autenticado) {
       _iniciarChequeoActualizacion();
       _reportarDispositivo();
+      _iniciarPushSiEsAdmin();
     }
   }
 
@@ -103,6 +115,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
         if (previous?.autenticado != true) {
           _iniciarChequeoActualizacion();
           _reportarDispositivo();
+          _iniciarPushSiEsAdmin();
         }
       } else {
         _timer?.cancel();

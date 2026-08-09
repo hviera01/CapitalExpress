@@ -2,6 +2,9 @@
     <!-- Requerido para instalar la actualizacion descargada (ver
          ActualizacionService.descargarEInstalar) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Requerido en Android 13+ para mostrar notificaciones push
+         (ver PushNotificationsService) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Capital Express2"
         android:name="${applicationName}"
@@ -33,6 +36,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Canal por defecto para notificaciones push cuando la app
+             esta en segundo plano/cerrada (ver PushNotificationsService,
+             mismo id de canal 'tickets') -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="tickets" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
