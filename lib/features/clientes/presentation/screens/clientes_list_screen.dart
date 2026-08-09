@@ -471,7 +471,9 @@ class _TablaClientes extends ConsumerWidget {
     );
     if (ok != true) return;
     try {
-      await ref.read(clienteRepositoryProvider).eliminar(c.id);
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(clienteRepositoryProvider).eliminar(c.id,
+          nombreCliente: c.nombre, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
       onEliminado(c);
       if (context.mounted) {
         ScaffoldMessenger.of(context)
@@ -681,7 +683,9 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
         );
         if (ok == true) {
           try {
-            await ref.read(clienteRepositoryProvider).eliminar(c.id);
+            final usuario = ref.read(authProvider).usuario!;
+            await ref.read(clienteRepositoryProvider).eliminar(c.id,
+                nombreCliente: c.nombre, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
             widget.onEliminado();
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(

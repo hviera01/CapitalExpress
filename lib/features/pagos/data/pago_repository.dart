@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/pago_model.dart';
 import '../../../core/models/prestamo_model.dart';
+import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/cuotas_calculos.dart';
+import '../../bitacora/data/bitacora_repository.dart';
 
 class PagoRegistrado {
   final PagoModel pago;
@@ -152,11 +154,23 @@ class PagoRepository {
   /// Excepcion: si el prestamo ya estaba "saldado" ese historico se
   /// habia puesto en 0 -- no se puede reconstruir exactamente, queda en
   /// 0 (limitacion conocida, caso raro: borrar el pago que saldo todo).
-  Future<void> eliminarConReversion(PagoModel pago) async {
+  Future<void> eliminarConReversion(
+    PagoModel pago, {
+    required String usuarioUid,
+    required String usuarioNombre,
+  }) async {
     final db = FirebaseFirestore.instance;
     final prestamoRef = db.collection('prestamos').doc(pago.prestamoId);
 
     await _col.doc(pago.docId).delete();
+    BitacoraRepository().registrar(
+      accion: 'eliminar_pago',
+      entidadTipo: 'pago',
+      descripcion:
+          'Pago de ${formatearLempiras(pago.total)} - ${pago.clienteNombre} (N° ${pago.numeroPrestamo})',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
 
     final prestamoSnap = await prestamoRef.get();
     if (!prestamoSnap.exists) return;

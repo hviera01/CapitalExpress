@@ -36,11 +36,14 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
   late final Stream<PrestamoModel?> _stream =
       ref.read(prestamoRepositoryProvider).streamPorId(widget.prestamoId);
 
-  Future<void> _eliminar() async {
+  Future<void> _eliminar(PrestamoModel p) async {
     final usuario = ref.read(authProvider).usuario!;
-    await ref
-        .read(prestamoRepositoryProvider)
-        .marcarEliminado(widget.prestamoId, eliminadoPor: usuario.nombre);
+    await ref.read(prestamoRepositoryProvider).marcarEliminado(
+          widget.prestamoId,
+          eliminadoPor: usuario.nombre,
+          usuarioUid: usuario.uid,
+          descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}',
+        );
   }
 
   Future<void> _restaurar() async {
@@ -144,7 +147,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             IconButton(
               icon: Icon(p.eliminado ? Icons.restore_from_trash_outlined : Icons.delete_outline),
               tooltip: p.eliminado ? 'Restaurar' : 'Eliminar',
-              onPressed: p.eliminado ? _restaurar : _eliminar,
+              onPressed: p.eliminado ? _restaurar : () => _eliminar(p),
             ),
         ],
       ),

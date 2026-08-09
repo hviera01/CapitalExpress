@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../data/recibo_pago_service.dart';
 import '../../providers/pagos_provider.dart';
 
@@ -48,7 +49,9 @@ class PagoTile extends ConsumerWidget {
     if (ok != true) return;
 
     try {
-      await ref.read(pagoRepositoryProvider).eliminarConReversion(pago);
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(pagoRepositoryProvider).eliminarConReversion(pago,
+          usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
       onEliminado();
       if (context.mounted) {
         ScaffoldMessenger.of(context)
@@ -174,7 +177,9 @@ class TablaPagos extends ConsumerWidget {
     );
     if (ok != true) return;
     try {
-      await ref.read(pagoRepositoryProvider).eliminarConReversion(pago);
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(pagoRepositoryProvider).eliminarConReversion(pago,
+          usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
       onEliminado(pago);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pago eliminado')));

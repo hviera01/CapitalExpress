@@ -88,6 +88,8 @@ class CeNavDrawer extends ConsumerWidget {
                     _item(context, Icons.bar_chart_outlined, 'Reportes', () => ir('/reportes')),
                     _item(context, Icons.manage_accounts_outlined, 'Usuarios', () => ir('/usuarios')),
                     _item(context, Icons.devices_outlined, 'Dispositivos', () => ir('/dispositivos')),
+                    _item(context, Icons.shield_outlined, 'Bitácora de Seguridad',
+                        () => ir('/bitacora')),
                   ] else
                     _item(context, Icons.payments_outlined, 'Mis Pagos', () => ir('/reportes/cobros')),
                 ],

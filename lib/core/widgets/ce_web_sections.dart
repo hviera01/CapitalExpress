@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/web_tabs_provider.dart';
 import 'ce_web_shell.dart';
+import '../../features/bitacora/presentation/screens/bitacora_screen.dart';
 import '../../features/clientes/presentation/screens/clientes_list_screen.dart';
 import '../../features/dispositivos/presentation/screens/dispositivos_screen.dart';
 import '../../features/pagos/presentation/screens/cobros_screen.dart';
@@ -75,6 +76,12 @@ const Map<String, CeSeccionWeb> ceSeccionesWeb = {
     icono: Icons.devices_outlined,
     construir: _dispositivos,
   ),
+  'bitacora': CeSeccionWeb(
+    id: 'bitacora',
+    titulo: 'Bitácora',
+    icono: Icons.shield_outlined,
+    construir: _bitacora,
+  ),
   'mis-pagos': CeSeccionWeb(
     id: 'mis-pagos',
     titulo: 'Mis Pagos',
@@ -90,6 +97,7 @@ Widget _solicitudes(BuildContext context) => const SolicitudesScreen();
 Widget _reportes(BuildContext context) => const ReportesScreen();
 Widget _usuarios(BuildContext context) => const UsuariosListScreen();
 Widget _dispositivos(BuildContext context) => const DispositivosScreen();
+Widget _bitacora(BuildContext context) => const BitacoraScreen();
 Widget _misPagos(BuildContext context) => const ReporteCobrosScreen();
 
 /// Abre (o enfoca, si ya estaba abierta) una seccion como pestaña --

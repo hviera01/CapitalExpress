@@ -175,8 +175,9 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
       ),
     );
     if (ok == true) {
-      final borrados =
-          await ref.read(prestamoRepositoryProvider).eliminarTodosLosEliminados(cobradorUid: _cobradorUid);
+      final usuario = ref.read(authProvider).usuario!;
+      final borrados = await ref.read(prestamoRepositoryProvider).eliminarTodosLosEliminados(
+          cobradorUid: _cobradorUid, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('$borrados préstamo(s) borrados')));
@@ -483,7 +484,10 @@ class _TablaPrestamos extends ConsumerWidget {
       await repo.restaurar(p.prestamoId);
     } else {
       final usuario = ref.read(authProvider).usuario!;
-      await repo.marcarEliminado(p.prestamoId, eliminadoPor: usuario.nombre);
+      await repo.marcarEliminado(p.prestamoId,
+          eliminadoPor: usuario.nombre,
+          usuarioUid: usuario.uid,
+          descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}');
     }
     onEliminado(p);
   }
@@ -505,7 +509,11 @@ class _TablaPrestamos extends ConsumerWidget {
       ),
     );
     if (ok == true) {
-      await ref.read(prestamoRepositoryProvider).eliminarPermanente(p.prestamoId);
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(prestamoRepositoryProvider).eliminarPermanente(p.prestamoId,
+          usuarioUid: usuario.uid,
+          usuarioNombre: usuario.nombre,
+          descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}');
       onEliminado(p);
     }
   }
@@ -779,7 +787,10 @@ class _PrestamoCard extends ConsumerWidget {
                             } else {
                               final usuario = ref.read(authProvider).usuario!;
                               await repo.marcarEliminado(prestamo.prestamoId,
-                                  eliminadoPor: usuario.nombre);
+                                  eliminadoPor: usuario.nombre,
+                                  usuarioUid: usuario.uid,
+                                  descripcionPrestamo:
+                                      'N° ${prestamo.numeroPrestamo} - ${prestamo.cliente}');
                             }
                             onEliminado();
                           },
@@ -815,9 +826,13 @@ class _PrestamoCard extends ConsumerWidget {
                           ),
                         );
                         if (ok == true) {
-                          await ref
-                              .read(prestamoRepositoryProvider)
-                              .eliminarPermanente(prestamo.prestamoId);
+                          final usuario = ref.read(authProvider).usuario!;
+                          await ref.read(prestamoRepositoryProvider).eliminarPermanente(
+                              prestamo.prestamoId,
+                              usuarioUid: usuario.uid,
+                              usuarioNombre: usuario.nombre,
+                              descripcionPrestamo:
+                                  'N° ${prestamo.numeroPrestamo} - ${prestamo.cliente}');
                           onEliminado();
                         }
                       },

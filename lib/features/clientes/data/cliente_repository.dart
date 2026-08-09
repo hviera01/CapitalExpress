@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/cliente_model.dart';
 import '../../../core/utils/normalizar_texto.dart';
+import '../../bitacora/data/bitacora_repository.dart';
 
 class ClienteRepository {
   final _col = FirebaseFirestore.instance.collection('clientes');
@@ -135,8 +136,20 @@ class ClienteRepository {
     });
   }
 
-  Future<void> eliminar(String id) async {
+  Future<void> eliminar(
+    String id, {
+    String nombreCliente = '',
+    required String usuarioUid,
+    required String usuarioNombre,
+  }) async {
     await _col.doc(id).delete();
+    BitacoraRepository().registrar(
+      accion: 'eliminar_cliente',
+      entidadTipo: 'cliente',
+      descripcion: nombreCliente.isNotEmpty ? nombreCliente : 'Cliente (ID: $id)',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   /// Reasigna el cobrador de un cliente puntual (usado por "Asignar

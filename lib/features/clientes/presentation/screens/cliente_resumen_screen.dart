@@ -16,6 +16,7 @@ import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../../core/widgets/visor_foto_zoom.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
@@ -87,7 +88,9 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
       ),
     );
     if (ok == true) {
-      await ref.read(clienteRepositoryProvider).eliminar(widget.clienteId);
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(clienteRepositoryProvider).eliminar(widget.clienteId,
+          nombreCliente: nombre, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
       if (mounted) Navigator.of(context).pop();
     }
   }

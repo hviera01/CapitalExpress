@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/normalizar_texto.dart';
+import '../../bitacora/data/bitacora_repository.dart';
 
 class PrestamoRepository {
   final _db = FirebaseFirestore.instance;
@@ -391,12 +392,24 @@ class PrestamoRepository {
     });
   }
 
-  Future<void> marcarEliminado(String id, {required String eliminadoPor}) async {
+  Future<void> marcarEliminado(
+    String id, {
+    required String eliminadoPor,
+    required String usuarioUid,
+    String descripcionPrestamo = '',
+  }) async {
     await _col.doc(id).update({
       'eliminado': true,
       'eliminadoPor': eliminadoPor,
       'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
     });
+    BitacoraRepository().registrar(
+      accion: 'eliminar_prestamo',
+      entidadTipo: 'prestamo',
+      descripcion: descripcionPrestamo.isNotEmpty ? descripcionPrestamo : 'Préstamo (ID: $id)',
+      usuarioUid: usuarioUid,
+      usuarioNombre: eliminadoPor,
+    );
   }
 
   Future<void> restaurar(String id) async {
@@ -410,14 +423,30 @@ class PrestamoRepository {
   /// Borra el documento de verdad (a diferencia de marcarEliminado, que
   /// es un soft-delete). Se usa desde el modo "Ver eliminados" para
   /// purgar definitivamente.
-  Future<void> eliminarPermanente(String id) async {
+  Future<void> eliminarPermanente(
+    String id, {
+    required String usuarioUid,
+    required String usuarioNombre,
+    String descripcionPrestamo = '',
+  }) async {
     await _col.doc(id).delete();
+    BitacoraRepository().registrar(
+      accion: 'eliminar_prestamo_permanente',
+      entidadTipo: 'prestamo',
+      descripcion: descripcionPrestamo.isNotEmpty ? descripcionPrestamo : 'Préstamo (ID: $id)',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   /// Purga TODOS los prestamos ya marcados como eliminados (soft-delete)
   /// del alcance dado. Usa batches de 400 escrituras (limite de Firestore
   /// es 500 por batch).
-  Future<int> eliminarTodosLosEliminados({String? cobradorUid}) async {
+  Future<int> eliminarTodosLosEliminados({
+    String? cobradorUid,
+    required String usuarioUid,
+    required String usuarioNombre,
+  }) async {
     Query<Map<String, dynamic>> query = _col.where('eliminado', isEqualTo: true);
     if (cobradorUid != null) {
       query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
@@ -432,6 +461,15 @@ class PrestamoRepository {
         borrados++;
       }
       await batch.commit();
+    }
+    if (borrados > 0) {
+      BitacoraRepository().registrar(
+        accion: 'eliminar_prestamo_permanente',
+        entidadTipo: 'prestamo',
+        descripcion: 'Purga masiva: $borrados préstamo(s) eliminados definitivamente',
+        usuarioUid: usuarioUid,
+        usuarioNombre: usuarioNombre,
+      );
     }
     return borrados;
   }
