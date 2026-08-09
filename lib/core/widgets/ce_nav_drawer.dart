@@ -28,7 +28,7 @@ class CeNavDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
 
     void ir(String ruta) {
       Navigator.of(context).pop();

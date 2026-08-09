@@ -63,7 +63,7 @@ class _ReporteClientesScreenState extends ConsumerState<ReporteClientesScreen> {
 
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
-    _esAdmin = usuario?.rol == Roles.admin;
+    _esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final cobradorUid = _esAdmin ? null : usuario?.uid;
 
     setState(() => _cargando = true);

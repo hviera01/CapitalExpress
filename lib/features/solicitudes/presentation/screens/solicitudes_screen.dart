@@ -23,7 +23,7 @@ class SolicitudesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final f = DateFormat('dd/MM/yyyy hh:mm a');
 
     if (!esAdmin) {

@@ -101,7 +101,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
 
   Future<void> _cargarStats() async {
     final usuario = ref.read(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     _cobradorUid = esAdmin ? null : usuario?.uid;
 
     // Solo en escritorio Web: si ya hay datos, el refresco pasa
@@ -188,7 +188,7 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final esAdmin = ref.watch(authProvider).usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(ref.watch(authProvider).usuario?.rol);
     final hayFiltros = _busquedaCtrl.text.isNotEmpty || _filtroEstado != 'Todos' || _verEliminados;
 
     return CeScaffold(
@@ -665,7 +665,7 @@ class _PrestamoCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
 
     return CeCard(
       padding: EdgeInsets.zero,

@@ -124,7 +124,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
 
   Widget _contenido(BuildContext context, PrestamoModel p) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final formatoFecha = DateFormat('dd/MM/yyyy');
     final colorEstado = _colorEstado(p.estado);
 

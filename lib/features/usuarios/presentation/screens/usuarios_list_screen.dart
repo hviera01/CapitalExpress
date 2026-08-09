@@ -11,12 +11,13 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
+import '../../../../core/constants/roles.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../providers/usuarios_cache.dart';
 import '../../providers/usuarios_provider.dart';
 import 'usuario_form_screen.dart';
 
-const _rolesFiltro = ['todos', 'admin', 'cobrador'];
+const _rolesFiltro = ['todos', Roles.admin, Roles.cobrador, Roles.desarrollador];
 const _estadosFiltro = ['todos', 'activo', 'inactivo'];
 
 /// Ver Usuarios (staff interno) -- coleccion chica, se carga completa de

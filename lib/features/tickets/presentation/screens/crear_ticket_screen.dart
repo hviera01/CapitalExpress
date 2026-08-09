@@ -59,7 +59,7 @@ class _CrearTicketScreenState extends ConsumerState<CrearTicketScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final esAdmin = ref.watch(authProvider).usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(ref.watch(authProvider).usuario?.rol);
 
     return CeScaffold(
       maxWidth: 720,

@@ -62,7 +62,7 @@ class _HistorialPagosPrestamoScreenState extends ConsumerState<HistorialPagosPre
 
   @override
   Widget build(BuildContext context) {
-    final esAdmin = ref.watch(authProvider).usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(ref.watch(authProvider).usuario?.rol);
     return StreamBuilder<List<PagoModel>>(
       stream: _stream,
       builder: (context, snapshot) {

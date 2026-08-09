@@ -79,7 +79,7 @@ class _VerCuotasScreenState extends ConsumerState<VerCuotasScreen> {
   }
 
   Widget _contenido(BuildContext context, PrestamoModel prestamo, List<CuotaInfo> cuotas) {
-    final esAdmin = ref.watch(authProvider).usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(ref.watch(authProvider).usuario?.rol);
     final completadas = cuotas.where((c) => c.estado == EstadoCuota.pagada).length;
     final parciales = cuotas.where((c) => c.estado == EstadoCuota.parcial).length;
     final pendientes = cuotas.where((c) => c.estado == EstadoCuota.pendiente).length;

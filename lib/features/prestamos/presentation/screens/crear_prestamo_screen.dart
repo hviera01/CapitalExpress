@@ -229,7 +229,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
   @override
   Widget build(BuildContext context) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final clientesAsync =
         ref.watch(clientesStreamProvider(esAdmin ? null : usuario?.uid));
     final calculo = _calculo;

@@ -99,7 +99,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
 
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     // Solo en escritorio Web: si ya hay datos, el refresco pasa
     // calladito, sin spinner. En mobile/Windows siempre se muestra el
     // spinner, como siempre.
@@ -312,7 +312,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   @override
   Widget build(BuildContext context) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final filtradas = _cargando ? const <NotifCobro>[] : _filtradas;
     final total = filtradas.length;
     final mora = filtradas.where((n) => n.tipo == 'vencido').length;

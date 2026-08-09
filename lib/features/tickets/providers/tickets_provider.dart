@@ -12,14 +12,14 @@ final ticketsStreamProvider = StreamProvider<List<TicketModel>>((ref) {
   final usuario = ref.watch(authProvider).usuario;
   final repo = ref.watch(ticketRepositoryProvider);
   if (usuario == null) return const Stream.empty();
-  if (usuario.rol == Roles.admin) return repo.streamTodos();
+  if (Roles.esAdminOEquivalente(usuario.rol)) return repo.streamTodos();
   return repo.streamPropios(usuario.uid);
 });
 
 /// Contador de tickets sin leer (badge de menu) -- solo tiene sentido
-/// para admin, que es quien los recibe.
+/// para admin/desarrollador, que son quienes los gestionan.
 final ticketsNoLeidosProvider = StreamProvider<int>((ref) {
   final usuario = ref.watch(authProvider).usuario;
-  if (usuario == null || usuario.rol != Roles.admin) return Stream.value(0);
+  if (usuario == null || !Roles.esAdminOEquivalente(usuario.rol)) return Stream.value(0);
   return ref.watch(ticketRepositoryProvider).streamNoLeidosCount();
 });

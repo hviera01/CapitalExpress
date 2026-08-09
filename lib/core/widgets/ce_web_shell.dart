@@ -63,7 +63,7 @@ class _CeWebShellState extends ConsumerState<CeWebShell> {
   @override
   Widget build(BuildContext context) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final tabsState = ref.watch(webTabsProvider);
 
     final idsMenu = <String>[

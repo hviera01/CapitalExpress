@@ -24,7 +24,7 @@ class TicketsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final ticketsAsync = ref.watch(ticketsStreamProvider);
 
     return CeScaffold(

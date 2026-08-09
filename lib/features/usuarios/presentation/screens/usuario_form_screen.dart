@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/roles.dart';
 import '../../../../core/models/usuario_model.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
@@ -11,7 +12,12 @@ import '../../../../core/widgets/selector_foto.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/usuarios_provider.dart';
 
-const _roles = ['admin', 'cobrador'];
+const _roles = [Roles.admin, Roles.cobrador, Roles.desarrollador];
+const _etiquetasRoles = {
+  Roles.admin: 'Admin',
+  Roles.cobrador: 'Cobrador',
+  Roles.desarrollador: 'Desarrollador (recibe avisos de tickets)',
+};
 
 /// Crear o editar un usuario del staff (admin/cobrador). Si [usuarioId]
 /// es null es un usuario nuevo -- mismo criterio que ClienteFormScreen.
@@ -205,7 +211,7 @@ class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
                     initialValue: _rol,
                     decoration: const InputDecoration(labelText: 'Rol *'),
                     items: _roles
-                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                        .map((r) => DropdownMenuItem(value: r, child: Text(_etiquetasRoles[r] ?? r)))
                         .toList(),
                     onChanged: (v) => setState(() => _rol = v ?? 'admin'),
                   ),

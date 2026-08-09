@@ -70,7 +70,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return enLogin ? null : '/login';
       }
 
-      final destino = auth.usuario!.rol == Roles.admin ? '/admin' : '/cobrador';
+      final destino = Roles.esAdminOEquivalente(auth.usuario!.rol) ? '/admin' : '/cobrador';
       if (enLogin || enSplash) return destino;
       return null;
     },

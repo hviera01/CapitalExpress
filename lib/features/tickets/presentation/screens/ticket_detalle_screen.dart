@@ -109,7 +109,7 @@ class _TicketDetalleScreenState extends ConsumerState<TicketDetalleScreen> {
 
   Widget _contenido(BuildContext context, TicketModel t) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final esCreador = usuario?.uid == t.creadoPorUid;
     final f = DateFormat('dd/MM/yyyy hh:mm a');
 

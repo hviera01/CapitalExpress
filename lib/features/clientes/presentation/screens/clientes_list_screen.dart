@@ -123,7 +123,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   /// "Mis Clientes" ya sabe que son los suyos.
   Future<void> _cargarNombresCobradores() async {
     final usuario = ref.read(authProvider).usuario;
-    if (usuario?.rol != Roles.admin) return;
+    if (!Roles.esAdminOEquivalente(usuario?.rol)) return;
     try {
       final cobradores = await ref.read(cobradoresCacheProvider.future);
       if (!mounted) return;
@@ -145,7 +145,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
 
   Future<void> _cargarStats() async {
     final usuario = ref.read(authProvider).usuario;
-    _esAdmin = usuario?.rol == Roles.admin;
+    _esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     _cobradorUid = _esAdmin ? null : usuario?.uid;
 
     // Solo en escritorio Web: si ya hay datos (de cache o de una carga
@@ -232,7 +232,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   @override
   Widget build(BuildContext context) {
     final usuario = ref.watch(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
 
     return CeScaffold(
       maxWidth: 900,

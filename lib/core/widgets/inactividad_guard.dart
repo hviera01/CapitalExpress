@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/roles.dart';
 import '../providers/actualizacion_provider.dart';
 import '../providers/web_tabs_provider.dart';
 import '../routing/app_router.dart';
@@ -61,13 +62,13 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
         );
   }
 
-  /// Notificacion push de tickets nuevos: SOLO la recibe la cuenta que
-  /// se llama exactamente "admin" (no cualquier usuario con rol admin
-  /// -- puede haber varias cuentas admin, pero el push es personal,
-  /// solo para este dispositivo/usuario especifico). Ver
-  /// PushNotificationsService.
-  void _iniciarPushSiEsAdmin() {
-    if (ref.read(authProvider).usuario?.nombre.trim().toLowerCase() == 'admin') {
+  /// Notificacion push de tickets nuevos: SOLO la recibe el rol
+  /// "desarrollador" -- un rol nuevo con los mismos permisos que admin
+  /// en toda la app (ver Roles.esAdminOEquivalente), pero exclusivo
+  /// para quien va a recibir el aviso (puede haber varias cuentas
+  /// admin sin que reciban push). Ver PushNotificationsService.
+  void _iniciarPushSiEsDesarrollador() {
+    if (ref.read(authProvider).usuario?.rol == Roles.desarrollador) {
       PushNotificationsService.init();
     }
   }
@@ -97,7 +98,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
     if (ref.read(authProvider).autenticado) {
       _iniciarChequeoActualizacion();
       _reportarDispositivo();
-      _iniciarPushSiEsAdmin();
+      _iniciarPushSiEsDesarrollador();
     }
   }
 
@@ -116,7 +117,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
         if (previous?.autenticado != true) {
           _iniciarChequeoActualizacion();
           _reportarDispositivo();
-          _iniciarPushSiEsAdmin();
+          _iniciarPushSiEsDesarrollador();
         }
       } else {
         _timer?.cancel();

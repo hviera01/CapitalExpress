@@ -63,7 +63,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
 
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
-    final esAdmin = usuario?.rol == Roles.admin;
+    final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     final primeraVez = !esEscritorioWeb(context) || _prestamos.isEmpty;
     if (primeraVez) {
       setState(() => _cargando = true);
