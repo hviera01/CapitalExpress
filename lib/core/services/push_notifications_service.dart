@@ -24,7 +24,8 @@ class PushNotificationsService {
   /// -- Firebase Console > Configuración del proyecto > Cloud Messaging
   /// > Certificados push web. Sin esto, el push en Web escritorio/movil
   /// no funciona (Android no lo necesita).
-  static const _vapidKeyWeb = 'REEMPLAZAR_CON_VAPID_KEY';
+  static const _vapidKeyWeb =
+      'BKAkUVkNCqw8Jn-Ekrmwqs3qoPIgLCDSFBoujMRpmgMx7K5SQEPbukMwi5Fm_q833U7CzQOlWGVcR9SYoGBZCXk';
 
   static Future<void> init() async {
     if (!aplica || _inicializado) return;
