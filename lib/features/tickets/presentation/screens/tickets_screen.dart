@@ -6,6 +6,7 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/ce_boton_activar_push.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
@@ -35,32 +36,42 @@ class TicketsScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Nuevo ticket'),
       ),
-      body: ticketsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Error al cargar: $e')),
-        data: (tickets) {
-          if (tickets.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Todavía no hay tickets. Tocá "Nuevo ticket" para reportar un problema '
-                    'o pedir algo nuevo.', textAlign: TextAlign.center),
-              ),
-            );
-          }
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (esEscritorioWeb(context))
-                _TablaTickets(tickets: tickets, esAdmin: esAdmin)
-              else
-                ...tickets.map((t) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _CardTicket(ticket: t),
-                    )),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: CeBotonActivarPush(),
+          ),
+          Expanded(
+            child: ticketsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Center(child: Text('Error al cargar: $e')),
+              data: (tickets) {
+                if (tickets.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('Todavía no hay tickets. Tocá "Nuevo ticket" para reportar un problema '
+                          'o pedir algo nuevo.', textAlign: TextAlign.center),
+                    ),
+                  );
+                }
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (esEscritorioWeb(context))
+                      _TablaTickets(tickets: tickets, esAdmin: esAdmin)
+                    else
+                      ...tickets.map((t) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _CardTicket(ticket: t),
+                          )),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

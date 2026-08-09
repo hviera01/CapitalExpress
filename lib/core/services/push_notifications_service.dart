@@ -15,7 +15,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 /// Solo aplica en Android y Web -- Windows no tiene soporte real de FCM
 /// en este stack, se deja igual que siempre.
 class PushNotificationsService {
-  static bool _inicializado = false;
+  // Solo true una vez que el token realmente quedo guardado -- si el
+  // permiso se nego (ej. iOS bloqueo el cartel por no venir de un tap
+  // directo), NO se marca, para que un boton "Activar notificaciones"
+  // pueda reintentar despues.
+  static bool _tokenRegistrado = false;
   static final _localNotifications = FlutterLocalNotificationsPlugin();
 
   static bool get aplica => kIsWeb || (!kIsWeb && Platform.isAndroid);
@@ -27,9 +31,13 @@ class PushNotificationsService {
   static const _vapidKeyWeb =
       'BKAkUVkNCqw8Jn-Ekrmwqs3qoPIgLCDSFBoujMRpmgMx7K5SQEPbukMwi5Fm_q833U7CzQOlWGVcR9SYoGBZCXk';
 
+  /// Llamar apenas hay sesion (ver InactividadGuard): funciona directo
+  /// en Android/Chrome, pero en iOS Safari el permiso NO aparece si
+  /// este pedido no viene de un tap directo del usuario -- ahi hace
+  /// falta el boton explicito (ver CeBotonActivarPush) para que el tap
+  /// mismo dispare requestPermission().
   static Future<void> init() async {
-    if (!aplica || _inicializado) return;
-    _inicializado = true;
+    if (!aplica || _tokenRegistrado) return;
     try {
       final messaging = FirebaseMessaging.instance;
       final permiso = await messaging.requestPermission();
@@ -46,13 +54,28 @@ class PushNotificationsService {
       final token = kIsWeb
           ? await messaging.getToken(vapidKey: _vapidKeyWeb)
           : await messaging.getToken();
+      if (token == null || token.isEmpty) return;
       await _guardarToken(token);
+      _tokenRegistrado = true;
       messaging.onTokenRefresh.listen(_guardarToken);
 
       FirebaseMessaging.onMessage.listen(_mostrarEnPrimerPlano);
     } catch (_) {
       // Nunca debe tumbar el arranque de la app -- el push es un
       // extra, no algo de lo que dependa poder usar el sistema.
+    }
+  }
+
+  /// Estado actual del permiso SIN pedirlo (no dispara ningun cartel) --
+  /// para decidir si mostrar el boton "Activar notificaciones".
+  static Future<bool> permisoConcedido() async {
+    if (!aplica) return true;
+    try {
+      final ajustes = await FirebaseMessaging.instance.getNotificationSettings();
+      return ajustes.authorizationStatus == AuthorizationStatus.authorized ||
+          ajustes.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return false;
     }
   }
 
