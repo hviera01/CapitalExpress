@@ -189,46 +189,62 @@ class _BarraSuperior extends StatelessWidget {
       color: CEColors.primary,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: Icon(menuAbierto ? Icons.menu_open : Icons.menu, color: Colors.white, size: 22),
-            tooltip: menuAbierto ? 'Cerrar menú' : 'Abrir menú',
-            onPressed: onToggleMenu,
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(menuAbierto ? Icons.menu_open : Icons.menu, color: Colors.white, size: 22),
+                  tooltip: menuAbierto ? 'Cerrar menú' : 'Abrir menú',
+                  onPressed: onToggleMenu,
+                ),
+                const SizedBox(width: 4),
+                const Flexible(child: MarcaLockup(fontSizeNombre: 14, fontSizeSufijo: 7.5)),
+              ],
+            ),
           ),
-          const SizedBox(width: 4),
-          const Flexible(
-            child: MarcaLockup(fontSizeNombre: 14, fontSizeSufijo: 7.5),
-          ),
-          const Spacer(),
-          Container(
-            width: 28,
-            height: 28,
-            decoration:
-                BoxDecoration(color: Colors.white.withValues(alpha: 0.12), shape: BoxShape.circle),
-            child: const Icon(Icons.person_outline, color: Colors.white, size: 15),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
+          // Todo este grupo (usuario + botones) va SIEMPRE pegado a la
+          // esquina derecha, sin importar cuanto ancho ocupe la marca a
+          // la izquierda -- mainAxisAlignment.spaceBetween en vez de
+          // Spacer() para que quede inequivoco.
+          Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(nombreUsuario,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-              Text(esAdmin ? 'Administrador' : 'Cobrador',
-                  style: const TextStyle(color: Colors.white54, fontSize: 10.5)),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12), shape: BoxShape.circle),
+                child: const Icon(Icons.person_outline, color: Colors.white, size: 15),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(nombreUsuario,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                  Text(esAdmin ? 'Administrador' : 'Cobrador',
+                      style: const TextStyle(color: Colors.white54, fontSize: 10.5)),
+                ],
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.refresh, color: Colors.white54, size: 19),
+                tooltip: 'Actualizar app',
+                onPressed: () => limpiarCacheYRecargarWeb(),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.logout, color: Colors.white70, size: 19),
+                tooltip: 'Cerrar sesión',
+                onPressed: onLogout,
+              ),
             ],
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white54, size: 19),
-            tooltip: 'Actualizar app',
-            onPressed: () => limpiarCacheYRecargarWeb(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70, size: 19),
-            tooltip: 'Cerrar sesión',
-            onPressed: onLogout,
           ),
         ],
       ),
