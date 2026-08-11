@@ -157,7 +157,11 @@ class PrestamoRepository {
 
   /// Busqueda puntual (no streaming), igual criterio que
   /// ClienteRepository.buscar: filtra por cobrador/estado/eliminado en
-  /// el servidor y el texto libre en memoria sobre ese subconjunto.
+  /// el servidor y el texto libre en memoria sobre ese subconjunto --
+  /// por eso no puede llevar `limit`, tiene que traer TODO el alcance
+  /// ya acotado (un limit aca, como habia antes, dejaba prestamos
+  /// invisibles en la busqueda apenas hubiera mas de 100 en el
+  /// alcance, sin importar que se buscara).
   Future<List<PrestamoModel>> buscar({
     String? cobradorUid,
     String? estado,
@@ -172,7 +176,7 @@ class PrestamoRepository {
       query = query.where('estado', isEqualTo: estado);
     }
 
-    final snap = await query.limit(100).get();
+    final snap = await query.get();
     final prestamos = <PrestamoModel>[];
     for (final doc in snap.docs) {
       try {

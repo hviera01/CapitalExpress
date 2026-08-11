@@ -29,10 +29,14 @@ class ClienteRepository {
     });
   }
 
-  /// Busqueda puntual (no streaming): solo trae lo que hace falta, no
-  /// toda la coleccion de una. El filtro por cobrador/estado va al
-  /// servidor (Firestore); el texto libre se aplica en memoria sobre
-  /// ese subconjunto ya acotado.
+  /// Busqueda puntual (no streaming). El filtro por cobrador/estado va
+  /// al servidor (Firestore); el texto libre se aplica en memoria, asi
+  /// que hace falta traer TODO el alcance ya acotado por
+  /// cobrador/estado -- un limit aca (como habia antes, 100) dejaba
+  /// clientes invisibles sin importar que se buscara, apenas hubiera
+  /// mas de 100 en el alcance (el limit se aplicaba ANTES del filtro
+  /// de texto). Con la cantidad real de clientes de este negocio esto
+  /// sigue siendo una sola lectura barata, no hace falta paginar.
   Future<List<ClienteModel>> buscar({
     String? cobradorUid,
     String? estado,
@@ -46,7 +50,7 @@ class ClienteRepository {
       query = query.where('estado', isEqualTo: estado);
     }
 
-    final snap = await query.limit(100).get();
+    final snap = await query.get();
     final clientes = <ClienteModel>[];
     for (final doc in snap.docs) {
       try {

@@ -14,6 +14,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 ///
 /// Solo aplica en Android y Web -- Windows no tiene soporte real de FCM
 /// en este stack, se deja igual que siempre.
+class PushInitResultado {
+  final bool exito;
+  final String detalle;
+  const PushInitResultado(this.exito, this.detalle);
+}
+
 class PushNotificationsService {
   // Solo true una vez que el token realmente quedo guardado -- si el
   // permiso se nego (ej. iOS bloqueo el cartel por no venir de un tap
@@ -36,12 +42,21 @@ class PushNotificationsService {
   /// este pedido no viene de un tap directo del usuario -- ahi hace
   /// falta el boton explicito (ver CeBotonActivarPush) para que el tap
   /// mismo dispare requestPermission().
-  static Future<void> init() async {
-    if (!aplica || _tokenRegistrado) return;
+  ///
+  /// Devuelve un detalle de que paso (no solo silencia el error) para
+  /// que el boton pueda mostrarlo -- si algo falla en un dispositivo
+  /// puntual (iOS suele ser el mas quisquilloso), necesitamos saber
+  /// EXACTAMENTE en que paso, no solo "no funciono".
+  static Future<PushInitResultado> init() async {
+    if (!aplica) return const PushInitResultado(false, 'No aplica en esta plataforma');
+    if (_tokenRegistrado) return const PushInitResultado(true, 'Ya estaba activado');
     try {
       final messaging = FirebaseMessaging.instance;
       final permiso = await messaging.requestPermission();
-      if (permiso.authorizationStatus == AuthorizationStatus.denied) return;
+      if (permiso.authorizationStatus == AuthorizationStatus.denied) {
+        return PushInitResultado(
+            false, 'El permiso quedó denegado (${permiso.authorizationStatus.name})');
+      }
 
       if (!kIsWeb) {
         await _localNotifications.initialize(
@@ -51,18 +66,30 @@ class PushNotificationsService {
         );
       }
 
-      final token = kIsWeb
-          ? await messaging.getToken(vapidKey: _vapidKeyWeb)
-          : await messaging.getToken();
-      if (token == null || token.isEmpty) return;
-      await _guardarToken(token);
-      _tokenRegistrado = true;
-      messaging.onTokenRefresh.listen(_guardarToken);
+      final String? token;
+      try {
+        token = kIsWeb
+            ? await messaging.getToken(vapidKey: _vapidKeyWeb)
+            : await messaging.getToken();
+      } catch (e) {
+        return PushInitResultado(false, 'No se pudo obtener el token: $e');
+      }
+      if (token == null || token.isEmpty) {
+        return const PushInitResultado(false, 'El dispositivo no devolvió un token');
+      }
 
+      try {
+        await _guardarToken(token);
+      } catch (e) {
+        return PushInitResultado(false, 'No se pudo guardar el token: $e');
+      }
+
+      _tokenRegistrado = true;
+      messaging.onTokenRefresh.listen((t) => _guardarToken(t).catchError((_) {}));
       FirebaseMessaging.onMessage.listen(_mostrarEnPrimerPlano);
-    } catch (_) {
-      // Nunca debe tumbar el arranque de la app -- el push es un
-      // extra, no algo de lo que dependa poder usar el sistema.
+      return const PushInitResultado(true, 'Activado correctamente');
+    } catch (e) {
+      return PushInitResultado(false, 'Error inesperado: $e');
     }
   }
 
@@ -79,14 +106,16 @@ class PushNotificationsService {
     }
   }
 
+  /// OJO: a proposito NO traga el error -- init() necesita que se
+  /// lo propague para poder mostrar el detalle real en el boton. El
+  /// listener de onTokenRefresh (que no puede mostrar nada) es el que
+  /// se encarga de tragarlo ahi, no esta funcion.
   static Future<void> _guardarToken(String? token) async {
     if (token == null || token.isEmpty) return;
-    try {
-      await FirebaseFirestore.instance.collection('fcmTokens').doc(token).set({
-        'plataforma': kIsWeb ? 'web' : 'android',
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      });
-    } catch (_) {}
+    await FirebaseFirestore.instance.collection('fcmTokens').doc(token).set({
+      'plataforma': kIsWeb ? 'web' : 'android',
+      'fechaActualizacion': FieldValue.serverTimestamp(),
+    });
   }
 
   static void _mostrarEnPrimerPlano(RemoteMessage mensaje) {

@@ -36,9 +36,15 @@ class _CeBotonActivarPushState extends ConsumerState<CeBotonActivarPush> {
 
   Future<void> _activar() async {
     setState(() => _activando = true);
-    await PushNotificationsService.init();
+    final resultado = await PushNotificationsService.init();
     await _revisar();
     if (mounted) setState(() => _activando = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(resultado.detalle),
+        backgroundColor: resultado.exito ? CEColors.success : CEColors.danger,
+      ));
+    }
   }
 
   @override
