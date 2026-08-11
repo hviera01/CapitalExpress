@@ -97,6 +97,19 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     super.dispose();
   }
 
+  /// Detalle/Cobrar/Cuotas pueden terminar en un pago que salda el
+  /// prestamo -- esta pantalla NO usa un stream en vivo (es un fetch
+  /// puntual), asi que sin este refresco al volver se quedaba
+  /// mostrando el mismo saldo/vencimiento de ANTES del pago (mas aun
+  /// con las pestañas en memoria de escritorio Web, que no recargan
+  /// solas al volver). Eso ya causo que un cobrador, al ver que
+  /// "seguia pendiente", registrara el mismo pago dos veces.
+  Future<void> _irYRefrescar(BuildContext context,
+      {required String ruta, required Widget pantalla}) async {
+    await irAPantalla(context, ruta: ruta, pantalla: pantalla);
+    if (mounted) _cargar();
+  }
+
   Future<void> _cargar() async {
     final usuario = ref.read(authProvider).usuario;
     final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
@@ -379,6 +392,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                     etiquetaUrgencia: _etiquetaUrgencia,
                     onWhatsapp: _enviarWhatsapp,
                     onAplicarMora: _aplicarMora,
+                    onRefrescar: _cargar,
                   )
                 else
                   ...filtradas.map((n) {
@@ -392,7 +406,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: CeCard(
-                        onTap: () => irAPantalla(context,
+                        onTap: () => _irYRefrescar(context,
                             ruta: '/prestamos/${p.prestamoId}',
                             pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
                         child: Column(
@@ -486,7 +500,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                 children: [
                                   Expanded(
                                     child: ElevatedButton(
-                                      onPressed: () => irAPantalla(context,
+                                      onPressed: () => _irYRefrescar(context,
                                           ruta: '/prestamos/${p.prestamoId}/cobrar',
                                           pantalla: CobrarScreen(prestamoId: p.prestamoId)),
                                       child: const Text('Pagar'),
@@ -495,7 +509,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed: () => irAPantalla(context,
+                                      onPressed: () => _irYRefrescar(context,
                                           ruta: '/prestamos/${p.prestamoId}/cuotas',
                                           pantalla: VerCuotasScreen(prestamoId: p.prestamoId)),
                                       child: const Text('Cuotas'),
@@ -547,6 +561,7 @@ class _TablaCobros extends StatelessWidget {
   final String Function(int) etiquetaUrgencia;
   final ValueChanged<PrestamoModel> onWhatsapp;
   final ValueChanged<NotifCobro> onAplicarMora;
+  final VoidCallback onRefrescar;
 
   const _TablaCobros({
     required this.notificaciones,
@@ -555,6 +570,7 @@ class _TablaCobros extends StatelessWidget {
     required this.etiquetaUrgencia,
     required this.onWhatsapp,
     required this.onAplicarMora,
+    required this.onRefrescar,
   });
 
   @override
@@ -576,9 +592,12 @@ class _TablaCobros extends StatelessWidget {
             final mostrarAcciones = p.estado.toLowerCase() != 'inactivo';
             final puedeAplicarMora = n.diferenciaDias < 0 || p.mora > 0;
             return DataRow(
-              onSelectChanged: (_) => irAPantalla(context,
-                  ruta: '/prestamos/${p.prestamoId}',
-                  pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
+              onSelectChanged: (_) async {
+                await irAPantalla(context,
+                    ruta: '/prestamos/${p.prestamoId}',
+                    pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p));
+                onRefrescar();
+              },
               cells: [
               DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
               DataCell(Text('#${p.numeroPrestamo}')),
@@ -593,19 +612,23 @@ class _TablaCobros extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         TextButton(
-                          onPressed: () => irAPantalla(context,
-                              ruta: '/prestamos/${p.prestamoId}/cobrar',
-                              pantalla: CobrarScreen(prestamoId: p.prestamoId)),
+                          onPressed: () async {
+                            await irAPantalla(context,
+                                ruta: '/prestamos/${p.prestamoId}/cobrar',
+                                pantalla: CobrarScreen(prestamoId: p.prestamoId));
+                            onRefrescar();
+                          },
                           child: const Text('Pagar'),
                         ),
                         PopupMenuButton<String>(
                           icon: const Icon(Icons.more_vert, size: 18, color: CEColors.textSecondary),
-                          onSelected: (accion) {
+                          onSelected: (accion) async {
                             switch (accion) {
                               case 'cuotas':
-                                irAPantalla(context,
+                                await irAPantalla(context,
                                     ruta: '/prestamos/${p.prestamoId}/cuotas',
                                     pantalla: VerCuotasScreen(prestamoId: p.prestamoId));
+                                onRefrescar();
                                 break;
                               case 'whatsapp':
                                 onWhatsapp(p);

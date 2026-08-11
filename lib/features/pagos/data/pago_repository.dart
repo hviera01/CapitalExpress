@@ -214,6 +214,16 @@ class PagoRepository {
     final db = FirebaseFirestore.instance;
     final prestamoRef = db.collection('prestamos').doc(prestamo.prestamoId);
 
+    // Chequeo contra el estado REAL en Firestore (no el que traiga
+    // `prestamo`, que puede venir de una pantalla que no se refresco
+    // despues de un pago anterior) -- sin esto, un cobrador podia
+    // registrar el mismo pago dos veces si la lista de Cobros no se
+    // habia actualizado sola.
+    final actual = await prestamoRef.get();
+    if ((actual.data()?['estado'] as String?) == 'saldado') {
+      throw Exception('Este préstamo ya está saldado -- no se puede registrar otro pago.');
+    }
+
     final pagosPrevios = await obtenerPorPrestamo(prestamo.prestamoId);
     final distribucion = distribuirPagoConMoraYCascada(
       prestamo: prestamo,
