@@ -38,7 +38,7 @@ class ReporteClientesPdfService {
     required String filtroCobradorTexto,
   }) async {
     final pdf = pw.Document();
-    final logoBytes = await rootBundle.load('assets/images/logo_capital_express.png');
+    final logoBytes = await rootBundle.load('assets/images/logo_sieg_icono.png');
     final logo = pw.MemoryImage(logoBytes.buffer.asUint8List());
 
     final totalClientes = filas.length;
@@ -69,7 +69,7 @@ class ReporteClientesPdfService {
                 children: [
                   pw.Text('Reporte de Clientes',
                       style: pw.TextStyle(fontSize: 10, color: _textSecondary)),
-                  pw.Text('Capital Express',
+                  pw.Text('SIEG S. de R.L. de C.V.',
                       style: pw.TextStyle(fontSize: 10, color: _textSecondary)),
                 ],
               ),

@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/tickets/providers/tickets_provider.dart';
 import 'ce_web_sections.dart';
+import 'marca_lockup.dart';
 
 /// Chrome de escritorio Web: barra superior fija (marca, usuario,
 /// actualizar, cerrar sesion) + menu lateral desplegable EN OVERLAY
@@ -195,14 +196,8 @@ class _BarraSuperior extends StatelessWidget {
             onPressed: onToggleMenu,
           ),
           const SizedBox(width: 4),
-          const Text(
-            'CAPITAL EXPRESS',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-            ),
+          const Flexible(
+            child: MarcaLockup(fontSizeNombre: 14, fontSizeSufijo: 7.5),
           ),
           const Spacer(),
           Container(

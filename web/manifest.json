@@ -1,11 +1,11 @@
 {
-    "name": "Capital Express",
-    "short_name": "Capital Express",
+    "name": "SIEG S. de R.L. de C.V.",
+    "short_name": "SIEG",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Capital Express - Sistema de gestión de préstamos",
+    "description": "SIEG S. de R.L. de C.V. - Sistema de gestión de préstamos",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -40,7 +40,7 @@ class CapitalExpressApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'Capital Express',
+      title: 'SIEG',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       // Sin esto, el selector de fecha (y cualquier otro widget de

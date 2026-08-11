@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'marca_lockup.dart';
+
 /// AppBar navy con subtitulo de color debajo del titulo (ADMIN PANEL /
 /// PANEL DE COBRANZA en los mockups).
 class CeAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String titulo;
   final String subtitulo;
   final Color colorSubtitulo;
   final Widget? leading;
@@ -11,7 +12,6 @@ class CeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   const CeAppBar({
     super.key,
-    required this.titulo,
     required this.subtitulo,
     required this.colorSubtitulo,
     this.leading,
@@ -27,13 +27,12 @@ class CeAppBar extends StatelessWidget implements PreferredSizeWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            titulo,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
+          const MarcaLockup(
+            fontSizeNombre: 17,
+            fontSizeSufijo: 9.5,
+            pesoNombre: FontWeight.w700,
+            letterSpacing: 0,
+            direction: Axis.horizontal,
           ),
           Text(
             subtitulo,

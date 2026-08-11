@@ -1,5 +1,5 @@
 name: capital_express
-description: "Capital Express - gestion de prestamos (Flutter, multiplataforma)."
+description: "SIEG S. de R.L. de C.V. - gestion de prestamos (Flutter, multiplataforma)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -91,16 +91,16 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/images/logo_capital_express.png"
+  image_path: "assets/images/logo_sieg_icono.png"
   image_path_android: "assets/images/icon_android_foreground.png"
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/images/icon_android_foreground.png"
   web:
     generate: true
-    image_path: "assets/images/logo_capital_express.png"
+    image_path: "assets/images/logo_sieg_icono.png"
   windows:
     generate: true
-    image_path: "assets/images/logo_capital_express.png"
+    image_path: "assets/images/logo_sieg_icono.png"
     icon_size: 256
 
 # For information on the generic Dart part of this file, see the
@@ -116,7 +116,7 @@ flutter:
 
   assets:
     - assets/images/fondo_login.jpg
-    - assets/images/logo_capital_express.png
+    - assets/images/logo_sieg_icono.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

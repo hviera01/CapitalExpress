@@ -102,7 +102,7 @@ class ActualizacionService {
     void Function(double progreso) onProgreso,
   ) async {
     final carpetaTemp = await getTemporaryDirectory();
-    final nombreArchivo = Platform.isAndroid ? 'CapitalExpressActualizacion.apk' : 'CapitalExpressActualizacion.exe';
+    final nombreArchivo = Platform.isAndroid ? 'SIEGActualizacion.apk' : 'SIEGActualizacion.exe';
     final archivoDestino = File('${carpetaTemp.path}${Platform.pathSeparator}$nombreArchivo');
 
     final cliente = http.Client();

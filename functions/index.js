@@ -58,9 +58,9 @@ async function mandarCorreoTicket(ticket, ticketId) {
     });
     const tipoTexto = TIPO_TICKET_TEXTO[ticket.tipo] || "Ticket";
     await transportador.sendMail({
-      from: `Capital Express <${CORREO_ENVIA}>`,
+      from: `SIEG S. de R.L. de C.V. <${CORREO_ENVIA}>`,
       to: CORREO_RECIBE,
-      subject: `[Capital Express] ${tipoTexto}: ${ticket.titulo || "Nuevo ticket"}`,
+      subject: `[SIEG] ${tipoTexto}: ${ticket.titulo || "Nuevo ticket"}`,
       text: `${ticket.creadoPorNombre || "Alguien"} (${ticket.creadoPorRol || ""}) reportó:\n\n` +
         `${ticket.descripcion || ""}\n\n` +
         `Ticket ID: ${ticketId}`,

@@ -32,31 +32,75 @@ Widget ceTableBadge(String texto, Color color) {
 /// ancho disponible -- ni mas angosta (queda "flotando" a la
 /// izquierda) ni desbordada sin poder verse (ahi si aparece el scroll
 /// horizontal, cuando de verdad hace falta).
-class CeDataTableCard extends StatelessWidget {
+///
+/// `rows` completo se recibe siempre entero (los que llaman a este
+/// widget no cambian), pero SOLO se monta de a `_tamanoPagina` filas por
+/// vez -- Flutter's DataTable no es lazy, arma TODO el arbol (celdas +
+/// PopupMenuButton de cada fila) aunque no se vea en pantalla, y con
+/// listas grandes (cientos de prestamos/clientes) eso es lo que hacia
+/// sentir pesada la carga, el scroll, y hasta la animacion de
+/// entrar/salir a un detalle (la pantalla de atras queda de todos modos
+/// en el arbol mientras transiciona). Ver "Mostrar más" al pie.
+class CeDataTableCard extends StatefulWidget {
   final List<DataColumn> columns;
   final List<DataRow> rows;
 
   const CeDataTableCard({super.key, required this.columns, required this.rows});
 
   @override
+  State<CeDataTableCard> createState() => _CeDataTableCardState();
+}
+
+class _CeDataTableCardState extends State<CeDataTableCard> {
+  static const _tamanoPagina = 40;
+  int _visibles = _tamanoPagina;
+
+  @override
+  void didUpdateWidget(covariant CeDataTableCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.rows.length != oldWidget.rows.length) {
+      _visibles = _tamanoPagina;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final hayMas = widget.rows.length > _visibles;
+    final filasAMostrar = hayMas ? widget.rows.sublist(0, _visibles) : widget.rows;
+
     return CeCard(
       padding: EdgeInsets.zero,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: DataTable(
-                headingRowColor: ceTableHeadingRowColor,
-                headingTextStyle: ceTableHeadingTextStyle,
-                columns: columns,
-                rows: rows,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    headingRowColor: ceTableHeadingRowColor,
+                    headingTextStyle: ceTableHeadingTextStyle,
+                    columns: widget.columns,
+                    rows: filasAMostrar,
+                  ),
+                ),
+              );
+            },
+          ),
+          if (hayMas)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      setState(() => _visibles = (_visibles + _tamanoPagina).clamp(0, widget.rows.length)),
+                  child: Text('Mostrar más (${widget.rows.length - _visibles} de ${widget.rows.length})'),
+                ),
               ),
             ),
-          );
-        },
+        ],
       ),
     );
   }

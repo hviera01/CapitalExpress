@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Capital Express Design System (Modern Fintech Minimalism) — mismos
+/// SIEG Design System (Modern Fintech Minimalism) — mismos
 /// tokens usados en la app Kotlin original (ui/theme/DesignSystem.kt),
 /// portados para que ambas apps se vean identicas.
 class CEColors {

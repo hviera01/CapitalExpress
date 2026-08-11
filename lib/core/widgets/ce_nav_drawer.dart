@@ -9,6 +9,7 @@ import '../services/actualizacion_service.dart';
 import '../services/web_refresh_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/actualizacion_dialog.dart';
+import '../widgets/marca_lockup.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/tickets/providers/tickets_provider.dart';
 
@@ -47,14 +48,8 @@ class CeNavDrawer extends ConsumerWidget {
                 children: [
                   const Icon(Icons.shield_outlined, color: Colors.white, size: 20),
                   const SizedBox(width: 8),
-                  const Text(
-                    'CAPITAL EXPRESS',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                    ),
+                  const Flexible(
+                    child: MarcaLockup(fontSizeNombre: 15, fontSizeSufijo: 9),
                   ),
                 ],
               ),

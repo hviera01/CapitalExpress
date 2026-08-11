@@ -234,7 +234,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       return;
     }
     final mensaje =
-        'Estimado/a ${cliente.nombre}, le recordamos que tiene un pago pendiente con Capital Express. ¡Gracias!';
+        'Estimado/a ${cliente.nombre}, le recordamos que tiene un pago pendiente con SIEG S. de R.L. de C.V. ¡Gracias!';
     await abrirWhatsapp(cliente.telefono, mensaje: mensaje);
   }
 

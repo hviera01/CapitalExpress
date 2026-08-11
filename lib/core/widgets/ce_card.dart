@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Card con la sombra "ambient" del Capital Express Design System
+/// Card con la sombra "ambient" del SIEG Design System
 /// (0px 4px 20px rgba(10,25,47,0.05)) en vez de la elevacion Material
 /// por defecto, para calzar exactamente con los mockups.
 class CeCard extends StatelessWidget {

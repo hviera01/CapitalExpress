@@ -55,14 +55,10 @@ class ReciboPrestamoService {
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
             pw.Center(
-              child: pw.Text('CAPITAL',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('SIEG',
+                  style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
             ),
-            pw.Center(
-              child: pw.Text('EXPRESS',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Center(child: pw.Text('FINANCIERA', style: const pw.TextStyle(fontSize: 9))),
+            pw.Center(child: pw.Text('S. DE R.L. DE C.V.', style: const pw.TextStyle(fontSize: 9))),
             pw.SizedBox(height: 4),
             if (p.numeroCobrador.isNotEmpty)
               pw.Center(child: pw.Text(p.numeroCobrador, style: const pw.TextStyle(fontSize: 9))),

@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions para CapitalExpress: notificacion push de tickets nuevos",
+  "description": "Cloud Functions para SIEG: notificacion push de tickets nuevos",
   "engines": {
     "node": "20"
   },

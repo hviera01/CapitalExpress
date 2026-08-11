@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/marca_lockup.dart';
 import '../../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -82,14 +83,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         const Icon(Icons.shield_outlined, color: Colors.white, size: 26),
                         const SizedBox(width: 10),
-                        Text(
-                          'CAPITAL EXPRESS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.4,
-                          ),
+                        const Flexible(
+                          child: MarcaLockup(fontSizeNombre: 20, fontSizeSufijo: 11, letterSpacing: 1.4),
                         ),
                       ],
                     ),
@@ -141,7 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: Colors.white,
             shape: BoxShape.circle,
           ),
-          child: Image.asset('assets/images/logo_capital_express.png', fit: BoxFit.contain),
+          child: Image.asset('assets/images/logo_sieg_icono.png', fit: BoxFit.contain),
         ),
         const SizedBox(height: 24),
         const Text(

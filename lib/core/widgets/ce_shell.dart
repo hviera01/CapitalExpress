@@ -78,7 +78,6 @@ class CeAppShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: CEColors.surface,
       appBar: CeAppBar(
-        titulo: 'Capital Express',
         subtitulo: subtituloApp,
         colorSubtitulo: colorSubtitulo,
         leading: Builder(
@@ -137,7 +136,7 @@ class _Sidebar extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Image.asset('assets/images/logo_capital_express.png', height: 34),
+            child: Image.asset('assets/images/logo_sieg_icono.png', height: 34),
           ),
           const SizedBox(height: 10),
           Text(

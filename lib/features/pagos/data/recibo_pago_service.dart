@@ -91,24 +91,20 @@ class ReciboPagoService {
       // margen superior de 32 (en vez de 15 parejo) es el mismo fix que
       // ya tenia el sistema viejo para esto -- la impresora termica
       // recorta lo primero que manda a imprimir, y con marginAll:15 se
-      // perdia "CAPITAL EXPRESS" completo.
+      // perdia el nombre completo.
       pw.Page(
         pageFormat: const PdfPageFormat(189, 650,
             marginTop: 32, marginBottom: 15, marginLeft: 15, marginRight: 15),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-            // Titulo partido en dos lineas, igual que ya funciona bien
-            // en el recibo de prestamo (ver recibo_prestamo_service.dart).
+            // Nombre grande + sufijo legal chico, igual que ya funciona
+            // bien en el recibo de prestamo (ver recibo_prestamo_service.dart).
             pw.Center(
-              child: pw.Text('CAPITAL',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              child: pw.Text('SIEG',
+                  style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
             ),
-            pw.Center(
-              child: pw.Text('EXPRESS',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Center(child: pw.Text('FINANCIERA', style: const pw.TextStyle(fontSize: 8))),
+            pw.Center(child: pw.Text('S. DE R.L. DE C.V.', style: const pw.TextStyle(fontSize: 8))),
             pw.SizedBox(height: 4),
             pw.Center(child: pw.Text('[ COPIA ]', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold))),
             pw.SizedBox(height: 6),
