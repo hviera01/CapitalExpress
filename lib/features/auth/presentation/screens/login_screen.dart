@@ -129,14 +129,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 100,
-          height: 100,
-          padding: const EdgeInsets.all(14),
+          width: 156,
+          height: 156,
+          padding: const EdgeInsets.all(16),
           decoration: const BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
           ),
-          child: Image.asset('assets/images/logo_sieg_icono.png', fit: BoxFit.contain),
+          child: Image.asset('assets/images/logo_sieg_completo.png', fit: BoxFit.contain),
         ),
         const SizedBox(height: 24),
         const Text(
