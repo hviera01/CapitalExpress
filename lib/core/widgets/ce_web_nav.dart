@@ -17,7 +17,24 @@ Future<T?> irAPantalla<T>(
   Object? extra,
 }) {
   if (esEscritorioWeb(context)) {
-    return Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => pantalla));
+    return Navigator.of(context).push<T>(_rutaLivianaWeb(pantalla));
   }
   return context.push<T>(ruta, extra: extra);
+}
+
+/// Transicion liviana SOLO para escritorio Web: la de Material por
+/// defecto (deslizar + sombra) compone dos capas con transform durante
+/// toda la animacion, y con listas grandes detras (Ver Prestamos/Ver
+/// Clientes) eso se sentia pesado al entrar/salir de un detalle. Un
+/// fundido corto es mucho mas barato de componer (solo opacidad, sin
+/// transform) y se siente instantaneo.
+PageRoute<T> _rutaLivianaWeb<T>(Widget pantalla) {
+  return PageRouteBuilder<T>(
+    pageBuilder: (context, animation, secondaryAnimation) => pantalla,
+    transitionDuration: const Duration(milliseconds: 140),
+    reverseTransitionDuration: const Duration(milliseconds: 120),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(opacity: animation, child: child);
+    },
+  );
 }
