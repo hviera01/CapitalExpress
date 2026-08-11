@@ -503,10 +503,18 @@ class _TablaClientes extends ConsumerWidget {
   });
 
   Future<void> _abrirResumen(BuildContext context, WidgetRef ref, ClienteModel c) async {
-    await irAPantalla(context,
+    final resultado = await irAPantalla<ClienteModel>(context,
         ruta: '/clientes/${c.id}',
         extra: c,
         pantalla: ClienteResumenScreen(clienteId: c.id, clienteInicial: c));
+    // El resumen devuelve su ultimo estado conocido (de su propio
+    // stream en vivo) al dar "atras" -- evita pedirselo a Firestore de
+    // nuevo justo encima de la animacion de salida. Si vino null (se
+    // volvio por otro medio) se cae al refresco de siempre.
+    if (resultado != null) {
+      onActualizado(resultado);
+      return;
+    }
     final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(c.id);
     if (actualizado != null) {
       onActualizado(actualizado);
@@ -778,10 +786,14 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
   /// fila para no quedar mostrando datos viejos o un cliente ya
   /// borrado.
   Future<void> _abrirResumen(BuildContext context) async {
-    await irAPantalla(context,
+    final resultado = await irAPantalla<ClienteModel>(context,
         ruta: '/clientes/${widget.cliente.id}',
         extra: widget.cliente,
         pantalla: ClienteResumenScreen(clienteId: widget.cliente.id, clienteInicial: widget.cliente));
+    if (resultado != null) {
+      widget.onActualizado(resultado);
+      return;
+    }
     final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(widget.cliente.id);
     if (actualizado != null) {
       widget.onActualizado(actualizado);

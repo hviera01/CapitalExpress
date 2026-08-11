@@ -227,7 +227,15 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
-        leading: const BackButton(),title: const Text('Resumen del Cliente')),
+        // Pop con el ultimo ClienteModel conocido (del stream en vivo)
+        // en vez de BackButton comun -- ver el mismo cambio y su
+        // motivo en PrestamoDetalleScreen.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(c),
+        ),
+        title: const Text('Resumen del Cliente'),
+      ),
       body: esEscritorioWeb(context)
           ? _cuerpoEscritorio(context, c, prestamos, statItems)
           : _cuerpoMobile(context, c, prestamos, statItems),

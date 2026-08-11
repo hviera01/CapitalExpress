@@ -181,7 +181,17 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
-        leading: const BackButton(),
+        // Pop con el ultimo PrestamoModel conocido (viene del stream en
+        // vivo de arriba) en vez de un BackButton comun -- asi quien
+        // llamo (Ver Prestamos) puede actualizar esa fila directo, sin
+        // tener que pedirle el documento a Firestore otra vez apenas
+        // se vuelve. Ese pedido + el setState/rebuild que dispara
+        // llegaban justo encima de la animacion de salida y se sentia
+        // pesado al dar "atras".
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(p),
+        ),
         title: const Text('Detalle del Préstamo'),
         actions: [
           if (!p.eliminado)

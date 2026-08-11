@@ -463,10 +463,23 @@ class _TablaPrestamos extends ConsumerWidget {
   }
 
   Future<void> _verDetalle(BuildContext context, WidgetRef ref, PrestamoModel p) async {
-    await irAPantalla(context,
+    final resultado = await irAPantalla<PrestamoModel>(context,
         ruta: '/prestamos/${p.prestamoId}',
         extra: p,
         pantalla: PrestamoDetalleScreen(prestamoId: p.prestamoId, prestamoInicial: p));
+    // El detalle devuelve su ultimo estado conocido (viene de su propio
+    // stream en vivo) al dar "atras" -- si lo tenemos no hace falta
+    // pedirselo a Firestore otra vez. Si vino null (se volvio de otra
+    // forma, o es la ruta de mobile/Windows que no usa este resultado),
+    // se cae al refresco de siempre.
+    if (resultado != null) {
+      if (resultado.eliminado != eliminadoView) {
+        onEliminado(p);
+      } else {
+        onActualizado(resultado);
+      }
+      return;
+    }
     await _refrescar(ref, p);
   }
 
@@ -639,10 +652,18 @@ class _PrestamoCard extends ConsumerWidget {
   /// no corresponde a la vista actual) en vez de dejarla con datos
   /// viejos.
   Future<void> _verDetalle(BuildContext context, WidgetRef ref) async {
-    await irAPantalla(context,
+    final resultado = await irAPantalla<PrestamoModel>(context,
         ruta: '/prestamos/${prestamo.prestamoId}',
         extra: prestamo,
         pantalla: PrestamoDetalleScreen(prestamoId: prestamo.prestamoId, prestamoInicial: prestamo));
+    if (resultado != null) {
+      if (resultado.eliminado != eliminadoView) {
+        onEliminado();
+      } else {
+        onActualizado(resultado);
+      }
+      return;
+    }
     await _refrescar(ref);
   }
 
