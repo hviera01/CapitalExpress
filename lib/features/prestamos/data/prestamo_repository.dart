@@ -188,10 +188,8 @@ class PrestamoRepository {
     prestamos.sort((a, b) => (b.fechaCreacion?.compareTo(a.fechaCreacion ?? b.fechaCreacion!) ?? 0));
 
     if (texto.trim().isEmpty) return prestamos;
-    final q = normalizarTexto(texto);
     return prestamos
-        .where((p) =>
-            normalizarTexto(p.cliente).contains(q) || normalizarTexto(p.numeroPrestamo).contains(q))
+        .where((p) => coincideBusqueda(p.cliente, texto) || coincideBusqueda(p.numeroPrestamo, texto))
         .toList();
   }
 
@@ -345,6 +343,64 @@ class PrestamoRepository {
     await _col.doc(id).update(actualizacion);
   }
 
+  /// Cancela UNA mora puntual (no toda la mora pendiente, a diferencia
+  /// de [cancelarMora]) -- para cuando una mora especifica se aplico
+  /// por equivocacion. Reduce el saldo y la mora acumulada por
+  /// exactamente el monto de esa mora, y la deja marcada como
+  /// cancelada en `morasIndividuales` (con quien y cuando) en vez de
+  /// borrarla, para que quede el historial completo.
+  Future<void> cancelarMoraIndividual(
+    String id,
+    String moraId, {
+    required String usuarioUid,
+    required String usuarioNombre,
+    String descripcionPrestamo = '',
+  }) async {
+    final snap = await _col.doc(id).get();
+    final data = snap.data();
+    if (data == null) throw Exception('Préstamo no encontrado');
+
+    final morasRaw = (data['morasIndividuales'] as List?) ?? const [];
+    final moras = morasRaw
+        .map((m) => MoraIndividual.fromMap(Map<String, dynamic>.from(m as Map)))
+        .toList();
+    final indice = moras.indexWhere((m) => m.id == moraId);
+    if (indice == -1) throw Exception('Esa mora ya no existe');
+    if (moras[indice].cancelada) throw Exception('Esa mora ya estaba cancelada');
+
+    final ahora = Timestamp.now();
+    final montoMora = moras[indice].monto;
+    moras[indice] = moras[indice].copyWith(
+      cancelada: true,
+      fechaCancelada: ahora,
+      canceladaPor: usuarioNombre,
+    );
+
+    final moraActual = (data['mora'] as num?)?.toDouble() ?? 0.0;
+    final saldoActual = (data['saldo'] as num?)?.toDouble() ?? 0.0;
+    final nuevaMora = (moraActual - montoMora).clamp(0.0, double.infinity);
+    final nuevoSaldo = (saldoActual - montoMora).clamp(0.0, double.infinity);
+    final quedaMoraActiva = moras.any((m) => !m.cancelada);
+    final nuevoEstado = nuevoSaldo <= 0.01 ? 'saldado' : (quedaMoraActiva ? 'mora' : 'activo');
+
+    await _col.doc(id).update({
+      'morasIndividuales': moras.map((m) => m.toMap()).toList(),
+      'mora': nuevaMora,
+      'saldo': nuevoSaldo,
+      'estado': nuevoEstado,
+      'fechaUltimaActualizacion': ahora,
+    });
+
+    BitacoraRepository().registrar(
+      accion: 'cancelar_mora',
+      entidadTipo: 'prestamo',
+      descripcion:
+          '${descripcionPrestamo.isNotEmpty ? descripcionPrestamo : 'Préstamo (ID: $id)'} - mora de ${montoMora.toStringAsFixed(2)}',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
+  }
+
   /// Cantidad de prestamos en mora (para el stat "Pagos Tarde").
   Future<int> contarEnMora({String? cobradorUid}) async {
     Query<Map<String, dynamic>> query = _col.where('estado', isEqualTo: 'mora');
@@ -429,12 +485,24 @@ class PrestamoRepository {
     );
   }
 
-  Future<void> restaurar(String id) async {
+  Future<void> restaurar(
+    String id, {
+    required String usuarioUid,
+    required String usuarioNombre,
+    String descripcionPrestamo = '',
+  }) async {
     await _col.doc(id).update({
       'eliminado': false,
       'eliminadoPor': FieldValue.delete(),
       'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
     });
+    BitacoraRepository().registrar(
+      accion: 'restaurar_prestamo',
+      entidadTipo: 'prestamo',
+      descripcion: descripcionPrestamo.isNotEmpty ? descripcionPrestamo : 'Préstamo (ID: $id)',
+      usuarioUid: usuarioUid,
+      usuarioNombre: usuarioNombre,
+    );
   }
 
   /// Borra el documento de verdad (a diferencia de marcarEliminado, que

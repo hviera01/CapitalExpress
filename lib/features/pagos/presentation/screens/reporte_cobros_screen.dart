@@ -113,9 +113,9 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
   }
 
   List<PagoModel> get _pagosFiltrados {
-    final q = normalizarTexto(_busquedaCtrl.text);
-    if (q.isEmpty) return _pagos;
-    return _pagos.where((p) => normalizarTexto(p.clienteNombre).contains(q)).toList();
+    final q = _busquedaCtrl.text;
+    if (q.trim().isEmpty) return _pagos;
+    return _pagos.where((p) => coincideBusqueda(p.clienteNombre, q)).toList();
   }
 
   void _exportarPdf() {

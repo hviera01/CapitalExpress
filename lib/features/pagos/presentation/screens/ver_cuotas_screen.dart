@@ -11,6 +11,7 @@ import '../../../../core/utils/cuotas_calculos.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
+import '../../../../core/widgets/ce_mora_tile.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -39,6 +40,47 @@ class _VerCuotasScreenState extends ConsumerState<VerCuotasScreen> {
       ref.read(prestamoRepositoryProvider).streamPorId(widget.prestamoId);
   late final Stream<List<PagoModel>> _streamPagos =
       ref.read(pagoRepositoryProvider).streamPorPrestamo(widget.prestamoId);
+
+  Future<void> _cancelarMoraIndividual(PrestamoModel p, MoraIndividual mora) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar esta mora'),
+        content: Text(
+          'Se quitará esta mora de ${formatearLempiras(mora.monto)} del saldo pendiente. '
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Volver')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancelar mora', style: TextStyle(color: CEColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(prestamoRepositoryProvider).cancelarMoraIndividual(
+            widget.prestamoId,
+            mora.id,
+            usuarioUid: usuario.uid,
+            usuarioNombre: usuario.nombre,
+            descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Mora cancelada')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo cancelar: $e')));
+      }
+    }
+  }
 
   void _exportarPdf(PrestamoModel prestamo, List<CuotaInfo> cuotas) {
     abrirVistaPreviaPdf(
@@ -142,20 +184,38 @@ class _VerCuotasScreenState extends ConsumerState<VerCuotasScreen> {
               Expanded(child: _mini('$pendientes', 'Pendientes', CEColors.danger)),
             ],
           ),
-          if (prestamo.mora > 0) ...[
+          if (prestamo.morasIndividuales.isNotEmpty) ...[
             const SizedBox(height: 12),
             CeCard(
               color: CEColors.danger.withValues(alpha: 0.06),
               borderColor: CEColors.danger.withValues(alpha: 0.3),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.report_gmailerrorred_outlined, color: CEColors.danger, size: 20),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text('Mora aplicada', style: TextStyle(fontWeight: FontWeight.w700)),
+                  Row(
+                    children: [
+                      const Icon(Icons.report_gmailerrorred_outlined,
+                          color: CEColors.danger, size: 20),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child:
+                            Text('Moras aplicadas', style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      Text(formatearLempiras(prestamo.mora),
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w800, color: CEColors.danger)),
+                    ],
                   ),
-                  Text(formatearLempiras(prestamo.mora),
-                      style: const TextStyle(fontWeight: FontWeight.w800, color: CEColors.danger)),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < prestamo.morasIndividuales.length; i++) ...[
+                    if (i > 0) const Divider(height: 20),
+                    CeMoraTile(
+                      mora: prestamo.morasIndividuales[i],
+                      onCancelar: esAdmin && !prestamo.morasIndividuales[i].cancelada
+                          ? () => _cancelarMoraIndividual(prestamo, prestamo.morasIndividuales[i])
+                          : null,
+                    ),
+                  ],
                 ],
               ),
             ),

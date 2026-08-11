@@ -27,6 +27,10 @@ class PushNotificationsService {
   // pueda reintentar despues.
   static bool _tokenRegistrado = false;
   static final _localNotifications = FlutterLocalNotificationsPlugin();
+  // Que avisos quiere este dispositivo -- 'tickets' (solo rol
+  // desarrollador) y/o 'solicitudes' (admin/desarrollador). Se fija en
+  // el primer init() y se reusa en cada refresh de token.
+  static List<String> _tiposActuales = const ['tickets'];
 
   static bool get aplica => kIsWeb || (!kIsWeb && Platform.isAndroid);
 
@@ -47,11 +51,25 @@ class PushNotificationsService {
   /// que el boton pueda mostrarlo -- si algo falla en un dispositivo
   /// puntual (iOS suele ser el mas quisquilloso), necesitamos saber
   /// EXACTAMENTE en que paso, no solo "no funciono".
-  static Future<PushInitResultado> init() async {
+  static Future<PushInitResultado> init({List<String> tipos = const ['tickets']}) async {
     if (!aplica) return const PushInitResultado(false, 'No aplica en esta plataforma');
-    if (_tokenRegistrado) return const PushInitResultado(true, 'Ya estaba activado');
+    _tiposActuales = tipos;
     try {
       final messaging = FirebaseMessaging.instance;
+
+      // Ya registrado antes (el permiso ya estaba concedido): solo hay
+      // que releer el token actual y re-guardarlo con los `tipos`
+      // nuevos (ej. si el rol cambio de admin a desarrollador) -- sin
+      // esto los tipos quedarian pegados a los de la primera vez hasta
+      // el proximo refresh de token, que puede tardar semanas.
+      if (_tokenRegistrado) {
+        final token = kIsWeb
+            ? await messaging.getToken(vapidKey: _vapidKeyWeb)
+            : await messaging.getToken();
+        await _guardarToken(token);
+        return const PushInitResultado(true, 'Ya estaba activado');
+      }
+
       final permiso = await messaging.requestPermission();
       if (permiso.authorizationStatus == AuthorizationStatus.denied) {
         return PushInitResultado(
@@ -114,6 +132,7 @@ class PushNotificationsService {
     if (token == null || token.isEmpty) return;
     await FirebaseFirestore.instance.collection('fcmTokens').doc(token).set({
       'plataforma': kIsWeb ? 'web' : 'android',
+      'tipos': _tiposActuales,
       'fechaActualizacion': FieldValue.serverTimestamp(),
     });
   }
@@ -126,15 +145,17 @@ class PushNotificationsService {
     if (kIsWeb) return;
     final notif = mensaje.notification;
     if (notif == null) return;
+    final esSolicitud = mensaje.data['tipo'] == 'solicitud_nueva';
     _localNotifications.show(
       notif.hashCode,
       notif.title,
       notif.body,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          'tickets',
-          'Tickets',
-          channelDescription: 'Avisos de tickets nuevos',
+          esSolicitud ? 'solicitudes' : 'tickets',
+          esSolicitud ? 'Solicitudes' : 'Tickets',
+          channelDescription:
+              esSolicitud ? 'Avisos de solicitudes de préstamo nuevas' : 'Avisos de tickets nuevos',
           importance: Importance.high,
           priority: Priority.high,
         ),

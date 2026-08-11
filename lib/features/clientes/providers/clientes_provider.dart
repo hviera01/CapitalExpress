@@ -18,11 +18,10 @@ final filtroEstadoClientesProvider = StateProvider.autoDispose<String>((ref) => 
 
 List<ClienteModel> filtrarClientes(List<ClienteModel> clientes, String busqueda) {
   if (busqueda.trim().isEmpty) return clientes;
-  final q = normalizarTexto(busqueda);
   return clientes
       .where((c) =>
-          normalizarTexto(c.nombre).contains(q) ||
-          normalizarTexto(c.identidad).contains(q) ||
-          normalizarTexto(c.telefono).contains(q))
+          coincideBusqueda(c.nombre, busqueda) ||
+          coincideBusqueda(c.identidad, busqueda) ||
+          coincideBusqueda(c.telefono, busqueda))
       .toList();
 }

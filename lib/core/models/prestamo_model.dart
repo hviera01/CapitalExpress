@@ -11,6 +11,9 @@ class MoraIndividual {
   final Timestamp? fechaAplicada;
   final String aplicadaPor;
   final bool sintetica;
+  final bool cancelada;
+  final Timestamp? fechaCancelada;
+  final String canceladaPor;
 
   const MoraIndividual({
     required this.id,
@@ -18,6 +21,9 @@ class MoraIndividual {
     this.fechaAplicada,
     this.aplicadaPor = '',
     this.sintetica = false,
+    this.cancelada = false,
+    this.fechaCancelada,
+    this.canceladaPor = '',
   });
 
   factory MoraIndividual.fromMap(Map<String, dynamic> m) => MoraIndividual(
@@ -26,6 +32,9 @@ class MoraIndividual {
         fechaAplicada: asTimestamp(m['fechaAplicada']),
         aplicadaPor: (m['aplicadaPor'] ?? '') as String,
         sintetica: (m['sintetica'] ?? false) as bool,
+        cancelada: (m['cancelada'] ?? false) as bool,
+        fechaCancelada: asTimestamp(m['fechaCancelada']),
+        canceladaPor: (m['canceladaPor'] ?? '') as String,
       );
 
   Map<String, dynamic> toMap() => {
@@ -34,7 +43,22 @@ class MoraIndividual {
         if (fechaAplicada != null) 'fechaAplicada': fechaAplicada,
         'aplicadaPor': aplicadaPor,
         'sintetica': sintetica,
+        'cancelada': cancelada,
+        if (fechaCancelada != null) 'fechaCancelada': fechaCancelada,
+        'canceladaPor': canceladaPor,
       };
+
+  MoraIndividual copyWith({bool? cancelada, Timestamp? fechaCancelada, String? canceladaPor}) =>
+      MoraIndividual(
+        id: id,
+        monto: monto,
+        fechaAplicada: fechaAplicada,
+        aplicadaPor: aplicadaPor,
+        sintetica: sintetica,
+        cancelada: cancelada ?? this.cancelada,
+        fechaCancelada: fechaCancelada ?? this.fechaCancelada,
+        canceladaPor: canceladaPor ?? this.canceladaPor,
+      );
 }
 
 class PrestamoModel {

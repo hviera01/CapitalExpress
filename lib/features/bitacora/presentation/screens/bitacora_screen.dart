@@ -122,6 +122,10 @@ class BitacoraScreen extends ConsumerWidget {
       return (Icons.check_circle_outline, CEColors.success);
     case 'rechazar_solicitud':
       return (Icons.cancel_outlined, CEColors.danger);
+    case 'restaurar_prestamo':
+      return (Icons.restore_from_trash_outlined, CEColors.success);
+    case 'cancelar_mora':
+      return (Icons.remove_circle_outline, CEColors.warning);
     default:
       return (Icons.history, CEColors.textSecondary);
   }
@@ -147,6 +151,10 @@ String _tituloAccion(String accion) {
       return 'Solicitud aprobada';
     case 'rechazar_solicitud':
       return 'Solicitud rechazada';
+    case 'restaurar_prestamo':
+      return 'Préstamo restaurado';
+    case 'cancelar_mora':
+      return 'Mora cancelada';
     default:
       return 'Movimiento';
   }

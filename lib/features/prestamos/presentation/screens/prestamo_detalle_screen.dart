@@ -7,6 +7,7 @@ import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
+import '../../../../core/widgets/ce_mora_tile.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
@@ -46,8 +47,14 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
         );
   }
 
-  Future<void> _restaurar() async {
-    await ref.read(prestamoRepositoryProvider).restaurar(widget.prestamoId);
+  Future<void> _restaurar(PrestamoModel p) async {
+    final usuario = ref.read(authProvider).usuario!;
+    await ref.read(prestamoRepositoryProvider).restaurar(
+          widget.prestamoId,
+          usuarioUid: usuario.uid,
+          usuarioNombre: usuario.nombre,
+          descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}',
+        );
   }
 
   void _reimprimir(BuildContext context, PrestamoModel p) {
@@ -84,6 +91,49 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('No se pudo cancelar la mora: $e')));
+      }
+    }
+  }
+
+  Future<void> _cancelarMoraIndividual(
+      BuildContext context, PrestamoModel p, MoraIndividual mora) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar esta mora'),
+        content: Text(
+          'Se quitará esta mora de ${formatearLempiras(mora.monto)} (aplicada el '
+          '${mora.fechaAplicada != null ? DateFormat('dd/MM/yyyy').format(mora.fechaAplicada!.toDate()) : '—'}) '
+          'del saldo pendiente. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Volver')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancelar mora', style: TextStyle(color: CEColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(prestamoRepositoryProvider).cancelarMoraIndividual(
+            widget.prestamoId,
+            mora.id,
+            usuarioUid: usuario.uid,
+            usuarioNombre: usuario.nombre,
+            descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}',
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Mora cancelada')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo cancelar: $e')));
       }
     }
   }
@@ -147,7 +197,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             IconButton(
               icon: Icon(p.eliminado ? Icons.restore_from_trash_outlined : Icons.delete_outline),
               tooltip: p.eliminado ? 'Restaurar' : 'Eliminar',
-              onPressed: p.eliminado ? _restaurar : () => _eliminar(p),
+              onPressed: p.eliminado ? () => _restaurar(p) : () => _eliminar(p),
             ),
         ],
       ),
@@ -301,6 +351,34 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
               ],
             ),
           ),
+          if (p.morasIndividuales.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            CeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.warning_amber_outlined, size: 18, color: CEColors.primary),
+                      SizedBox(width: 8),
+                      Text('MORAS APLICADAS',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < p.morasIndividuales.length; i++) ...[
+                    if (i > 0) const Divider(height: 20),
+                    CeMoraTile(
+                      mora: p.morasIndividuales[i],
+                      onCancelar: esAdmin && !p.morasIndividuales[i].cancelada
+                          ? () => _cancelarMoraIndividual(context, p, p.morasIndividuales[i])
+                          : null,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           CeCard(
             child: Column(

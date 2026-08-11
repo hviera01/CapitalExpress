@@ -481,7 +481,11 @@ class _TablaPrestamos extends ConsumerWidget {
   Future<void> _eliminarORestaurar(BuildContext context, WidgetRef ref, PrestamoModel p) async {
     final repo = ref.read(prestamoRepositoryProvider);
     if (eliminadoView) {
-      await repo.restaurar(p.prestamoId);
+      final usuario = ref.read(authProvider).usuario!;
+      await repo.restaurar(p.prestamoId,
+          usuarioUid: usuario.uid,
+          usuarioNombre: usuario.nombre,
+          descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}');
     } else {
       final usuario = ref.read(authProvider).usuario!;
       await repo.marcarEliminado(p.prestamoId,
@@ -783,7 +787,12 @@ class _PrestamoCard extends ConsumerWidget {
                           onPressed: () async {
                             final repo = ref.read(prestamoRepositoryProvider);
                             if (eliminadoView) {
-                              await repo.restaurar(prestamo.prestamoId);
+                              final usuario = ref.read(authProvider).usuario!;
+                              await repo.restaurar(prestamo.prestamoId,
+                                  usuarioUid: usuario.uid,
+                                  usuarioNombre: usuario.nombre,
+                                  descripcionPrestamo:
+                                      'N° ${prestamo.numeroPrestamo} - ${prestamo.cliente}');
                             } else {
                               final usuario = ref.read(authProvider).usuario!;
                               await repo.marcarEliminado(prestamo.prestamoId,

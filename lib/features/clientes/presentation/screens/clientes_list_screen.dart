@@ -24,6 +24,10 @@ import 'cliente_resumen_screen.dart';
 
 const _estados = ['Todos', 'Activo', 'Inactivo'];
 
+/// Valor especial para el filtro de asignacion: clientes sin cobrador
+/// asignado (se muestran como "Administrador" en toda la pantalla).
+const _sinAsignarSentinel = '__sin_asignar__';
+
 /// A diferencia del resto de la app, esta pantalla NO mantiene un stream
 /// abierto sobre toda la coleccion (puede haber miles de clientes): las
 /// estadisticas de arriba salen de consultas de agregacion livianas
@@ -39,6 +43,10 @@ class ClientesListScreen extends ConsumerStatefulWidget {
 class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   final _busquedaCtrl = TextEditingController();
   String _filtroEstado = 'Todos';
+  // null = "Todos"; _sinAsignarSentinel = clientes sin cobrador; o el
+  // uid de un cobrador puntual. Solo admin/desarrollador lo usan (un
+  // cobrador ya ve solo lo suyo).
+  String? _filtroCobradorUid;
 
   bool _cargandoStats = true;
   String? _errorStats;
@@ -193,6 +201,26 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     }
   }
 
+  /// Corrige prestamos cuyo cobrador quedo desincronizado del cliente
+  /// al que pertenecen (ver ClienteRepository.sincronizarAsignaciones)
+  /// -- se trabaja SOLO con asignacion de cliente, esto pone al dia lo
+  /// que quedo desfasado de antes (reasignaciones parciales viejas).
+  Future<void> _sincronizarAsignaciones() async {
+    final mensajero = ScaffoldMessenger.of(context);
+    mensajero.showSnackBar(const SnackBar(content: Text('Sincronizando asignaciones...')));
+    try {
+      final corregidos = await ref.read(clienteRepositoryProvider).sincronizarAsignaciones();
+      if (!mounted) return;
+      mensajero.showSnackBar(SnackBar(
+          content: Text(corregidos == 0
+              ? 'Todo ya estaba sincronizado'
+              : 'Se corrigieron $corregidos préstamo(s)')));
+    } catch (e) {
+      if (!mounted) return;
+      mensajero.showSnackBar(SnackBar(content: Text('No se pudo sincronizar: $e')));
+    }
+  }
+
   Future<void> _buscar() async {
     setState(() => _buscando = true);
     final estado = switch (_filtroEstado) {
@@ -200,11 +228,25 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
       'Inactivo' => 'inactivo',
       _ => null,
     };
-    final resultados = await ref.read(clienteRepositoryProvider).buscar(
-          cobradorUid: _cobradorUid,
+    // El filtro de asignacion (solo admin/desarrollador) es aparte del
+    // alcance normal (_cobradorUid, que para ellos siempre es null):
+    // si eligieron un cobrador puntual, se lo pasa a la consulta igual
+    // que si fueran ese cobrador; si eligieron "Administrador" (sin
+    // asignar), no hay forma de pedirselo a Firestore directo, se trae
+    // todo el alcance y se filtra en memoria.
+    final filtroCobrador = _filtroCobradorUid;
+    final cobradorParaConsulta =
+        (filtroCobrador != null && filtroCobrador != _sinAsignarSentinel)
+            ? filtroCobrador
+            : _cobradorUid;
+    var resultados = await ref.read(clienteRepositoryProvider).buscar(
+          cobradorUid: cobradorParaConsulta,
           estado: estado,
           texto: _busquedaCtrl.text,
         );
+    if (filtroCobrador == _sinAsignarSentinel) {
+      resultados = resultados.where((c) => c.cobradorAsignado.isEmpty).toList();
+    }
     if (!mounted) return;
     setState(() {
       _resultados = resultados;
@@ -237,7 +279,17 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     return CeScaffold(
       maxWidth: 900,
       appBar: AppBar(
-        leading: const BackButton(),title: Text(esAdmin ? 'Ver Clientes' : 'Mis Clientes')),
+        leading: const BackButton(),
+        title: Text(esAdmin ? 'Ver Clientes' : 'Mis Clientes'),
+        actions: [
+          if (esAdmin)
+            IconButton(
+              icon: const Icon(Icons.sync_outlined),
+              tooltip: 'Sincronizar asignaciones (préstamos con su cliente)',
+              onPressed: _sincronizarAsignaciones,
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () =>
             irAPantalla(context, ruta: '/clientes/nuevo', pantalla: const ClienteFormScreen()),
@@ -322,6 +374,21 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                       _estados.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                   onChanged: (v) => setState(() => _filtroEstado = v ?? 'Todos'),
                 ),
+                if (_esAdmin) ...[
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String?>(
+                    initialValue: _filtroCobradorUid,
+                    decoration: const InputDecoration(labelText: 'Asignación'),
+                    items: [
+                      const DropdownMenuItem<String?>(value: null, child: Text('Todos')),
+                      const DropdownMenuItem<String?>(
+                          value: _sinAsignarSentinel, child: Text('Administrador (sin asignar)')),
+                      ..._nombresCobradores.entries.map(
+                          (e) => DropdownMenuItem<String?>(value: e.key, child: Text(e.value))),
+                    ],
+                    onChanged: (v) => setState(() => _filtroCobradorUid = v),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 SizedBox(
                   height: 46,
@@ -370,7 +437,8 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
               _TablaClientes(
                 clientes: _resultados,
                 tienePrestamoDe: (c) => _tienePrestamoReal[c.id] ?? c.tienePrestamo,
-                nombreCobradorDe: (c) => _nombresCobradores[c.cobradorAsignado],
+                nombreCobradorDe: (c) =>
+                    c.cobradorAsignado.isEmpty ? 'Administrador' : _nombresCobradores[c.cobradorAsignado],
                 onEliminado: (c) {
                   setState(() => _resultados.removeWhere((r) => r.id == c.id));
                   _guardarCache();
@@ -390,7 +458,9 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                     child: _ClienteTile(
                       cliente: c,
                       tienePrestamo: _tienePrestamoReal[c.id] ?? c.tienePrestamo,
-                      nombreCobrador: _nombresCobradores[c.cobradorAsignado],
+                      nombreCobrador: c.cobradorAsignado.isEmpty
+                          ? 'Administrador'
+                          : _nombresCobradores[c.cobradorAsignado],
                       onEliminado: () {
                         setState(() => _resultados.removeWhere((r) => r.id == c.id));
                         _guardarCache();
@@ -506,8 +576,7 @@ class _TablaClientes extends ConsumerWidget {
                 DataCell(Text(c.nombre, style: const TextStyle(fontWeight: FontWeight.w600))),
                 DataCell(Text(c.telefono.isEmpty ? '—' : c.telefono)),
                 DataCell(Text(c.identidad.isEmpty ? '—' : c.identidad)),
-                DataCell(Text(nombreCobrador ??
-                    (c.cobradorAsignado.isEmpty ? 'Sin asignar' : c.cobradorAsignado))),
+                DataCell(Text(nombreCobrador ?? c.cobradorAsignado)),
                 DataCell(tienePrestamoDe(c)
                     ? ceTableBadge('Con préstamo', CEColors.accent)
                     : const Text('—')),

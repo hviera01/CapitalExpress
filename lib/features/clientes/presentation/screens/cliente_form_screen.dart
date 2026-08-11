@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/responsive.dart';
@@ -220,8 +219,12 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         fotoGarantiaUrl: urls['fotoGarantiaUrl']!,
         estado: _clienteOriginal?.estado ?? 'activo',
         tienePrestamo: _clienteOriginal?.tienePrestamo ?? false,
-        cobradorAsignado: _clienteOriginal?.cobradorAsignado ??
-            (usuario.rol == Roles.cobrador ? usuario.uid : ''),
+        // Cliente nuevo: queda asignado a quien lo crea, sea cobrador o
+        // admin/desarrollador (antes solo pasaba si el creador era
+        // cobrador -- un cliente creado por un admin quedaba con el
+        // NOMBRE del admin pero sin el UID real en cobradorAsignado,
+        // asi que no aparecia al filtrar "mis clientes" de ese admin).
+        cobradorAsignado: _clienteOriginal?.cobradorAsignado ?? usuario.uid,
         cobrador: _clienteOriginal?.cobrador ?? usuario.nombre,
       );
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -62,15 +63,26 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
         );
   }
 
-  /// Notificacion push de tickets nuevos: SOLO la recibe el rol
-  /// "desarrollador" -- un rol nuevo con los mismos permisos que admin
-  /// en toda la app (ver Roles.esAdminOEquivalente), pero exclusivo
-  /// para quien va a recibir el aviso (puede haber varias cuentas
-  /// admin sin que reciban push). Ver PushNotificationsService.
-  void _iniciarPushSiEsDesarrollador() {
-    if (ref.read(authProvider).usuario?.rol == Roles.desarrollador) {
-      PushNotificationsService.init();
+  /// Notificacion push segun rol:
+  /// - "desarrollador" (rol exclusivo para esto, no cualquier admin):
+  ///   recibe avisos de TICKETS nuevos, en cualquier plataforma.
+  /// - "admin" (cualquier cuenta admin): recibe avisos de SOLICITUDES
+  ///   nuevas (necesitan su aprobacion), pero SOLO en Android -- asi
+  ///   se pidio, para no repetir la complicacion de permisos de iOS
+  ///   Safari con cada admin.
+  /// - desarrollador tambien recibe solicitudes (tiene los mismos
+  ///   permisos que admin en todo lo demas).
+  /// Ver PushNotificationsService.
+  void _iniciarPushSegunRol() {
+    final usuario = ref.read(authProvider).usuario;
+    if (usuario == null) return;
+    final tipos = <String>[];
+    if (usuario.rol == Roles.desarrollador) {
+      tipos.addAll(['tickets', 'solicitudes']);
+    } else if (usuario.rol == Roles.admin && !kIsWeb) {
+      tipos.add('solicitudes');
     }
+    if (tipos.isNotEmpty) PushNotificationsService.init(tipos: tipos);
   }
 
   void _iniciarChequeoActualizacion() {
@@ -98,7 +110,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
     if (ref.read(authProvider).autenticado) {
       _iniciarChequeoActualizacion();
       _reportarDispositivo();
-      _iniciarPushSiEsDesarrollador();
+      _iniciarPushSegunRol();
     }
   }
 
@@ -117,7 +129,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
         if (previous?.autenticado != true) {
           _iniciarChequeoActualizacion();
           _reportarDispositivo();
-          _iniciarPushSiEsDesarrollador();
+          _iniciarPushSegunRol();
         }
       } else {
         _timer?.cancel();

@@ -10,3 +10,15 @@ String normalizarTexto(String texto) {
   }
   return resultado;
 }
+
+/// Coincidencia de busqueda por palabras: TODAS las palabras de
+/// `query` tienen que aparecer en `texto` (normalizado), no importa el
+/// orden ni si hay otras palabras en el medio -- asi buscar "Henry
+/// Viera" encuentra a "Henry Jose Viera" sin que el nombre intermedio
+/// rompa la coincidencia (antes era un `contains` literal de todo el
+/// texto seguido, que exigia que las palabras fueran contiguas).
+bool coincideBusqueda(String texto, String query) {
+  final t = normalizarTexto(texto);
+  final palabras = normalizarTexto(query).split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+  return palabras.every((p) => t.contains(p));
+}

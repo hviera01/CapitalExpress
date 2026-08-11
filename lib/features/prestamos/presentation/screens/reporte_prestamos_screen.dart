@@ -111,11 +111,10 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
       lista = lista.where((p) => estadoEfectivoPrestamo(p) == _filtroEstado).toList();
     }
     lista = lista.where(_pasaFecha).toList();
-    final q = normalizarTexto(_busquedaCtrl.text);
-    if (q.isNotEmpty) {
+    final q = _busquedaCtrl.text;
+    if (q.trim().isNotEmpty) {
       lista = lista
-          .where((p) =>
-              normalizarTexto(p.cliente).contains(q) || normalizarTexto(p.numeroPrestamo).contains(q))
+          .where((p) => coincideBusqueda(p.cliente, q) || coincideBusqueda(p.numeroPrestamo, q))
           .toList();
     }
     return lista;

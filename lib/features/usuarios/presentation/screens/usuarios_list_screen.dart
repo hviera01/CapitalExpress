@@ -155,12 +155,13 @@ class _UsuariosListScreenState extends ConsumerState<UsuariosListScreen> {
   }
 
   List<UsuarioModel> get _filtrados {
-    final q = normalizarTexto(_busquedaCtrl.text);
+    final q = _busquedaCtrl.text;
+    final qNormalizado = normalizarTexto(q);
     return _usuarios.where((u) {
       if (_filtroRol != 'todos' && u.rol != _filtroRol) return false;
       if (_filtroEstado != 'todos' && u.estado != _filtroEstado) return false;
-      if (q.isEmpty) return true;
-      return normalizarTexto(u.nombre).contains(q) || u.codigo.toLowerCase().contains(q);
+      if (q.trim().isEmpty) return true;
+      return coincideBusqueda(u.nombre, q) || u.codigo.toLowerCase().contains(qNormalizado);
     }).toList();
   }
 

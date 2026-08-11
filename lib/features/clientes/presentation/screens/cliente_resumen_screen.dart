@@ -126,7 +126,10 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
     final clienteRepo = ref.read(clienteRepositoryProvider);
     final prestamoRepo = ref.read(prestamoRepositoryProvider);
     await clienteRepo.actualizarCobrador(cliente.id, elegido.uid);
-    for (final p in prestamos.where((p) => p.estado != 'saldado')) {
+    // Se trabaja SOLO con asignacion de cliente: todos sus prestamos
+    // (incluidos los ya saldados) arrastran el mismo cobrador, para que
+    // nunca queden desincronizados del cliente al que pertenecen.
+    for (final p in prestamos) {
       await prestamoRepo.reasignarCobrador(p.prestamoId, elegido.uid);
     }
     if (mounted) {

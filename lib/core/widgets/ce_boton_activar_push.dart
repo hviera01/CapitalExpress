@@ -36,7 +36,7 @@ class _CeBotonActivarPushState extends ConsumerState<CeBotonActivarPush> {
 
   Future<void> _activar() async {
     setState(() => _activando = true);
-    final resultado = await PushNotificationsService.init();
+    final resultado = await PushNotificationsService.init(tipos: const ['tickets', 'solicitudes']);
     await _revisar();
     if (mounted) setState(() => _activando = false);
     if (mounted) {

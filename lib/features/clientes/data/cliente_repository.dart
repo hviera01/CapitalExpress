@@ -62,12 +62,11 @@ class ClienteRepository {
     clientes.sort((a, b) => a.nombre.compareTo(b.nombre));
 
     if (texto.trim().isEmpty) return clientes;
-    final q = normalizarTexto(texto);
     return clientes
         .where((c) =>
-            normalizarTexto(c.nombre).contains(q) ||
-            normalizarTexto(c.identidad).contains(q) ||
-            normalizarTexto(c.telefono).contains(q))
+            coincideBusqueda(c.nombre, texto) ||
+            coincideBusqueda(c.identidad, texto) ||
+            coincideBusqueda(c.telefono, texto))
         .toList();
   }
 
@@ -178,5 +177,34 @@ class ClienteRepository {
       'cobradoresAsignados': [cobradorUid],
       'ultimaActividad': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Corrige prestamos cuyo cobrador quedo desincronizado del cliente
+  /// al que pertenecen (ej. reasignaciones parciales de antes de que
+  /// "Asignar Cobrador" cascadeara a TODOS los prestamos del cliente,
+  /// incluidos los saldados) -- deja en cada prestamo el mismo
+  /// cobradorAsignado que tiene su cliente. Se trabaja SOLO con
+  /// asignacion de cliente: el cliente es la fuente de verdad, el
+  /// prestamo la sigue. Devuelve cuantos prestamos se corrigieron.
+  Future<int> sincronizarAsignaciones() async {
+    final clientesSnap = await _col.get();
+    final prestamosCol = FirebaseFirestore.instance.collection('prestamos');
+    var corregidos = 0;
+    for (final clienteDoc in clientesSnap.docs) {
+      final cobradorCliente = (clienteDoc.data()['cobradorAsignado'] as String?) ?? '';
+      final prestamosSnap =
+          await prestamosCol.where('clienteId', isEqualTo: clienteDoc.id).get();
+      for (final pDoc in prestamosSnap.docs) {
+        final cobradorPrestamo = (pDoc.data()['cobradorAsignado'] as String?) ?? '';
+        if (cobradorPrestamo == cobradorCliente) continue;
+        await pDoc.reference.update({
+          'cobradorAsignado': cobradorCliente,
+          'cobradoresAsignados': cobradorCliente.isNotEmpty ? [cobradorCliente] : [],
+          'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
+        });
+        corregidos++;
+      }
+    }
+    return corregidos;
   }
 }

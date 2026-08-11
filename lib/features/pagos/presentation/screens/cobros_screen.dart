@@ -217,9 +217,9 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     if (_filtroTipo != 'Todos') {
       lista = lista.where((n) => n.tipo == _filtroTipo).toList();
     }
-    final q = normalizarTexto(_busquedaCtrl.text);
-    if (q.isNotEmpty) {
-      lista = lista.where((n) => normalizarTexto(n.prestamo.cliente).contains(q)).toList();
+    final q = _busquedaCtrl.text;
+    if (q.trim().isNotEmpty) {
+      lista = lista.where((n) => coincideBusqueda(n.prestamo.cliente, q)).toList();
     }
     return lista;
   }
