@@ -9728,13 +9728,13 @@ if(n<=0)continue
 m=l.h(0,n)
 if(m==null)m=0
 l.l(0,n,m+o.b)}return l},
-bV_(a,b){var s,r,q,p,o,n,m=A.bC1(b),l=a.k1,k=l==null?null:A.eP(l.gf7()),j=A.b([],t.G8)
-for(l=a.fr,s=k!=null,r=a.fx,q=1;q<=l;++q){p=m.h(0,q)
-if(p==null)p=0
-o=A.bqp(a,q)
-if(p>=o-0.01)n=B.k6
-else n=p>0.01?B.iO:B.AR
-j.push(new A.oL(q,s?A.bpY(k,r,q):new A.bA(Date.now(),0,!1),o,p,n))}return j},
+bV_(a,b){var s,r,q,p,o,n,m,l,k=a.y==="saldado",j=A.bC1(b),i=a.k1,h=i==null?null:A.eP(i.gf7()),g=A.b([],t.G8)
+for(i=a.fr,s=h!=null,r=!k,q=a.fx,p=1;p<=i;++p){o=A.bqp(a,p)
+if(k)n=o
+else{m=j.h(0,p)
+n=m==null?0:m}if(!r||n>=o-0.01)l=B.k6
+else l=n>0.01?B.iO:B.AR
+g.push(new A.oL(p,s?A.bpY(h,q,p):new A.bA(Date.now(),0,!1),o,n,l))}return g},
 bBn(a1,a2,a3){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a=J.blV(a2,0,new A.bjf()),a0=a3.fy
 if(a0>0&&a0<a)a0=a+a0
 s=B.n.aE(a0-a,0,1/0)
@@ -62418,7 +62418,7 @@ s.w=A.dc(B.ahR,new A.b55(s))},
 a8b(){var s,r=this.gaQ(),q=r.an($.bS(),t.D).a
 r=r.an($.brI(),t.Ib)
 s=q==null?null:q.d
-r.FR(s==null?"":s,22)},
+r.FR(s==null?"":s,23)},
 a6_(){var s,r,q=this.gaQ().an($.bS(),t.D).a
 if(q==null)return
 s=t.s
