@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -96,10 +97,15 @@ class _CobrarScreenState extends ConsumerState<CobrarScreen> {
   }
 
   Future<void> _guardar(PrestamoModel prestamo) async {
-    final monto = double.tryParse(_montoCtrl.text) ?? 0;
+    // Por si el monto llego con espacios (pegado, o de una version
+    // vieja de la app sin el filtro del campo) -- que no se caiga por
+    // eso mismo cuando lo unico raro es un espacio de mas.
+    final monto = double.tryParse(_montoCtrl.text.replaceAll(RegExp(r'\s'), '')) ?? 0;
     if (monto <= 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Ingresá un monto válido')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_montoCtrl.text.trim().isEmpty
+              ? 'Ingresá un monto'
+              : 'Ese monto no se entiende ("${_montoCtrl.text}") -- revisá que solo tenga números y un punto decimal')));
       return;
     }
 
@@ -214,6 +220,13 @@ class _CobrarScreenState extends ConsumerState<CobrarScreen> {
                   controller: _montoCtrl,
                   decoration: const InputDecoration(labelText: 'Monto (L.)'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  // Sin esto el teclado del celular (sobre todo con
+                  // texto predictivo/autocorrector activo) podia meter
+                  // un espacio u otro caracter raro entre los numeros
+                  // (ej. "3175. 50") -- double.tryParse no lo lee, y el
+                  // cobrador se quedaba sin poder cobrar sin entender
+                  // por que, porque a simple vista el monto se ve bien.
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 10),
