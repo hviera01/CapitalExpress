@@ -95,15 +95,26 @@ Map<int, double> reconstruirMontosPorCuota(List<PagoModel> pagos) {
 
 /// Tabla completa de cuotas de un prestamo (para Ver Cuotas), con lo que
 /// se pago de cada una reconstruido desde los pagos reales.
+///
+/// Si el prestamo ya esta SALDADO, las cuotas se muestran TODAS
+/// completadas sin importar lo que reconstruya el historico de pagos.
+/// El saldo pendiente (lo que de verdad dice si un prestamo esta
+/// pagado) ya es 0 -- prestamos viejos con pagos marcados a mano,
+/// redondeos, o alguna condonacion puntual podian tener un desglose
+/// por cuota que nunca terminaba de sumar el 100% de cada una aunque
+/// el prestamo estuviera saldado hace rato; no tiene sentido que Ver
+/// Cuotas le diga al cobrador/admin que "debe" algo que el propio
+/// prestamo ya dice que no debe.
 List<CuotaInfo> construirTablaCuotas(PrestamoModel prestamo, List<PagoModel> pagos) {
+  final saldado = prestamo.estado == 'saldado';
   final montosPorCuota = reconstruirMontosPorCuota(pagos);
   final fechaInicio = prestamo.fecha?.toDate();
   final cuotas = <CuotaInfo>[];
 
   for (var n = 1; n <= prestamo.cuotas; n++) {
-    final pagado = montosPorCuota[n] ?? 0.0;
     final esperado = montoObjetivoCuota(prestamo, n);
-    final estado = pagado >= esperado - 0.01
+    final pagado = saldado ? esperado : (montosPorCuota[n] ?? 0.0);
+    final estado = saldado || pagado >= esperado - 0.01
         ? EstadoCuota.pagada
         : pagado > 0.01
             ? EstadoCuota.parcial
