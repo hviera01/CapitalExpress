@@ -51,6 +51,31 @@ class CuotaInfo {
   double get faltante => (montoEsperado - montoPagado).clamp(0, double.infinity);
 }
 
+/// Monto que tiene que juntar la cuota `numeroCuota` para considerarse
+/// completa. Todas las cuotas usan `prestamo.cuota` (el estimado
+/// redondeado que se guardo al crear el prestamo) EXCEPTO LA ULTIMA,
+/// que absorbe lo que sobre por el redondeo -- si no fuera asi, la
+/// suma de las metas de TODAS las cuotas (cuota * cantidadDeCuotas)
+/// casi nunca da exacto el total a pagar (ej. L.7,250 entre 12 cuotas
+/// son L.604.166... por cuota; redondeado a L.604 cada una suman solo
+/// L.7,248), y entonces por mas que el cliente pague el total completo
+/// nunca terminan de "llenarse" todas las cuotas -- quedan una o dos
+/// colgadas en parcial para siempre aunque el prestamo ya este
+/// saldado. Con esto, pagar el total a pagar SIEMPRE completa las
+/// cuotas 1..N sin dejar sobrante suelto.
+double montoObjetivoCuota(PrestamoModel prestamo, int numeroCuota) {
+  if (prestamo.cuotas <= 1) return prestamo.totalPagar > 0 ? prestamo.totalPagar : prestamo.cuota;
+  if (numeroCuota < prestamo.cuotas) return prestamo.cuota;
+  final totalPagar = prestamo.totalPagar > 0 ? prestamo.totalPagar : prestamo.monto + prestamo.interes;
+  final metaSinUltima = prestamo.cuota * (prestamo.cuotas - 1);
+  final ultima = totalPagar - metaSinUltima;
+  // Si por algun motivo el total guardado quedo menor a lo que ya
+  // suman las demas cuotas (dato viejo/editado a mano), no tiene
+  // sentido pedirle una meta negativa a la ultima -- se cae al mismo
+  // monto de las demas.
+  return ultima > 0.01 ? ultima : prestamo.cuota;
+}
+
 /// Reconstruye cuanto se pago de cada cuota (1..cuotasTotales) sumando
 /// `cuotasCubiertas` de todos los pagos del prestamo (un pago puede
 /// repartirse entre varias cuotas por la cascada). La cuota 0 dentro de
@@ -77,7 +102,7 @@ List<CuotaInfo> construirTablaCuotas(PrestamoModel prestamo, List<PagoModel> pag
 
   for (var n = 1; n <= prestamo.cuotas; n++) {
     final pagado = montosPorCuota[n] ?? 0.0;
-    final esperado = prestamo.cuota;
+    final esperado = montoObjetivoCuota(prestamo, n);
     final estado = pagado >= esperado - 0.01
         ? EstadoCuota.pagada
         : pagado > 0.01
@@ -167,12 +192,13 @@ ResultadoDistribucion distribuirPagoConMoraYCascada({
 
   if (restante > 0.01) {
     for (var n = 1; n <= prestamo.cuotas && restante > 0.01; n++) {
+      final objetivo = montoObjetivoCuota(prestamo, n);
       final yaPagado = montosPorCuota[n] ?? 0.0;
-      final falta = (prestamo.cuota - yaPagado).clamp(0.0, double.infinity);
+      final falta = (objetivo - yaPagado).clamp(0.0, double.infinity);
       if (falta <= 0.01) continue;
       final aplicado = restante < falta ? restante : falta;
       final totalCuota = yaPagado + aplicado;
-      final completa = totalCuota >= prestamo.cuota - 0.01;
+      final completa = totalCuota >= objetivo - 0.01;
       cuotasCubiertas.add(CuotaCubierta(
         numeroCuota: n,
         montoAplicado: aplicado,
@@ -186,7 +212,7 @@ ResultadoDistribucion distribuirPagoConMoraYCascada({
 
   int? proximaCuota;
   for (var n = 1; n <= prestamo.cuotas; n++) {
-    if ((montosPorCuota[n] ?? 0.0) < prestamo.cuota - 0.01) {
+    if ((montosPorCuota[n] ?? 0.0) < montoObjetivoCuota(prestamo, n) - 0.01) {
       proximaCuota = n;
       break;
     }
