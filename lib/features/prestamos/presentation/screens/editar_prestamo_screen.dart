@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../solicitudes/providers/solicitud_edicion_provider.dart';
 import '../../providers/prestamos_provider.dart';
 
 const _estadosPrestamo = ['activo', 'mora', 'saldado'];
@@ -22,8 +24,20 @@ const _estadosPrestamo = ['activo', 'mora', 'saldado'];
 class EditarPrestamoScreen extends ConsumerStatefulWidget {
   final String prestamoId;
   final PrestamoModel? prestamoInicial;
+  // Ver ClienteFormScreen -- mismo mecanismo de "modo solicitud" +
+  // permiso otorgado, aplicado a prestamos.
+  final bool modoSolicitud;
+  final Map<String, dynamic>? valoresPropuestos;
+  final String? solicitudEdicionId;
 
-  const EditarPrestamoScreen({super.key, required this.prestamoId, this.prestamoInicial});
+  const EditarPrestamoScreen({
+    super.key,
+    required this.prestamoId,
+    this.prestamoInicial,
+    this.modoSolicitud = false,
+    this.valoresPropuestos,
+    this.solicitudEdicionId,
+  });
 
   @override
   ConsumerState<EditarPrestamoScreen> createState() => _EditarPrestamoScreenState();
@@ -34,6 +48,8 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
   PrestamoModel? _prestamo;
   late bool _cargando = widget.prestamoInicial == null;
   bool _guardando = false;
+  bool _verificandoPermiso = false;
+  bool _bloqueadoPorPermiso = false;
 
   final _lugarCtrl = TextEditingController();
   final _garantiaCtrl = TextEditingController();
@@ -53,6 +69,7 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
     // viaje redondo a Firestore que antes se hacia siempre.
     if (widget.prestamoInicial != null) {
       _aplicarPrestamo(widget.prestamoInicial!);
+      _verificarPermiso();
     } else {
       _cargar();
     }
@@ -70,12 +87,52 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
     _cuotaCtrl.text = p.cuota.toStringAsFixed(2);
     if (plazosDisponibles.contains(p.plazo)) _plazo = p.plazo;
     if (_estadosPrestamo.contains(p.estado)) _estado = p.estado;
+
+    final propuestos = widget.valoresPropuestos;
+    if (propuestos != null) {
+      if (propuestos['lugar'] != null) _lugarCtrl.text = '${propuestos['lugar']}';
+      if (propuestos['garantia'] != null) _garantiaCtrl.text = '${propuestos['garantia']}';
+      if (propuestos['observaciones'] != null) {
+        _observacionesCtrl.text = '${propuestos['observaciones']}';
+      }
+      if (propuestos['monto'] != null) _montoCtrl.text = '${propuestos['monto']}';
+      if (propuestos['totalPagar'] != null) _totalPagarCtrl.text = '${propuestos['totalPagar']}';
+      if (propuestos['cuotas'] != null) _cuotasCtrl.text = '${propuestos['cuotas']}';
+      if (propuestos['cuota'] != null) _cuotaCtrl.text = '${propuestos['cuota']}';
+      final plazoProp = propuestos['plazo'] as String?;
+      if (plazoProp != null && plazosDisponibles.contains(plazoProp)) _plazo = plazoProp;
+      final estadoProp = propuestos['estado'] as String?;
+      if (estadoProp != null && _estadosPrestamo.contains(estadoProp)) _estado = estadoProp;
+    }
   }
 
   Future<void> _cargar() async {
     final p = await ref.read(prestamoRepositoryProvider).obtenerPorId(widget.prestamoId);
     if (p != null) _aplicarPrestamo(p);
     if (mounted) setState(() => _cargando = false);
+    _verificarPermiso();
+  }
+
+  bool _puedeEditarLibre(String? rol) {
+    if (Roles.esAdminOEquivalente(rol)) return true;
+    final fc = _prestamo?.fechaCreacion;
+    if (fc == null) return false;
+    return DateTime.now().difference(fc.toDate()) < const Duration(hours: 1);
+  }
+
+  Future<void> _verificarPermiso() async {
+    if (widget.modoSolicitud || widget.solicitudEdicionId != null) return;
+    if (_prestamo == null) return;
+    final usuario = ref.read(authProvider).usuario;
+    if (_puedeEditarLibre(usuario?.rol)) return;
+    setState(() => _verificandoPermiso = true);
+    final permiso =
+        await ref.read(solicitudEdicionRepositoryProvider).permisoActivoPara(_prestamo!.prestamoId);
+    if (!mounted) return;
+    setState(() {
+      _verificandoPermiso = false;
+      _bloqueadoPorPermiso = permiso == null;
+    });
   }
 
   @override
@@ -90,7 +147,96 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
     super.dispose();
   }
 
+  Future<void> _enviarSolicitud() async {
+    if (!_formKey.currentState!.validate()) return;
+    final p = _prestamo;
+    if (p == null) return;
+
+    final nuevoTotalPagar = double.tryParse(_totalPagarCtrl.text.replaceAll(',', '.'));
+    final nuevoMonto = double.tryParse(_montoCtrl.text.replaceAll(',', '.'));
+    final nuevaCuota = double.tryParse(_cuotaCtrl.text.replaceAll(',', '.'));
+    final nuevasCuotas = int.tryParse(_cuotasCtrl.text);
+    if (nuevoTotalPagar == null || nuevoMonto == null || nuevaCuota == null || nuevasCuotas == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Revisá los montos, hay uno inválido')));
+      return;
+    }
+    if (nuevoTotalPagar < p.montoPagado - 0.01) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'El total a pagar (${formatearLempiras(nuevoTotalPagar)}) no puede ser menor a lo ya pagado (${formatearLempiras(p.montoPagado)})'),
+      ));
+      return;
+    }
+
+    final totalPagarOriginal = p.totalPagar > 0 ? p.totalPagar : (p.monto + p.interes);
+    final nuevos = <String, dynamic>{
+      'lugar': _lugarCtrl.text.trim(),
+      'garantia': _garantiaCtrl.text.trim(),
+      'observaciones': _observacionesCtrl.text.trim(),
+      'plazo': _plazo,
+      'estado': _estado,
+      'monto': nuevoMonto,
+      'totalPagar': nuevoTotalPagar,
+      'cuotas': nuevasCuotas,
+      'cuota': nuevaCuota,
+    };
+    final anteriores = <String, dynamic>{
+      'lugar': p.lugar,
+      'garantia': p.garantia,
+      'observaciones': p.observaciones,
+      'plazo': p.plazo,
+      'estado': p.estado,
+      'monto': p.monto,
+      'totalPagar': totalPagarOriginal,
+      'cuotas': p.cuotas,
+      'cuota': p.cuota,
+    };
+    final valoresNuevos = <String, dynamic>{};
+    final valoresAnteriores = <String, dynamic>{};
+    for (final campo in nuevos.keys) {
+      if ('${nuevos[campo]}' != '${anteriores[campo]}') {
+        valoresNuevos[campo] = nuevos[campo];
+        valoresAnteriores[campo] = anteriores[campo];
+      }
+    }
+
+    if (valoresNuevos.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No hiciste ningún cambio')));
+      return;
+    }
+
+    setState(() => _guardando = true);
+    try {
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(solicitudEdicionRepositoryProvider).crear(
+            entidadTipo: 'prestamo',
+            entidadId: p.prestamoId,
+            entidadNombre: 'N° ${p.numeroPrestamo} - ${p.cliente}',
+            valoresNuevos: valoresNuevos,
+            valoresAnteriores: valoresAnteriores,
+            solicitanteUid: usuario.uid,
+            solicitanteNombre: usuario.nombre,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud enviada, un admin la va a revisar')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo enviar la solicitud: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _guardando = false);
+    }
+  }
+
   Future<void> _guardar() async {
+    if (widget.modoSolicitud) return _enviarSolicitud();
     if (!_formKey.currentState!.validate()) return;
     final p = _prestamo;
     if (p == null) return;
@@ -138,6 +284,15 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
         usuarioNombre: usuario.nombre,
         descripcionPrestamo: 'N° ${p.numeroPrestamo} - ${p.cliente}',
       );
+      final solicitudId = widget.solicitudEdicionId;
+      if (solicitudId != null) {
+        await ref.read(solicitudEdicionRepositoryProvider).marcarAplicada(
+              solicitudId,
+              usuarioUid: usuario.uid,
+              usuarioNombre: usuario.nombre,
+              descripcion: 'N° ${p.numeroPrestamo} - ${p.cliente}',
+            );
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -158,17 +313,53 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_cargando) {
+    if (_cargando || _verificandoPermiso) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_prestamo == null) {
       return const Scaffold(body: Center(child: Text('Préstamo no encontrado')));
     }
 
+    if (_bloqueadoPorPermiso) {
+      final p = _prestamo!;
+      return Scaffold(
+        appBar: AppBar(leading: const BackButton(), title: const Text('Editar préstamo')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_clock_outlined, size: 40),
+                const SizedBox(height: 12),
+                const Text('Ya pasó la hora libre para editar este préstamo',
+                    textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                const Text('Mandá una solicitud de edición para que un admin la revise.',
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.send_outlined),
+                  label: const Text('Solicitar edición'),
+                  onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(
+                      builder: (_) => EditarPrestamoScreen(
+                          prestamoId: p.prestamoId, prestamoInicial: p, modoSolicitud: true))),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
-        leading: const BackButton(),title: Text('Editar N° ${_prestamo!.numeroPrestamo}')),
+        leading: const BackButton(),
+        title: Text(widget.modoSolicitud
+            ? 'Solicitar edición de préstamo'
+            : 'Editar N° ${_prestamo!.numeroPrestamo}'),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -272,7 +463,7 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.save_outlined),
-                label: const Text('Guardar cambios'),
+                label: Text(widget.modoSolicitud ? 'Enviar solicitud' : 'Guardar cambios'),
               ),
             ),
             const SizedBox(height: 24),

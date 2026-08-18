@@ -6,6 +6,7 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/permisos_edicion.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_mora_tile.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
@@ -18,7 +19,6 @@ import '../../../pagos/presentation/screens/historial_pagos_prestamo_screen.dart
 import '../../../pagos/presentation/screens/ver_cuotas_screen.dart';
 import '../../data/recibo_prestamo_service.dart';
 import '../../providers/prestamos_provider.dart';
-import 'editar_prestamo_screen.dart';
 
 class PrestamoDetalleScreen extends ConsumerStatefulWidget {
   final String prestamoId;
@@ -198,10 +198,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Editar',
-              onPressed: () => irAPantalla(context,
-                  ruta: '/prestamos/${p.prestamoId}/editar',
-                  extra: p,
-                  pantalla: EditarPrestamoScreen(prestamoId: p.prestamoId, prestamoInicial: p)),
+              onPressed: () => abrirEdicionPrestamo(context, ref, p),
             ),
           if (esAdmin)
             IconButton(

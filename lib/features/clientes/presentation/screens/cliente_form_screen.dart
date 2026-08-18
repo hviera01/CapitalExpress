@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/responsive.dart';
@@ -10,6 +11,7 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../../core/widgets/selector_foto.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../solicitudes/providers/solicitud_edicion_provider.dart';
 import '../../providers/clientes_provider.dart';
 
 const _estadosCiviles = ['Soltero', 'Casado', 'Union libre', 'Divorciado', 'Viudo'];
@@ -22,8 +24,28 @@ const _estadosCiviles = ['Soltero', 'Casado', 'Union libre', 'Divorciado', 'Viud
 class ClienteFormScreen extends ConsumerStatefulWidget {
   final String? clienteId;
   final ClienteModel? clienteInicial;
+  // "Modo solicitud": en vez de guardar directo, arma un diff de lo que
+  // cambio y crea una solicitud de edicion para que la apruebe un admin
+  // -- ver core/utils/permisos_edicion.dart, que es quien decide cuando
+  // usar este modo.
+  final bool modoSolicitud;
+  // Cuando se abre con un permiso de edicion ya otorgado (solicitud
+  // aprobada), estos son los valores que el admin aprobo -- se precargan
+  // encima de los del cliente para que el cobrador solo tenga que
+  // revisar y guardar.
+  final Map<String, dynamic>? valoresPropuestos;
+  // Id de la solicitud de edicion cuyo permiso se esta usando -- al
+  // guardar exitosamente (fuera de modoSolicitud) se marca consumida.
+  final String? solicitudEdicionId;
 
-  const ClienteFormScreen({super.key, this.clienteId, this.clienteInicial});
+  const ClienteFormScreen({
+    super.key,
+    this.clienteId,
+    this.clienteInicial,
+    this.modoSolicitud = false,
+    this.valoresPropuestos,
+    this.solicitudEdicionId,
+  });
 
   @override
   ConsumerState<ClienteFormScreen> createState() => _ClienteFormScreenState();
@@ -34,6 +56,10 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
   ClienteModel? _clienteOriginal;
   late bool _cargando = widget.clienteInicial == null && widget.clienteId != null;
   bool _guardando = false;
+  // Gate defensivo por si se entra a editar sin pasar por
+  // abrirEdicionCliente (ej. URL directa en Web) -- ver _verificarPermiso.
+  bool _verificandoPermiso = false;
+  bool _bloqueadoPorPermiso = false;
 
   final _campos = <String, TextEditingController>{
     'nombre': TextEditingController(),
@@ -91,6 +117,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
       // sin el viaje redondo a Firestore que antes se hacia siempre
       // antes de poder ver el formulario de edicion.
       _aplicarCliente(widget.clienteInicial!);
+      _verificarPermiso();
     } else if (widget.clienteId != null) {
       _cargar();
     }
@@ -118,6 +145,20 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     if (_estadosCiviles.contains(cliente.estadoCivil)) {
       _estadoCivil = cliente.estadoCivil;
     }
+    // Permiso de edicion otorgado (solicitud aprobada): los valores que
+    // el admin aprobo se precargan ENCIMA de los del cliente, para que
+    // el cobrador solo tenga que revisar y guardar.
+    final propuestos = widget.valoresPropuestos;
+    if (propuestos != null) {
+      for (final entry in propuestos.entries) {
+        if (entry.key == 'estadoCivil') {
+          final v = entry.value as String?;
+          if (v != null && _estadosCiviles.contains(v)) _estadoCivil = v;
+        } else {
+          _campos[entry.key]?.text = '${entry.value}';
+        }
+      }
+    }
   }
 
   Future<void> _cargar() async {
@@ -125,6 +166,32 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     final cliente = await repo.obtenerPorId(widget.clienteId!);
     if (cliente != null) _aplicarCliente(cliente);
     if (mounted) setState(() => _cargando = false);
+    _verificarPermiso();
+  }
+
+  bool _puedeEditarLibre(String? rol) {
+    if (Roles.esAdminOEquivalente(rol)) return true;
+    final fc = _clienteOriginal?.fechaCreacion;
+    if (fc == null) return false;
+    return DateTime.now().difference(fc.toDate()) < const Duration(hours: 1);
+  }
+
+  /// Gate defensivo: si alguien entra a editar SIN pasar por
+  /// abrirEdicionCliente (ej. URL directa en Web), esto bloquea el
+  /// formulario igual que el helper lo hubiera hecho.
+  Future<void> _verificarPermiso() async {
+    if (widget.modoSolicitud || widget.solicitudEdicionId != null) return;
+    if (_clienteOriginal == null) return;
+    final usuario = ref.read(authProvider).usuario;
+    if (_puedeEditarLibre(usuario?.rol)) return;
+    setState(() => _verificandoPermiso = true);
+    final permiso =
+        await ref.read(solicitudEdicionRepositoryProvider).permisoActivoPara(_clienteOriginal!.id);
+    if (!mounted) return;
+    setState(() {
+      _verificandoPermiso = false;
+      _bloqueadoPorPermiso = permiso == null;
+    });
   }
 
   @override
@@ -164,7 +231,108 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     }
   }
 
+  /// Valor ORIGINAL (antes de tocar el formulario) de un campo de texto
+  /// -- solo se usa en modoSolicitud, para armar el diff campo por
+  /// campo contra lo que el cobrador escribio.
+  String _valorOriginal(String campo) {
+    final c = _clienteOriginal;
+    if (c == null) return '';
+    switch (campo) {
+      case 'nombre':
+        return c.nombre;
+      case 'identidad':
+        return c.identidad;
+      case 'telefono':
+        return c.telefono;
+      case 'nombreEmpresa':
+        return c.nombreEmpresa;
+      case 'direccionCasa':
+        return c.direccionCasa;
+      case 'direccionNegocio':
+        return c.direccionNegocio;
+      case 'garantia':
+        return c.garantia;
+      case 'ref1Nombre':
+        return c.ref1.nombre;
+      case 'ref1Identidad':
+        return c.ref1.identidad;
+      case 'ref1Telefono':
+        return c.ref1.telefono;
+      case 'ref1Parentesco':
+        return c.ref1.parentesco;
+      case 'ref1Direccion':
+        return c.ref1.direccion;
+      case 'ref2Nombre':
+        return c.ref2.nombre;
+      case 'ref2Identidad':
+        return c.ref2.identidad;
+      case 'ref2Telefono':
+        return c.ref2.telefono;
+      case 'ref2Parentesco':
+        return c.ref2.parentesco;
+      case 'ref2Direccion':
+        return c.ref2.direccion;
+      default:
+        return '';
+    }
+  }
+
+  Future<void> _enviarSolicitud() async {
+    if (!_formKey.currentState!.validate()) return;
+    final c = _clienteOriginal;
+    if (c == null) return;
+
+    final valoresNuevos = <String, dynamic>{};
+    final valoresAnteriores = <String, dynamic>{};
+    for (final campo in _campos.keys) {
+      final nuevo = _campos[campo]!.text.trim();
+      final anterior = _valorOriginal(campo);
+      if (nuevo != anterior) {
+        valoresNuevos[campo] = nuevo;
+        valoresAnteriores[campo] = anterior;
+      }
+    }
+    if (_estadoCivil != c.estadoCivil) {
+      valoresNuevos['estadoCivil'] = _estadoCivil;
+      valoresAnteriores['estadoCivil'] = c.estadoCivil;
+    }
+
+    if (valoresNuevos.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No hiciste ningún cambio')));
+      return;
+    }
+
+    setState(() => _guardando = true);
+    try {
+      final usuario = ref.read(authProvider).usuario!;
+      await ref.read(solicitudEdicionRepositoryProvider).crear(
+            entidadTipo: 'cliente',
+            entidadId: c.id,
+            entidadNombre: c.nombre,
+            valoresNuevos: valoresNuevos,
+            valoresAnteriores: valoresAnteriores,
+            solicitanteUid: usuario.uid,
+            solicitanteNombre: usuario.nombre,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud enviada, un admin la va a revisar')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo enviar la solicitud: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _guardando = false);
+    }
+  }
+
   Future<void> _guardar() async {
+    if (widget.modoSolicitud) return _enviarSolicitud();
     if (!_formKey.currentState!.validate()) return;
     setState(() => _guardando = true);
 
@@ -233,6 +401,15 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         await repo.crear(cliente);
       } else {
         await repo.actualizar(cliente, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
+        final solicitudId = widget.solicitudEdicionId;
+        if (solicitudId != null) {
+          await ref.read(solicitudEdicionRepositoryProvider).marcarAplicada(
+                solicitudId,
+                usuarioUid: usuario.uid,
+                usuarioNombre: usuario.nombre,
+                descripcion: cliente.nombre,
+              );
+        }
       }
 
       if (mounted) Navigator.of(context).pop();
@@ -249,15 +426,49 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_cargando) {
+    if (_cargando || _verificandoPermiso) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_bloqueadoPorPermiso) {
+      final c = _clienteOriginal!;
+      return Scaffold(
+        appBar: AppBar(leading: const BackButton(), title: const Text('Editar cliente')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_clock_outlined, size: 40),
+                const SizedBox(height: 12),
+                const Text('Ya pasó la hora libre para editar este cliente',
+                    textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                const Text('Mandá una solicitud de edición para que un admin la revise.',
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.send_outlined),
+                  label: const Text('Solicitar edición'),
+                  onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(
+                      builder: (_) =>
+                          ClienteFormScreen(clienteId: c.id, clienteInicial: c, modoSolicitud: true))),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     return CeScaffold(
       maxWidth: 720,
       appBar: AppBar(
         leading: const BackButton(),
-        title: Text(_clienteOriginal == null ? 'Crear Nuevo Cliente' : 'Editar cliente'),
+        title: Text(widget.modoSolicitud
+            ? 'Solicitar edición de cliente'
+            : (_clienteOriginal == null ? 'Crear Nuevo Cliente' : 'Editar cliente')),
       ),
       body: Form(
         key: _formKey,
@@ -344,6 +555,7 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            if (!widget.modoSolicitud)
             CeSectionCard(
               icono: Icons.photo_library_outlined,
               titulo: 'Documentos y Fotos',
@@ -380,7 +592,9 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.save_outlined),
-                label: Text(_clienteOriginal == null ? 'Guardar Cliente' : 'Guardar Cambios'),
+                label: Text(widget.modoSolicitud
+                    ? 'Enviar solicitud'
+                    : (_clienteOriginal == null ? 'Guardar Cliente' : 'Guardar Cambios')),
               ),
             ),
             const SizedBox(height: 24),

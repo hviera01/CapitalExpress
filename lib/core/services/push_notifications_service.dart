@@ -28,9 +28,15 @@ class PushNotificationsService {
   static bool _tokenRegistrado = false;
   static final _localNotifications = FlutterLocalNotificationsPlugin();
   // Que avisos quiere este dispositivo -- 'tickets' (solo rol
-  // desarrollador) y/o 'solicitudes' (admin/desarrollador). Se fija en
-  // el primer init() y se reusa en cada refresh de token.
+  // desarrollador), 'solicitudes' (admin/desarrollador) y/o
+  // 'permisos_edicion' (cualquier rol, ver SolicitudEdicionRepository).
+  // Se fija en el primer init() y se reusa en cada refresh de token.
   static List<String> _tiposActuales = const ['tickets'];
+  // Uid del usuario logueado en este dispositivo -- necesario para
+  // avisos DIRIGIDOS a un usuario puntual (ej. vencimiento de un
+  // permiso de edicion), a diferencia de los avisos por `tipos` (que
+  // son broadcast a todos los dispositivos con ese tipo).
+  static String? _usuarioUidActual;
 
   static bool get aplica => kIsWeb || (!kIsWeb && Platform.isAndroid);
 
@@ -51,9 +57,13 @@ class PushNotificationsService {
   /// que el boton pueda mostrarlo -- si algo falla en un dispositivo
   /// puntual (iOS suele ser el mas quisquilloso), necesitamos saber
   /// EXACTAMENTE en que paso, no solo "no funciono".
-  static Future<PushInitResultado> init({List<String> tipos = const ['tickets']}) async {
+  static Future<PushInitResultado> init({
+    List<String> tipos = const ['tickets'],
+    String? usuarioUid,
+  }) async {
     if (!aplica) return const PushInitResultado(false, 'No aplica en esta plataforma');
     _tiposActuales = tipos;
+    _usuarioUidActual = usuarioUid;
     try {
       final messaging = FirebaseMessaging.instance;
 
@@ -133,6 +143,7 @@ class PushNotificationsService {
     await FirebaseFirestore.instance.collection('fcmTokens').doc(token).set({
       'plataforma': kIsWeb ? 'web' : 'android',
       'tipos': _tiposActuales,
+      if (_usuarioUidActual != null) 'usuarioUid': _usuarioUidActual,
       'fechaActualizacion': FieldValue.serverTimestamp(),
     });
   }

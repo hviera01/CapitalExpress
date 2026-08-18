@@ -15,10 +15,12 @@ import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_web_nav.dart';
+import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../data/reporte_cobros_pdf_service.dart';
 import 'cobrar_screen.dart';
 import 'ver_cuotas_screen.dart';
 import '../../providers/cobros_cache.dart';
@@ -45,6 +47,7 @@ const _etiquetasTipo = {
 class NotifCobro {
   final PrestamoModel prestamo;
   final DateTime proximoPago;
+  final DateTime? ultimoPago;
   final int diferenciaDias;
   final String tipo;
   final int cuotasCompletadas;
@@ -52,6 +55,7 @@ class NotifCobro {
   const NotifCobro({
     required this.prestamo,
     required this.proximoPago,
+    required this.ultimoPago,
     required this.diferenciaDias,
     required this.tipo,
     required this.cuotasCompletadas,
@@ -165,6 +169,19 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       fechasPorPrestamo[p.prestamoId] = base != null ? calcularProximaFecha(base, p.plazo) : null;
     }
 
+    // Fecha del ULTIMO pago real, para mostrar en pantalla -- a
+    // diferencia de `ultimasFechas` (que solo se pide para los
+    // prestamos sin `proximoPago` directo, para reconstruirlo), esta
+    // se pide para TODOS los candidatos porque es un dato a mostrar,
+    // no un calculo interno.
+    var ultimosPagosTodos = const <String, DateTime?>{};
+    try {
+      ultimosPagosTodos =
+          await pagoRepo.obtenerUltimaFechaPorPrestamos(candidatos.map((p) => p.prestamoId).toList());
+    } catch (_) {
+      // sin conexion: se muestra "Sin pagos aun" para todos, no es critico.
+    }
+
     for (final p in candidatos) {
       final fecha = fechasPorPrestamo[p.prestamoId];
       if (fecha == null) continue;
@@ -186,6 +203,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       notificaciones.add(NotifCobro(
         prestamo: p,
         proximoPago: fecha,
+        ultimoPago: ultimosPagosTodos[p.prestamoId],
         diferenciaDias: diferenciaDias,
         tipo: tipo,
         cuotasCompletadas: cuotasCompletadas,
@@ -298,6 +316,34 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     }
   }
 
+  Future<void> _exportarPdf() async {
+    final f = DateFormat('dd/MM/yyyy');
+    final filas = _filtradas;
+    final filtroTexto =
+        'Filtro: ${_etiquetasTipo[_filtroTipo] ?? _filtroTipo} · ${filas.length} registros · '
+        'Generado el ${f.format(DateTime.now())}';
+    await abrirVistaPreviaPdf(
+      context,
+      titulo: 'Cobros — ${_etiquetasTipo[_filtroTipo] ?? _filtroTipo}',
+      nombreArchivo: 'cobros.pdf',
+      generar: () => ReporteCobrosPdfService.generarPendientes(
+        filtroTexto: filtroTexto,
+        filas: filas
+            .map((n) => FilaCobroPendiente(
+                  cliente: n.prestamo.cliente,
+                  numeroPrestamo: n.prestamo.numeroPrestamo,
+                  urgencia: _etiquetaUrgencia(n.diferenciaDias),
+                  proximoPago: f.format(n.proximoPago),
+                  ultimoPago: n.ultimoPago != null ? f.format(n.ultimoPago!) : 'Sin pagos aún',
+                  cuota: n.prestamo.cuota,
+                  mora: n.prestamo.mora,
+                  cobrador: n.prestamo.cobrador,
+                ))
+            .toList(),
+      ),
+    );
+  }
+
   Color _colorUrgencia(int diferenciaDias) {
     if (diferenciaDias < -3) return CEColors.danger;
     if (diferenciaDias < 0) return const Color(0xFFEA580C);
@@ -338,7 +384,14 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       appBar: AppBar(
         leading: const BackButton(),
         title: const Text('Cobros'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar)],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Exportar a PDF',
+            onPressed: filtradas.isEmpty ? null : _exportarPdf,
+          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
+        ],
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
@@ -479,6 +532,12 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 4),
+                            Text(
+                                n.ultimoPago != null
+                                    ? 'Último pago: ${f.format(n.ultimoPago!)}'
+                                    : 'Sin pagos aún',
+                                style: const TextStyle(fontSize: 11, color: CEColors.textSecondary)),
                             if (p.cuotas > 0) ...[
                               const SizedBox(height: 8),
                               ClipRRect(
@@ -582,6 +641,7 @@ class _TablaCobros extends StatelessWidget {
         DataColumn(label: Text('N°')),
         DataColumn(label: Text('Saldo'), numeric: true),
         DataColumn(label: Text('Próxima cuota')),
+        DataColumn(label: Text('Último pago')),
         DataColumn(label: Text('Estado')),
         DataColumn(label: Text('Cuota')),
         DataColumn(label: Text('Acciones')),
@@ -605,6 +665,7 @@ class _TablaCobros extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700))),
               DataCell(Text(f.format(n.proximoPago),
                   style: TextStyle(color: color, fontWeight: FontWeight.w700))),
+              DataCell(Text(n.ultimoPago != null ? f.format(n.ultimoPago!) : '—')),
               DataCell(ceTableBadge(etiquetaUrgencia(n.diferenciaDias), color)),
               DataCell(Text(p.cuotas > 0 ? '${n.cuotasCompletadas + 1} de ${p.cuotas}' : '—')),
               DataCell(mostrarAcciones

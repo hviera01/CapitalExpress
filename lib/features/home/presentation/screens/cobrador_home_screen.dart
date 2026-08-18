@@ -162,6 +162,14 @@ class CobradorHomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           CeMenuRow(
+            icono: Icons.forum_outlined,
+            titulo: 'Mis Solicitudes',
+            subtitulo: 'Préstamos y ediciones que mandé',
+            chevron: true,
+            onTap: () => context.push('/mis-solicitudes'),
+          ),
+          const SizedBox(height: 8),
+          CeMenuRow(
             icono: Icons.confirmation_number_outlined,
             titulo: 'Tickets',
             subtitulo: 'Reportar un problema',
@@ -331,7 +339,7 @@ class _PanelEscritorioCobradorState extends ConsumerState<_PanelEscritorioCobrad
                       valor: _cargando ? '…' : '$_solicitudesCount',
                       subtitulo: 'pendientes de aprobación',
                       enlace: 'Ver',
-                      onTap: () => abrirSeccionWeb(ref, 'solicitudes'),
+                      onTap: () => abrirSeccionWeb(ref, 'mis-solicitudes'),
                     ),
                     CeTarjetaExplorar(
                       icono: Icons.confirmation_number_outlined,

@@ -11,6 +11,7 @@ import '../../features/pagos/presentation/screens/cobros_screen.dart';
 import '../../features/pagos/presentation/screens/reporte_cobros_screen.dart';
 import '../../features/prestamos/presentation/screens/prestamos_list_screen.dart';
 import '../../features/reportes/presentation/screens/reportes_screen.dart';
+import '../../features/solicitudes/presentation/screens/mis_solicitudes_screen.dart';
 import '../../features/solicitudes/presentation/screens/solicitudes_screen.dart';
 import '../../features/usuarios/presentation/screens/usuarios_list_screen.dart';
 
@@ -89,6 +90,12 @@ const Map<String, CeSeccionWeb> ceSeccionesWeb = {
     icono: Icons.payments_outlined,
     construir: _misPagos,
   ),
+  'mis-solicitudes': CeSeccionWeb(
+    id: 'mis-solicitudes',
+    titulo: 'Mis Solicitudes',
+    icono: Icons.forum_outlined,
+    construir: _misSolicitudes,
+  ),
   'tickets': CeSeccionWeb(
     id: 'tickets',
     titulo: 'Tickets',
@@ -106,6 +113,7 @@ Widget _usuarios(BuildContext context) => const UsuariosListScreen();
 Widget _dispositivos(BuildContext context) => const DispositivosScreen();
 Widget _bitacora(BuildContext context) => const BitacoraScreen();
 Widget _misPagos(BuildContext context) => const ReporteCobrosScreen();
+Widget _misSolicitudes(BuildContext context) => const MisSolicitudesScreen();
 Widget _tickets(BuildContext context) => const TicketsScreen();
 
 /// Abre (o enfoca, si ya estaba abierta) una seccion como pestaña --

@@ -5,6 +5,7 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/permisos_edicion.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_data_table_style.dart';
@@ -15,7 +16,6 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../providers/prestamos_busqueda_cache.dart';
 import '../../providers/prestamos_provider.dart';
 import 'crear_prestamo_screen.dart';
-import 'editar_prestamo_screen.dart';
 import 'prestamo_detalle_screen.dart';
 
 const _estadosFiltro = ['Todos', 'Activo', 'Mora', 'Saldado'];
@@ -484,10 +484,7 @@ class _TablaPrestamos extends ConsumerWidget {
   }
 
   Future<void> _editar(BuildContext context, WidgetRef ref, PrestamoModel p) async {
-    await irAPantalla(context,
-        ruta: '/prestamos/${p.prestamoId}/editar',
-        extra: p,
-        pantalla: EditarPrestamoScreen(prestamoId: p.prestamoId, prestamoInicial: p));
+    await abrirEdicionPrestamo(context, ref, p);
     await _refrescar(ref, p);
   }
 
@@ -637,10 +634,7 @@ class _PrestamoCard extends ConsumerWidget {
   });
 
   Future<void> _editar(BuildContext context, WidgetRef ref) async {
-    await irAPantalla(context,
-        ruta: '/prestamos/${prestamo.prestamoId}/editar',
-        extra: prestamo,
-        pantalla: EditarPrestamoScreen(prestamoId: prestamo.prestamoId, prestamoInicial: prestamo));
+    await abrirEdicionPrestamo(context, ref, prestamo);
     // Al volver de editar, se trae el prestamo actualizado -- antes la
     // card se quedaba mostrando los datos viejos hasta repetir la
     // busqueda a mano.

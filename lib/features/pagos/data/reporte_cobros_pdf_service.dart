@@ -30,6 +30,28 @@ class FilaReporteCobro {
   });
 }
 
+class FilaCobroPendiente {
+  final String cliente;
+  final String numeroPrestamo;
+  final String urgencia;
+  final String proximoPago;
+  final String ultimoPago;
+  final double cuota;
+  final double mora;
+  final String cobrador;
+
+  const FilaCobroPendiente({
+    required this.cliente,
+    required this.numeroPrestamo,
+    required this.urgencia,
+    required this.proximoPago,
+    required this.ultimoPago,
+    required this.cuota,
+    required this.mora,
+    required this.cobrador,
+  });
+}
+
 class FilaPrestamoSaldado {
   final String cliente;
   final String numeroPrestamo;
@@ -109,6 +131,82 @@ class ReporteCobrosPdfService {
                     _td(formatearLempiras(filas[i].abono)),
                     _td(formatearLempiras(filas[i].mora)),
                     _td(formatearLempiras(filas[i].abono + filas[i].mora), color: _accent),
+                    _td(filas[i].cobrador),
+                  ],
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static Future<Uint8List> generarPendientes({
+    required List<FilaCobroPendiente> filas,
+    required String filtroTexto,
+  }) async {
+    final pdf = pw.Document();
+    final totalCuotas = filas.fold<double>(0, (a, f) => a + f.cuota);
+    final totalMora = filas.fold<double>(0, (a, f) => a + f.mora);
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.fromLTRB(28, 28, 28, 36),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text('Página ${context.pageNumber} de ${context.pagesCount}',
+              style: pw.TextStyle(fontSize: 9, color: _textSecondary)),
+        ),
+        build: (context) => [
+          pw.Text('Cobros Pendientes',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: _navy)),
+          pw.SizedBox(height: 4),
+          pw.Text(filtroTexto, style: pw.TextStyle(fontSize: 9, color: _textSecondary)),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(14),
+            decoration: pw.BoxDecoration(color: _navy, borderRadius: pw.BorderRadius.circular(10)),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                _stat('Registros', '${filas.length}'),
+                _stat('Total Cuotas', formatearLempiras(totalCuotas)),
+                _stat('Mora', formatearLempiras(totalMora)),
+                _stat('Total a Cobrar', formatearLempiras(totalCuotas + totalMora)),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 16),
+          pw.Table(
+            border: const pw.TableBorder(horizontalInside: pw.BorderSide(color: _border, width: 0.5)),
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: _navy),
+                children: [
+                  _th('Cliente'),
+                  _th('N° Préstamo'),
+                  _th('Estado'),
+                  _th('Próx. Pago'),
+                  _th('Último Pago'),
+                  _th('Cuota'),
+                  _th('Mora'),
+                  _th('Cobrador'),
+                ],
+              ),
+              for (var i = 0; i < filas.length; i++)
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: i.isEven ? PdfColors.white : _surface),
+                  children: [
+                    _td(filas[i].cliente),
+                    _td(filas[i].numeroPrestamo),
+                    _td(filas[i].urgencia),
+                    _td(filas[i].proximoPago),
+                    _td(filas[i].ultimoPago),
+                    _td(formatearLempiras(filas[i].cuota)),
+                    _td(formatearLempiras(filas[i].mora)),
                     _td(filas[i].cobrador),
                   ],
                 ),

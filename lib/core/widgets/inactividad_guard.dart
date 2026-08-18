@@ -72,6 +72,12 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
   ///   Safari con cada admin.
   /// - desarrollador tambien recibe solicitudes (tiene los mismos
   ///   permisos que admin en todo lo demas).
+  /// - CUALQUIER rol (incluido cobrador, que antes nunca registraba
+  ///   token) recibe 'permisos_edicion' en Android -- es el aviso de
+  ///   que un permiso de edicion otorgado vencio sin usarse (ver
+  ///   SolicitudEdicionRepository), dirigido por `usuarioUid` (no
+  ///   broadcast), asi que hace falta que TODOS tengan al menos un
+  ///   token guardado con su uid.
   /// Ver PushNotificationsService.
   void _iniciarPushSegunRol() {
     final usuario = ref.read(authProvider).usuario;
@@ -82,7 +88,10 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
     } else if (usuario.rol == Roles.admin && !kIsWeb) {
       tipos.add('solicitudes');
     }
-    if (tipos.isNotEmpty) PushNotificationsService.init(tipos: tipos);
+    if (!kIsWeb) tipos.add('permisos_edicion');
+    if (tipos.isNotEmpty) {
+      PushNotificationsService.init(tipos: tipos, usuarioUid: usuario.uid);
+    }
   }
 
   void _iniciarChequeoActualizacion() {

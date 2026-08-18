@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/reporte_clientes_calculos.dart';
+import '../../../../core/utils/permisos_edicion.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
@@ -524,10 +525,7 @@ class _TablaClientes extends ConsumerWidget {
   }
 
   Future<void> _editar(BuildContext context, WidgetRef ref, ClienteModel c) async {
-    await irAPantalla(context,
-        ruta: '/clientes/${c.id}/editar',
-        extra: c,
-        pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c));
+    await abrirEdicionCliente(context, ref, c);
     final actualizado = await ref.read(clienteRepositoryProvider).obtenerPorId(c.id);
     if (actualizado != null) onActualizado(actualizado);
   }
@@ -567,6 +565,7 @@ class _TablaClientes extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final esAdmin = Roles.esAdminOEquivalente(ref.watch(authProvider).usuario?.rol);
     return CeDataTableCard(
       columns: const [
         DataColumn(label: Text('Cliente')),
@@ -644,14 +643,15 @@ class _TablaClientes extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    const PopupMenuItem(
-                      value: 'eliminar',
-                      child: ListTile(
-                        leading: Icon(Icons.delete_outline, color: CEColors.danger),
-                        title: Text('Eliminar'),
-                        contentPadding: EdgeInsets.zero,
+                    if (esAdmin)
+                      const PopupMenuItem(
+                        value: 'eliminar',
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline, color: CEColors.danger),
+                          title: Text('Eliminar'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
                       ),
-                    ),
                   ],
                 )),
               ],
@@ -726,10 +726,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
     final c = widget.cliente;
     switch (accion) {
       case 'editar':
-        await irAPantalla(context,
-            ruta: '/clientes/${c.id}/editar',
-            extra: c,
-            pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c));
+        await abrirEdicionCliente(context, ref, c);
         // Al volver de editar, se trae el cliente actualizado -- antes
         // la fila se quedaba mostrando los datos viejos hasta que se
         // repetia la busqueda a mano.
@@ -805,6 +802,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
   @override
   Widget build(BuildContext context) {
     final c = widget.cliente;
+    final esAdmin = Roles.esAdminOEquivalente(ref.watch(authProvider).usuario?.rol);
     return CeCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -868,14 +866,15 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
-                          const PopupMenuItem(
-                            value: 'eliminar',
-                            child: ListTile(
-                              leading: Icon(Icons.delete_outline, color: CEColors.danger),
-                              title: Text('Eliminar'),
-                              contentPadding: EdgeInsets.zero,
+                          if (esAdmin)
+                            const PopupMenuItem(
+                              value: 'eliminar',
+                              child: ListTile(
+                                leading: Icon(Icons.delete_outline, color: CEColors.danger),
+                                title: Text('Eliminar'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
                             ),
-                          ),
                           if (c.telefono.isNotEmpty) ...[
                             const PopupMenuItem(
                               value: 'llamar',

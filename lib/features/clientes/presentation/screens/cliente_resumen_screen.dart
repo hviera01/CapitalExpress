@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:intl/intl.dart';
+
+import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/models/usuario_simple.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/utils/permisos_edicion.dart';
 import '../../../../core/utils/reporte_clientes_calculos.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
@@ -17,12 +21,12 @@ import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../../core/widgets/imagen_red_network.dart';
 import '../../../../core/widgets/visor_foto_zoom.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../pagos/providers/pagos_provider.dart';
 import '../../../prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../providers/clientes_provider.dart';
 import 'cliente_detalle_screen.dart';
-import 'cliente_form_screen.dart';
 
 /// Pantalla al tocar un cliente en la lista: resumen (no edicion directa)
 /// con los totales de sus prestamos y accesos a Editar / Ver Detalles /
@@ -141,6 +145,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final esAdmin = Roles.esAdminOEquivalente(ref.watch(authProvider).usuario?.rol);
     return StreamBuilder<ClienteModel?>(
       stream: _streamCliente,
       // Si ya veniamos de la lista/tile con el ClienteModel en mano, se
@@ -165,14 +170,15 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
           stream: _streamPrestamos,
           builder: (context, prestamosSnap) {
             final prestamos = prestamosSnap.data ?? const [];
-            return _contenido(context, c, prestamos);
+            return _contenido(context, c, prestamos, esAdmin);
           },
         );
       },
     );
   }
 
-  Widget _contenido(BuildContext context, ClienteModel c, List<PrestamoModel> prestamos) {
+  Widget _contenido(
+      BuildContext context, ClienteModel c, List<PrestamoModel> prestamos, bool esAdmin) {
     // Misma funcion que Reporte de Clientes / Reporte de Prestamos usan
     // para "pendiente" (el campo `saldo`, no un total-pagado recalculado)
     // -- para que el numero de "Pendiente" sea siempre el mismo sin
@@ -237,13 +243,13 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
         title: const Text('Resumen del Cliente'),
       ),
       body: esEscritorioWeb(context)
-          ? _cuerpoEscritorio(context, c, prestamos, statItems)
-          : _cuerpoMobile(context, c, prestamos, statItems),
+          ? _cuerpoEscritorio(context, c, prestamos, statItems, esAdmin)
+          : _cuerpoMobile(context, c, prestamos, statItems, esAdmin),
     );
   }
 
-  Widget _cuerpoMobile(
-      BuildContext context, ClienteModel c, List<PrestamoModel> prestamos, List<CeStatItem> statItems) {
+  Widget _cuerpoMobile(BuildContext context, ClienteModel c, List<PrestamoModel> prestamos,
+      List<CeStatItem> statItems, bool esAdmin) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -265,10 +271,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
               icono: Icons.edit_outlined,
               titulo: 'Editar',
               subtitulo: 'Datos del cliente',
-              onTap: () => irAPantalla(context,
-                  ruta: '/clientes/${c.id}/editar',
-                  extra: c,
-                  pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c)),
+              onTap: () => abrirEdicionCliente(context, ref, c),
             ),
             CeMenuCard(
               icono: Icons.badge_outlined,
@@ -279,19 +282,20 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                   extra: c,
                   pantalla: ClienteDetalleScreen(clienteId: c.id, clienteInicial: c)),
             ),
-            CeMenuCard(
-              icono: Icons.delete_outline,
-              titulo: 'Borrar Cliente',
-              subtitulo: 'Acción permanente',
-              onTap: () => _confirmarEliminar(c.nombre),
-            ),
+            if (esAdmin)
+              CeMenuCard(
+                icono: Icons.delete_outline,
+                titulo: 'Borrar Cliente',
+                subtitulo: 'Acción permanente',
+                onTap: () => _confirmarEliminar(c.nombre),
+              ),
           ],
         ),
         if (prestamos.isNotEmpty) ...[
           const SizedBox(height: 20),
           const Text('Préstamos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: 10),
-          ..._listaPrestamos(context, prestamos),
+          _listaPrestamosConUltimoPago(context, prestamos),
         ],
         const SizedBox(height: 24),
       ],
@@ -303,8 +307,8 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
   /// columna centrada pensada para telefono -- ahi es donde las
   /// tarjetas de "Editar/Ver Detalles/Borrar" y las de totales se
   /// veian enormes e innecesarias en una pantalla ancha.
-  Widget _cuerpoEscritorio(
-      BuildContext context, ClienteModel c, List<PrestamoModel> prestamos, List<CeStatItem> statItems) {
+  Widget _cuerpoEscritorio(BuildContext context, ClienteModel c, List<PrestamoModel> prestamos,
+      List<CeStatItem> statItems, bool esAdmin) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Row(
@@ -326,10 +330,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                       _botonAccionEscritorio(
                         icono: Icons.edit_outlined,
                         texto: 'Editar',
-                        onTap: () => irAPantalla(context,
-                  ruta: '/clientes/${c.id}/editar',
-                  extra: c,
-                  pantalla: ClienteFormScreen(clienteId: c.id, clienteInicial: c)),
+                        onTap: () => abrirEdicionCliente(context, ref, c),
                       ),
                       _botonAccionEscritorio(
                         icono: Icons.badge_outlined,
@@ -339,12 +340,13 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                   extra: c,
                   pantalla: ClienteDetalleScreen(clienteId: c.id, clienteInicial: c)),
                       ),
-                      _botonAccionEscritorio(
-                        icono: Icons.delete_outline,
-                        texto: 'Borrar cliente',
-                        color: CEColors.danger,
-                        onTap: () => _confirmarEliminar(c.nombre),
-                      ),
+                      if (esAdmin)
+                        _botonAccionEscritorio(
+                          icono: Icons.delete_outline,
+                          texto: 'Borrar cliente',
+                          color: CEColors.danger,
+                          onTap: () => _confirmarEliminar(c.nombre),
+                        ),
                     ],
                   ),
                 ),
@@ -361,7 +363,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                   const SizedBox(height: 16),
                   const Text('Préstamos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                   const SizedBox(height: 10),
-                  ..._listaPrestamos(context, prestamos),
+                  _listaPrestamosConUltimoPago(context, prestamos),
                 ],
               ],
             ),
@@ -496,7 +498,26 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
     );
   }
 
-  List<Widget> _listaPrestamos(BuildContext context, List<PrestamoModel> prestamos) {
+  /// Envuelve `_listaPrestamos` en un FutureBuilder que trae, en un solo
+  /// lote (`obtenerUltimaFechaPorPrestamos`, ver PagoRepository), la
+  /// fecha del ultimo pago de CADA prestamo del cliente -- se recalcula
+  /// en cada emision del stream de prestamos (rebuild barato, un
+  /// cliente tiene pocos prestamos).
+  Widget _listaPrestamosConUltimoPago(BuildContext context, List<PrestamoModel> prestamos) {
+    return FutureBuilder<Map<String, DateTime?>>(
+      future: ref
+          .read(pagoRepositoryProvider)
+          .obtenerUltimaFechaPorPrestamos(prestamos.map((p) => p.prestamoId).toList()),
+      builder: (context, snap) {
+        final ultimosPagos = snap.data ?? const <String, DateTime?>{};
+        return Column(children: _listaPrestamos(context, prestamos, ultimosPagos));
+      },
+    );
+  }
+
+  List<Widget> _listaPrestamos(
+      BuildContext context, List<PrestamoModel> prestamos, Map<String, DateTime?> ultimosPagos) {
+    final f = DateFormat('dd/MM/yyyy');
     return prestamos
         .map((p) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -515,6 +536,12 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                           Text('N° ${p.numeroPrestamo}',
                               style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text(p.estado.toUpperCase(),
+                              style: const TextStyle(fontSize: 11, color: CEColors.textSecondary)),
+                          const SizedBox(height: 2),
+                          Text(
+                              ultimosPagos[p.prestamoId] != null
+                                  ? 'Último pago: ${f.format(ultimosPagos[p.prestamoId]!)}'
+                                  : 'Sin pagos aún',
                               style: const TextStyle(fontSize: 11, color: CEColors.textSecondary)),
                         ],
                       ),

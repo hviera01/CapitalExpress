@@ -90,6 +90,22 @@
         { "fieldPath": "registradoPor", "order": "ASCENDING" },
         { "fieldPath": "fechaPago", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "solicitudes_edicion",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "fechaExpiraPermiso", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "solicitudes_edicion",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "entidadId", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

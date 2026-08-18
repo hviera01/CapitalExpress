@@ -72,7 +72,12 @@ class _CeWebShellState extends ConsumerState<CeWebShell> {
       'clientes',
       'prestamos',
       'cobros',
-      if (esAdmin) ...['solicitudes', 'reportes', 'usuarios', 'dispositivos', 'bitacora'] else 'mis-pagos',
+      if (esAdmin)
+        ...['solicitudes', 'reportes', 'usuarios', 'dispositivos', 'bitacora']
+      else ...[
+        'mis-pagos',
+        'mis-solicitudes',
+      ],
       'tickets',
     ];
 
