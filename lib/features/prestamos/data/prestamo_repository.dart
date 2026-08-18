@@ -254,12 +254,40 @@ class PrestamoRepository {
   /// lista por el unico cobrador elegido, a proposito (la UI es un
   /// selector de uno solo). `cobradorAsignado` se mantiene en paralelo
   /// solo para mostrar el nombre en pantalla.
-  Future<void> reasignarCobrador(String id, String cobradorUid) async {
+  Future<void> reasignarCobrador(String id, String cobradorUid, {String cobradorNombre = ''}) async {
     await _col.doc(id).update({
       'cobradorAsignado': cobradorUid,
       'cobradoresAsignados': [cobradorUid],
+      if (cobradorNombre.isNotEmpty) 'cobrador': cobradorNombre,
       'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Corrige el campo `cobrador` (nombre, DENORMALIZADO -- ver
+  /// PrestamoModel) para que coincida con el nombre real de quien ya
+  /// tiene asignado el préstamo en `cobradorAsignado` (el UID, que es
+  /// el campo que de verdad decide quién lo ve). A PROPOSITO esta
+  /// funcion NUNCA escribe `cobradorAsignado`/`cobradoresAsignados` --
+  /// solo arregla el texto que se MUESTRA, nunca quién tiene acceso.
+  /// Causa del bug: `reasignarCobrador` (antes de este fix) y
+  /// `ClienteRepository.sincronizarAsignaciones` solo actualizaban el
+  /// UID, nunca el nombre -- un prestamo reasignado por cliente quedaba
+  /// viendose bien para el cobrador nuevo (el UID es el que manda) pero
+  /// mostrando el nombre del cobrador VIEJO en pantalla/PDF.
+  Future<int> corregirNombresCobrador(Map<String, String> nombresPorUid) async {
+    final snap = await _col.get();
+    var corregidos = 0;
+    for (final doc in snap.docs) {
+      final uid = (doc.data()['cobradorAsignado'] as String?) ?? '';
+      if (uid.isEmpty) continue;
+      final nombreCorrecto = nombresPorUid[uid];
+      if (nombreCorrecto == null || nombreCorrecto.isEmpty) continue;
+      final nombreActual = (doc.data()['cobrador'] as String?) ?? '';
+      if (nombreActual == nombreCorrecto) continue;
+      await doc.reference.update({'cobrador': nombreCorrecto});
+      corregidos++;
+    }
+    return corregidos;
   }
 
   /// Aplica una mora al prestamo -- misma logica que DialogoAplicarMora

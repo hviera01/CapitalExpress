@@ -206,16 +206,28 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   /// al que pertenecen (ver ClienteRepository.sincronizarAsignaciones)
   /// -- se trabaja SOLO con asignacion de cliente, esto pone al dia lo
   /// que quedo desfasado de antes (reasignaciones parciales viejas).
+  /// Ademas corrige el NOMBRE mostrado (`cobrador`, ver
+  /// PrestamoRepository.corregirNombresCobrador) -- un paso totalmente
+  /// aparte que NUNCA toca el UID/`cobradoresAsignados` (lo que decide
+  /// quien ve el prestamo), solo el texto que se ve en pantalla/PDF, asi
+  /// que no hay ningun riesgo de que un prestamo deje de aparecerle a
+  /// quien ya lo tiene asignado de verdad.
   Future<void> _sincronizarAsignaciones() async {
     final mensajero = ScaffoldMessenger.of(context);
     mensajero.showSnackBar(const SnackBar(content: Text('Sincronizando asignaciones...')));
     try {
       final corregidos = await ref.read(clienteRepositoryProvider).sincronizarAsignaciones();
+      final usuarios = await ref.read(usuarioRepositoryProvider).obtenerTodos();
+      final nombresPorUid = {for (final u in usuarios) u.uid: u.nombre};
+      final nombresCorregidos =
+          await ref.read(prestamoRepositoryProvider).corregirNombresCobrador(nombresPorUid);
       if (!mounted) return;
+      final partes = <String>[
+        if (corregidos > 0) '$corregidos préstamo(s) reasignado(s)',
+        if (nombresCorregidos > 0) '$nombresCorregidos nombre(s) corregido(s)',
+      ];
       mensajero.showSnackBar(SnackBar(
-          content: Text(corregidos == 0
-              ? 'Todo ya estaba sincronizado'
-              : 'Se corrigieron $corregidos préstamo(s)')));
+          content: Text(partes.isEmpty ? 'Todo ya estaba sincronizado' : partes.join(' · '))));
     } catch (e) {
       if (!mounted) return;
       mensajero.showSnackBar(SnackBar(content: Text('No se pudo sincronizar: $e')));

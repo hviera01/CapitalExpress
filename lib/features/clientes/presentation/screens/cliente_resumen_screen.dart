@@ -134,7 +134,7 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
     // (incluidos los ya saldados) arrastran el mismo cobrador, para que
     // nunca queden desincronizados del cliente al que pertenecen.
     for (final p in prestamos) {
-      await prestamoRepo.reasignarCobrador(p.prestamoId, elegido.uid);
+      await prestamoRepo.reasignarCobrador(p.prestamoId, elegido.uid, cobradorNombre: elegido.nombre);
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
