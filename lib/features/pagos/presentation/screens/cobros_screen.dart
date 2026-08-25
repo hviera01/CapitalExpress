@@ -143,43 +143,29 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     final pagoRepo = ref.read(pagoRepositoryProvider);
     final fechasPorPrestamo = <String, DateTime?>{};
 
-    // Solo los que NO traen `proximoPago` bien guardado necesitan ir a
-    // buscar su ultimo pago -- y eso se trae de a lotes (ver
-    // obtenerUltimaFechaPorPrestamos), no uno por uno.
-    final sinFechaDirecta = <PrestamoModel>[];
-    for (final p in candidatos) {
-      final directa = asProximoPagoFecha(p.proximoPago);
-      if (directa != null) {
-        fechasPorPrestamo[p.prestamoId] = directa;
-      } else {
-        sinFechaDirecta.add(p);
-      }
-    }
-
-    var ultimasFechas = const <String, DateTime?>{};
-    try {
-      ultimasFechas = await pagoRepo
-          .obtenerUltimaFechaPorPrestamos(sinFechaDirecta.map((p) => p.prestamoId).toList());
-    } catch (_) {
-      // sin conexion a pagos: se sigue con el respaldo de fecha de inicio.
-    }
-
-    for (final p in sinFechaDirecta) {
-      final base = ultimasFechas[p.prestamoId] ?? p.fecha?.toDate();
-      fechasPorPrestamo[p.prestamoId] = base != null ? calcularProximaFecha(base, p.plazo) : null;
-    }
-
-    // Fecha del ULTIMO pago real, para mostrar en pantalla -- a
-    // diferencia de `ultimasFechas` (que solo se pide para los
-    // prestamos sin `proximoPago` directo, para reconstruirlo), esta
-    // se pide para TODOS los candidatos porque es un dato a mostrar,
-    // no un calculo interno.
+    // UN SOLO pedido de "ultimo pago" para TODOS los candidatos: sirve
+    // tanto para reconstruir el proximo pago de los que no traen
+    // `proximoPago` bien guardado, como para mostrar la fecha de ultimo
+    // pago en pantalla. Antes se pedia dos veces (una para los sin
+    // fecha directa, otra para todos) -- la segunda ya incluia a la
+    // primera, asi que era un viaje de red completo desperdiciado en
+    // cada entrada a Cobros.
     var ultimosPagosTodos = const <String, DateTime?>{};
     try {
       ultimosPagosTodos =
           await pagoRepo.obtenerUltimaFechaPorPrestamos(candidatos.map((p) => p.prestamoId).toList());
     } catch (_) {
-      // sin conexion: se muestra "Sin pagos aun" para todos, no es critico.
+      // sin conexion: se sigue con el respaldo de fecha de inicio / "Sin pagos aun".
+    }
+
+    for (final p in candidatos) {
+      final directa = asProximoPagoFecha(p.proximoPago);
+      if (directa != null) {
+        fechasPorPrestamo[p.prestamoId] = directa;
+      } else {
+        final base = ultimosPagosTodos[p.prestamoId] ?? p.fecha?.toDate();
+        fechasPorPrestamo[p.prestamoId] = base != null ? calcularProximaFecha(base, p.plazo) : null;
+      }
     }
 
     for (final p in candidatos) {

@@ -38,7 +38,7 @@ class InactividadGuard extends ConsumerStatefulWidget {
   ConsumerState<InactividadGuard> createState() => _InactividadGuardState();
 }
 
-class _InactividadGuardState extends ConsumerState<InactividadGuard> {
+class _InactividadGuardState extends ConsumerState<InactividadGuard> with WidgetsBindingObserver {
   Timer? _timer;
   Timer? _timerActualizacion;
   bool _dialogoActualizacionAbierto = false;
@@ -115,6 +115,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _reiniciar();
     if (ref.read(authProvider).autenticado) {
       _iniciarChequeoActualizacion();
@@ -125,9 +126,25 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _timerActualizacion?.cancel();
     super.dispose();
+  }
+
+  /// Cierre inmediato al quitar la app de la multitarea: ver
+  /// SesionNativaService/MainActivity.onTaskRemoved (se revisa al
+  /// volver a abrir, en AuthNotifier._restaurarSesion). Esto de aca es
+  /// para el otro caso: la dejaron abierta en segundo plano sin
+  /// quitarla -- se guarda cuando paso a segundo plano, y al volver se
+  /// revisa si ya se paso el limite (ver AuthRepository.limiteBackground).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState appState) {
+    if (appState == AppLifecycleState.paused) {
+      ref.read(authProvider.notifier).registrarBackground();
+    } else if (appState == AppLifecycleState.resumed) {
+      ref.read(authProvider.notifier).revisarLimiteBackground();
+    }
   }
 
   @override

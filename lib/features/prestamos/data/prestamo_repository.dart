@@ -109,12 +109,16 @@ class PrestamoRepository {
         .get();
     final clienteIds = clientesSnap.docs.map((d) => d.id).toList();
 
+    final lotes = <List<String>>[];
     for (var i = 0; i < clienteIds.length; i += 10) {
-      final lote = clienteIds.sublist(i, (i + 10).clamp(0, clienteIds.length));
-      final snap = await _col
-          .where('clienteId', whereIn: lote)
-          .where('eliminado', isEqualTo: false)
-          .get();
+      lotes.add(clienteIds.sublist(i, (i + 10).clamp(0, clienteIds.length)));
+    }
+    // En paralelo (antes uno por uno): con mas de 10 clientes asignados
+    // esto eran varios viajes de red seguidos en vez de a la vez.
+    final snaps = await Future.wait(lotes.map(
+      (lote) => _col.where('clienteId', whereIn: lote).where('eliminado', isEqualTo: false).get(),
+    ));
+    for (final snap in snaps) {
       for (final doc in snap.docs) {
         try {
           porCliente.add(PrestamoModel.fromDoc(doc));

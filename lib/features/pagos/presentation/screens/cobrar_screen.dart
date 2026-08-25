@@ -8,6 +8,7 @@ import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/cuotas_calculos.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -268,10 +269,14 @@ class _CobrarScreenState extends ConsumerState<CobrarScreen> {
                 TextFormField(
                   controller: _lugarCtrl,
                   decoration: const InputDecoration(labelText: 'Lugar'),
+                  inputFormatters: const [upperCaseTextFormatter],
+                  textCapitalization: TextCapitalization.characters,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _firmaCtrl,
+                  inputFormatters: const [upperCaseTextFormatter],
+                  textCapitalization: TextCapitalization.characters,
                   decoration: const InputDecoration(labelText: 'Firma / nombre cobrador'),
                 ),
               ],

@@ -5,6 +5,9 @@
     <!-- Requerido en Android 13+ para mostrar notificaciones push
          (ver PushNotificationsService) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Requerido por local_auth para el desbloqueo con huella/Face ID
+         (ver DesbloquearScreen) -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="SIEG"
         android:name="${applicationName}"
@@ -31,6 +34,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Service centinela: detecta cuando se quita la app de la
+             multitarea para cerrar la sesion (ver SesionControlService,
+             MainActivity.onCreate) -->
+        <service
+            android:name=".SesionControlService"
+            android:exported="false"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

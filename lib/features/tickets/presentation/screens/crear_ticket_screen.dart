@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/roles.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -101,6 +102,8 @@ class _CrearTicketScreenState extends ConsumerState<CrearTicketScreen> {
                     child: TextFormField(
                       controller: _tituloCtrl,
                       decoration: const InputDecoration(labelText: 'Título *'),
+                      inputFormatters: const [upperCaseTextFormatter],
+                      textCapitalization: TextCapitalization.characters,
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
                     ),
@@ -112,6 +115,8 @@ class _CrearTicketScreenState extends ConsumerState<CrearTicketScreen> {
                     decoration: InputDecoration(
                       labelText: _tipo == 'problema' ? 'Explicá exactamente qué está pasando *' : 'Describí qué te gustaría agregar *',
                     ),
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
                   ),

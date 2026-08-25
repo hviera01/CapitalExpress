@@ -5,6 +5,7 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -435,17 +436,23 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
                   TextFormField(
                     controller: _lugarCtrl,
                     decoration: const InputDecoration(labelText: 'Lugar'),
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _garantiaCtrl,
                     decoration: const InputDecoration(labelText: 'Garantía'),
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _observacionesCtrl,
                     decoration: const InputDecoration(labelText: 'Observaciones'),
                     maxLines: 3,
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                   ),
                 ],
               ),

@@ -52,6 +52,7 @@ dependencies:
   shared_preferences: ^2.5.5
   crypto: ^3.0.7
   uuid: ^4.5.3
+  local_auth: ^2.3.0
 
   # UI / tema
   google_fonts: ^8.1.0

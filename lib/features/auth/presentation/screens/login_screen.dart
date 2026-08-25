@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/biometria_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/marca_lockup.dart';
@@ -17,6 +18,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _codigoCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _verPassword = false;
+  bool _biometriaDisponible = false;
+  bool _activarBiometria = false;
+
+  @override
+  void initState() {
+    super.initState();
+    BiometriaService.disponible().then((disponible) {
+      if (mounted) setState(() => _biometriaDisponible = disponible);
+    });
+  }
 
   @override
   void dispose() {
@@ -176,6 +187,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             style: const TextStyle(color: Color(0xFFFF8A8A), fontSize: 13),
           ),
         ],
+        if (_biometriaDisponible) ...[
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () => setState(() => _activarBiometria = !_activarBiometria),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: _activarBiometria,
+                    onChanged: (v) => setState(() => _activarBiometria = v ?? false),
+                    checkColor: CEColors.primary,
+                    fillColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.85)),
+                  ),
+                  const Icon(Icons.fingerprint, color: Colors.white70, size: 18),
+                  const SizedBox(width: 6),
+                  const Flexible(
+                    child: Text(
+                      'Usar huella / Face ID la próxima vez',
+                      style: TextStyle(color: Colors.white70, fontSize: 12.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 26),
         SizedBox(
           width: double.infinity,
@@ -250,10 +289,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _entrar() {
+  Future<void> _entrar() async {
     final codigo = _codigoCtrl.text.trim();
     final password = _passwordCtrl.text;
     if (codigo.isEmpty || password.isEmpty) return;
-    ref.read(authProvider.notifier).login(codigo, password);
+    await ref.read(authProvider.notifier).login(codigo, password);
+    if (!mounted) return;
+    if (ref.read(authProvider).autenticado) {
+      await ref.read(authProvider.notifier).setBiometricoActivo(_activarBiometria);
+    }
   }
 }

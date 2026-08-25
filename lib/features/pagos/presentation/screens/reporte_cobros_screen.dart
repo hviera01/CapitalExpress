@@ -75,15 +75,18 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
     final usuario = ref.read(authProvider).usuario;
     _esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     _cobradorUid = _esAdmin ? null : usuario?.uid;
-    if (_esAdmin && _cobradores.isEmpty) {
-      _cobradores = await ref.read(cobradoresCacheProvider.future);
-    }
     if (_fechaInicio == null && _fechaFin == null) {
       final hoy = DateTime.now();
       _fechaInicio = DateTime(hoy.year, hoy.month, hoy.day);
       _fechaFin = hoy;
     }
-    await _cargar();
+    // Cobradores (solo admin) y pagos son independientes -- antes se
+    // pedian en serie, ahora a la vez.
+    await Future.wait([
+      if (_esAdmin && _cobradores.isEmpty)
+        ref.read(cobradoresCacheProvider.future).then((c) => _cobradores = c),
+      _cargar(),
+    ]);
   }
 
   Future<void> _cargar() async {

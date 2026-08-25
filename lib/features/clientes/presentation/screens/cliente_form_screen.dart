@@ -7,6 +7,7 @@ import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../../core/widgets/selector_foto.dart';
@@ -619,6 +620,8 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         decoration: InputDecoration(labelText: label),
         keyboardType: tipo,
         maxLines: lineas,
+        inputFormatters: tipo == TextInputType.text ? const [upperCaseTextFormatter] : null,
+        textCapitalization: TextCapitalization.characters,
         validator: requerido
             ? (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null
             : null,

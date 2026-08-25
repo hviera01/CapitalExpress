@@ -13,6 +13,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
 import '../../../../core/utils/seleccionar_imagen.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -403,16 +404,22 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                   TextFormField(
                     controller: _lugarCtrl,
                     decoration: const InputDecoration(labelText: 'Lugar'),
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _garantiaCtrl,
                     decoration: const InputDecoration(labelText: 'Garantía'),
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _observacionesCtrl,
                     decoration: const InputDecoration(labelText: 'Observaciones'),
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                     maxLines: 3,
                   ),
                 ],

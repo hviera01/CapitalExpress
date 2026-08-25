@@ -25,7 +25,9 @@ android {
         applicationId = "com.capitalexpress.capital_express"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // 23 (no el default de Flutter) porque lo pide local_auth para
+        // el desbloqueo con huella/Face ID (ver DesbloquearScreen).
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

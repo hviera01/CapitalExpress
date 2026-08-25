@@ -8,6 +8,7 @@ import '../models/prestamo_model.dart';
 import '../models/usuario_model.dart';
 import '../widgets/splash_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/desbloquear_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/home/presentation/screens/admin_home_screen.dart';
 import '../../features/home/presentation/screens/cobrador_home_screen.dart';
@@ -72,6 +73,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return enLogin ? null : '/login';
       }
 
+      final enDesbloquear = state.matchedLocation == '/desbloquear';
+      if (auth.bloqueado) {
+        return enDesbloquear ? null : '/desbloquear';
+      }
+      if (enDesbloquear) {
+        return Roles.esAdminOEquivalente(auth.usuario!.rol) ? '/admin' : '/cobrador';
+      }
+
       final destino = Roles.esAdminOEquivalente(auth.usuario!.rol) ? '/admin' : '/cobrador';
       if (enLogin || enSplash) return destino;
       return null;
@@ -79,6 +88,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/desbloquear', builder: (context, state) => const DesbloquearScreen()),
       GoRoute(path: '/admin', builder: (context, state) => const AdminHomeScreen()),
       GoRoute(path: '/cobrador', builder: (context, state) => const CobradorHomeScreen()),
       GoRoute(

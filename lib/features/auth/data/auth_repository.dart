@@ -19,6 +19,16 @@ class AuthRepository {
   static const _kUid = 'uid';
   static const _kNombre = 'nombre';
   static const _kRol = 'rol';
+  static const _kBloqueado = 'sesionBloqueada';
+  static const _kBiometricoActivo = 'biometricoActivo';
+  static const _kFechaBackground = 'fechaBackground';
+
+  /// Tiempo maximo con la app en segundo plano (sin quitarla de la
+  /// multitarea) antes de pedir que se desbloquee de nuevo -- si la
+  /// quita de la multitarea, el cierre es inmediato (ver
+  /// SesionNativaService/MainActivity.onTaskRemoved), esto es aparte
+  /// para cuando solo la deja "abierta" en segundo plano.
+  static const limiteBackground = Duration(hours: 1);
 
   Future<UsuarioModel> login(String codigo, String password) async {
     final query = await _col
@@ -68,5 +78,59 @@ class AuthRepository {
     await prefs.remove(_kUid);
     await prefs.remove(_kNombre);
     await prefs.remove(_kRol);
+    await prefs.remove(_kBloqueado);
+    await prefs.remove(_kFechaBackground);
+    // _kBiometricoActivo NO se borra: es una preferencia del
+    // dispositivo/usuario, no de la sesion -- que siga activada para
+    // la proxima vez que inicie sesion en este telefono.
+  }
+
+  /// Compara la contrasena SIN pedir de nuevo el codigo (ya se conoce
+  /// el uid de la sesion guardada) -- usado para desbloquear cuando no
+  /// hay huella/Face ID configurado.
+  Future<bool> verificarPassword(String uid, String password) async {
+    final doc = await _col.doc(uid).get();
+    if (!doc.exists) return false;
+    return (doc.data()?['password'] as String?) == password;
+  }
+
+  Future<bool> estaBloqueado() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kBloqueado) ?? false;
+  }
+
+  Future<void> bloquear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBloqueado, true);
+  }
+
+  Future<void> desbloquear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBloqueado, false);
+    await prefs.remove(_kFechaBackground);
+  }
+
+  Future<void> marcarBackground() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kFechaBackground, DateTime.now().toIso8601String());
+  }
+
+  Future<bool> backgroundExcedioLimite() async {
+    final prefs = await SharedPreferences.getInstance();
+    final guardada = prefs.getString(_kFechaBackground);
+    if (guardada == null) return false;
+    final desde = DateTime.tryParse(guardada);
+    if (desde == null) return false;
+    return DateTime.now().difference(desde) > limiteBackground;
+  }
+
+  Future<bool> biometricoActivo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kBiometricoActivo) ?? false;
+  }
+
+  Future<void> setBiometricoActivo(bool activo) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBiometricoActivo, activo);
   }
 }

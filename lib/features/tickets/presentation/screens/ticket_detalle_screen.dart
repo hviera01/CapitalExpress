@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
@@ -215,6 +216,8 @@ class _TicketDetalleScreenState extends ConsumerState<TicketDetalleScreen> {
               decoration: InputDecoration(
                 labelText: t.esProblema ? 'Ej: ya está solucionado, actualizá la app' : 'Detalle de tu respuesta',
               ),
+              inputFormatters: const [upperCaseTextFormatter],
+              textCapitalization: TextCapitalization.characters,
             ),
             if (!t.esProblema) ...[
               const SizedBox(height: 10),

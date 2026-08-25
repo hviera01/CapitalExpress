@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/usuario_model.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
 import '../../../../core/widgets/selector_foto.dart';
@@ -185,6 +186,8 @@ class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
                   TextFormField(
                     controller: _nombreCtrl,
                     decoration: const InputDecoration(labelText: 'Nombre completo *'),
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
                   ),
                   const SizedBox(height: 12),
@@ -242,6 +245,8 @@ class _UsuarioFormScreenState extends ConsumerState<UsuarioFormScreen> {
                     controller: _direccionCtrl,
                     minLines: 2,
                     maxLines: 3,
+                    inputFormatters: const [upperCaseTextFormatter],
+                    textCapitalization: TextCapitalization.characters,
                     decoration: const InputDecoration(labelText: 'Dirección'),
                   ),
                 ],
