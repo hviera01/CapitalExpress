@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/biometria_service.dart';
@@ -64,7 +65,11 @@ class _DesbloquearScreenState extends ConsumerState<DesbloquearScreen> {
     setState(() => _error = null);
     final ok = await ref.read(authProvider.notifier).desbloquearConPassword(password);
     if (!mounted) return;
-    if (!ok) setState(() => _error = 'Contraseña incorrecta');
+    if (ok) {
+      TextInput.finishAutofillContext();
+    } else {
+      setState(() => _error = 'Contraseña incorrecta');
+    }
   }
 
   @override
@@ -194,7 +199,8 @@ class _DesbloquearScreenState extends ConsumerState<DesbloquearScreen> {
   }
 
   Widget _campoPassword() {
-    return Column(
+    return AutofillGroup(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Contraseña',
@@ -204,6 +210,7 @@ class _DesbloquearScreenState extends ConsumerState<DesbloquearScreen> {
           controller: _passwordCtrl,
           obscureText: !_verPassword,
           autofocus: !_biometriaDisponible,
+          autofillHints: const [AutofillHints.password],
           style: const TextStyle(color: Colors.white),
           onSubmitted: (_) => _confirmarPassword(),
           decoration: InputDecoration(
@@ -235,6 +242,7 @@ class _DesbloquearScreenState extends ConsumerState<DesbloquearScreen> {
           ),
         ),
       ],
+      ),
     );
   }
 }

@@ -44,7 +44,10 @@ class AuthNotifier extends Notifier<AuthState> {
 
     // Si la app fue quitada de la multitarea desde la ultima vez que
     // se abrio, la sesion se cierra de una -- ver
-    // MainActivity.onTaskRemoved. Va ANTES de restaurar nada.
+    // MainActivity.onTaskRemoved. Cuando SI se detecta (no siempre:
+    // Android puede haber matado el Service antes por ahorro de
+    // bateria, ver nota abajo) es el caso mas fuerte: cierre completo,
+    // pide el codigo de nuevo.
     final cierreForzado = await SesionNativaService.consumirCierreForzado();
     if (cierreForzado) {
       await repo.cerrarSesion();
@@ -58,15 +61,20 @@ class AuthNotifier extends Notifier<AuthState> {
       return;
     }
 
-    // Se dejo la app abierta en segundo plano (sin quitarla de la
-    // multitarea) mas del limite permitido -- se pide desbloquear, sin
-    // perder de vista quien era (a diferencia del cierre forzado, que
-    // SI borra la sesion entera).
-    final excedioBackground = await repo.backgroundExcedioLimite();
-    if (excedioBackground) await repo.bloquear();
-    final bloqueado = excedioBackground || await repo.estaBloqueado();
-
-    state = AuthState(usuario: usuario, cargando: false, bloqueado: bloqueado);
+    // CUALQUIER arranque en frio de la app (build() de este notifier
+    // solo corre una vez por proceso) pide confirmar identidad de
+    // nuevo, sin importar cuanto tiempo paso -- no existe una forma
+    // confiable en Android de distinguir "la cerraron a proposito" de
+    // "el sistema mato el proceso por memoria/bateria" (que pasa MUY
+    // seguido, sobre todo en Samsung/Xiaomi con ahorro de bateria
+    // agresivo -- confirmado: el Service de arriba a veces no llega a
+    // avisar). Por eso ya no se restaura la sesion de un tiron nunca:
+    // siempre arranca bloqueada, se desbloquea con huella/Face ID o
+    // contrasena (sin perder de vista quien era). El limite de 1h en
+    // segundo plano (revisarLimiteBackground) es aparte, para cuando
+    // el proceso siguio vivo todo el tiempo sin llegar a este metodo.
+    await repo.bloquear();
+    state = AuthState(usuario: usuario, cargando: false, bloqueado: true);
   }
 
   Future<void> login(String codigo, String password) async {

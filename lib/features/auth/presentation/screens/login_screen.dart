@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/biometria_service.dart';
@@ -135,7 +136,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _contenidoFormulario() {
     final authState = ref.watch(authProvider);
 
-    return Column(
+    // AutofillGroup + autofillHints: asi el navegador (Safari/Chrome)
+    // reconoce estos campos como un formulario de login de verdad y
+    // ofrece autocompletar con la contrasena guardada -- en iPhone eso
+    // es lo que dispara el prompt de Face ID/Touch ID del llavero de
+    // iCloud (no es algo que la app dispare, es el navegador).
+    return AutofillGroup(
+      child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -161,6 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           icono: Icons.person_outline,
           hint: 'Ingrese su código',
           keyboardType: TextInputType.number,
+          autofillHints: const [AutofillHints.username],
         ),
         const SizedBox(height: 18),
         _campoOscuro(
@@ -169,6 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           icono: Icons.lock_outline,
           hint: 'Ingrese su contraseña',
           obscure: !_verPassword,
+          autofillHints: const [AutofillHints.password],
           onSubmit: (_) => _entrar(),
           suffix: IconButton(
             icon: Icon(
@@ -237,6 +246,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -249,6 +259,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     Widget? suffix,
     void Function(String)? onSubmit,
     TextInputType? keyboardType,
+    List<String>? autofillHints,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,6 +273,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           controller: controller,
           obscureText: obscure,
           keyboardType: keyboardType,
+          autofillHints: autofillHints,
           style: const TextStyle(color: Colors.white),
           onSubmitted: onSubmit,
           decoration: InputDecoration(
@@ -297,6 +309,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
     if (ref.read(authProvider).autenticado) {
       await ref.read(authProvider.notifier).setBiometricoActivo(_activarBiometria);
+      // Le avisa al navegador que el login termino -- asi ofrece
+      // guardar la contrasena (iCloud Keychain en Safari/iPhone,
+      // Google Password Manager en Chrome, etc.).
+      TextInput.finishAutofillContext();
     }
   }
 }

@@ -94,11 +94,6 @@ class AuthRepository {
     return (doc.data()?['password'] as String?) == password;
   }
 
-  Future<bool> estaBloqueado() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_kBloqueado) ?? false;
-  }
-
   Future<void> bloquear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kBloqueado, true);
