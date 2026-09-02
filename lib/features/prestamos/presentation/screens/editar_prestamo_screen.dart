@@ -8,6 +8,7 @@ import '../../../../core/utils/prestamo_calculos.dart';
 import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
+import '../../../../core/widgets/exito_transaccion_overlay.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../solicitudes/providers/solicitud_edicion_provider.dart';
 import '../../providers/prestamos_provider.dart';
@@ -294,7 +295,10 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
               descripcion: 'N° ${p.numeroPrestamo} - ${p.cliente}',
             );
       }
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        mostrarExitoTransaccion(context, mensaje: 'Préstamo actualizado correctamente');
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

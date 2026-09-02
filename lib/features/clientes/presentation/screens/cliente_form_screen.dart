@@ -10,6 +10,7 @@ import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_section_card.dart';
+import '../../../../core/widgets/exito_transaccion_overlay.dart';
 import '../../../../core/widgets/selector_foto.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../solicitudes/providers/solicitud_edicion_provider.dart';
@@ -413,7 +414,13 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
         }
       }
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        mostrarExitoTransaccion(
+          context,
+          mensaje: _clienteOriginal == null ? 'Cliente creado correctamente' : 'Cliente actualizado correctamente',
+        );
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
