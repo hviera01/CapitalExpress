@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/solicitud_model.dart';
 import '../../../core/utils/currency_utils.dart';
+import '../../../core/utils/prestamo_calculos.dart';
 import '../../prestamos/data/prestamo_repository.dart';
 import 'solicitud_repository.dart';
 
@@ -32,6 +33,9 @@ Future<SolicitudAprobada> aprobarSolicitud({
 }) async {
   final numeroPrestamo = await prestamoRepo.generarNumeroPrestamo(s.cliente);
 
+  final fechaInicio = DateTime.now();
+  final proximaFecha = calcularProximaFecha(fechaInicio, s.plazo);
+
   final prestamoId = await prestamoRepo.crear({
     'numeroPrestamo': numeroPrestamo,
     'cliente': s.cliente,
@@ -47,7 +51,7 @@ Future<SolicitudAprobada> aprobarSolicitud({
     'cuota': s.cuota,
     'cuotas': s.cuotas,
     'plazo': s.plazo,
-    'fecha': Timestamp.now(),
+    'fecha': Timestamp.fromDate(fechaInicio),
     'lugar': s.lugar,
     'firma': s.firma ?? '',
     'garantia': s.garantia,
@@ -58,7 +62,7 @@ Future<SolicitudAprobada> aprobarSolicitud({
     'cobradorAsignado': s.cobradorUid ?? '',
     // El campo real que usan las consultas por cobrador es el array.
     'cobradoresAsignados': (s.cobradorUid ?? '').isNotEmpty ? [s.cobradorUid] : [],
-    'proximoPago': Timestamp.now(),
+    'proximoPago': Timestamp.fromDate(proximaFecha),
     'montoPagado': 0.0,
     'saldoAnterior': s.monto,
     'estado': 'activo',

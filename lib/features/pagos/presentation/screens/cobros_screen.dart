@@ -9,6 +9,8 @@ import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/firestore_parse.dart';
 import '../../../../core/utils/normalizar_texto.dart';
+import '../../../../core/models/pago_model.dart';
+import '../../../../core/utils/cuotas_calculos.dart';
 import '../../../../core/utils/prestamo_calculos.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/ce_card.dart';
@@ -143,20 +145,27 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     final pagoRepo = ref.read(pagoRepositoryProvider);
     final fechasPorPrestamo = <String, DateTime?>{};
 
-    // UN SOLO pedido de "ultimo pago" para TODOS los candidatos: sirve
-    // tanto para reconstruir el proximo pago de los que no traen
-    // `proximoPago` bien guardado, como para mostrar la fecha de ultimo
-    // pago en pantalla. Antes se pedia dos veces (una para los sin
-    // fecha directa, otra para todos) -- la segunda ya incluia a la
-    // primera, asi que era un viaje de red completo desperdiciado en
-    // cada entrada a Cobros.
-    var ultimosPagosTodos = const <String, DateTime?>{};
+    // UN SOLO pedido con TODOS los pagos de cada candidato: sirve para
+    // la fecha de ultimo pago en pantalla Y para reconstruir la tabla
+    // de cuotas completa (no solo `proximoPago`, que guarda unicamente
+    // la cuota pendiente MAS ANTIGUA). Sin esto, un prestamo con varias
+    // cuotas atrasadas seguidas -- comun en plazo Diario/Lunes a
+    // Sabado -- se clasificaba siempre como "En mora" aunque HOY
+    // tambien cayera una cuota pendiente, y el cobrador no lo veia
+    // listado para visitar hoy.
+    var pagosPorPrestamo = const <String, List<PagoModel>>{};
     try {
-      ultimosPagosTodos =
-          await pagoRepo.obtenerUltimaFechaPorPrestamos(candidatos.map((p) => p.prestamoId).toList());
+      pagosPorPrestamo = await pagoRepo.obtenerPorPrestamos(candidatos.map((p) => p.prestamoId).toList());
     } catch (_) {
       // sin conexion: se sigue con el respaldo de fecha de inicio / "Sin pagos aun".
     }
+    final ultimosPagosTodos = <String, DateTime?>{
+      for (final entry in pagosPorPrestamo.entries)
+        entry.key: entry.value
+            .map((p) => p.fechaPago?.toDate())
+            .whereType<DateTime>()
+            .fold<DateTime?>(null, (max, f) => max == null || f.isAfter(max) ? f : max),
+    };
 
     for (final p in candidatos) {
       final directa = asProximoPagoFecha(p.proximoPago);
@@ -173,7 +182,22 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       if (fecha == null) continue;
 
       final fechaSinHora = DateTime(fecha.year, fecha.month, fecha.day);
-      final diferenciaDias = fechaSinHora.difference(hoySinHora).inDays;
+      var diferenciaDias = fechaSinHora.difference(hoySinHora).inDays;
+
+      // Si el prestamo esta atrasado en la cuota mas antigua pero
+      // igual tiene OTRA cuota pendiente cuyo vencimiento cae hoy
+      // (arrastre de plazo Diario/Lunes a Sabado), cuenta como "Hoy"
+      // -- el cobrador igual tiene que pasar hoy a cobrar, no solo
+      // cuando esta al dia.
+      if (diferenciaDias != 0 && p.fecha?.toDate() != null) {
+        final cuotas = construirTablaCuotas(p, pagosPorPrestamo[p.prestamoId] ?? const []);
+        final tieneCuotaHoy = cuotas.any((c) {
+          if (c.estado == EstadoCuota.pagada) return false;
+          final v = DateTime(c.fechaVencimiento.year, c.fechaVencimiento.month, c.fechaVencimiento.day);
+          return v == hoySinHora;
+        });
+        if (tieneCuotaHoy) diferenciaDias = 0;
+      }
 
       final tipo = diferenciaDias < 0
           ? 'vencido'

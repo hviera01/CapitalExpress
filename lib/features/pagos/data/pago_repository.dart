@@ -120,6 +120,39 @@ class PagoRepository {
     return resultado;
   }
 
+  /// Todos los pagos de cada prestamo en [prestamoIds], agrupados --
+  /// para Cobros, que necesita reconstruir la tabla de cuotas completa
+  /// (no solo la fecha del ultimo pago) y asi detectar si HOY cae en
+  /// alguna cuota pendiente aunque el prestamo ya arrastre cuotas mas
+  /// viejas sin pagar (`proximoPago` solo guarda la MAS antigua
+  /// pendiente). Mismo patron de lotes de 10 con `whereIn` que
+  /// [obtenerUltimaFechaPorPrestamos].
+  Future<Map<String, List<PagoModel>>> obtenerPorPrestamos(List<String> prestamoIds) async {
+    final resultado = <String, List<PagoModel>>{};
+    if (prestamoIds.isEmpty) return resultado;
+
+    final lotes = <List<String>>[];
+    for (var i = 0; i < prestamoIds.length; i += 10) {
+      lotes.add(prestamoIds.sublist(i, (i + 10).clamp(0, prestamoIds.length)));
+    }
+
+    final snaps = await Future.wait(
+      lotes.map((lote) => _col.where('prestamoId', whereIn: lote).get()),
+    );
+
+    for (final snap in snaps) {
+      for (final doc in snap.docs) {
+        try {
+          final pago = PagoModel.fromDoc(doc);
+          (resultado[pago.prestamoId] ??= []).add(pago);
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
+    }
+    return resultado;
+  }
+
   /// Igual que [obtenerPorPrestamo] pero en vivo (Historial de Pagos de
   /// un prestamo puntual) -- si se registra o borra un pago desde otra
   /// pantalla/dispositivo, esta lista se actualiza sola.
