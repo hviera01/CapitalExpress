@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/biometria_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/auth_repository.dart';
 import '../../providers/auth_provider.dart';
 
 /// Se muestra cuando la sesion sigue "viva" (no se cerro del todo)
@@ -24,6 +25,7 @@ class _DesbloquearScreenState extends ConsumerState<DesbloquearScreen> {
   bool _biometriaDisponible = false;
   bool _intentandoBiometria = false;
   bool _mostrarPassword = false;
+  bool _verificandoPassword = false;
   String? _error;
 
   @override
@@ -60,15 +62,36 @@ class _DesbloquearScreenState extends ConsumerState<DesbloquearScreen> {
   }
 
   Future<void> _confirmarPassword() async {
+    if (_verificandoPassword) return; // evita doble-tap mientras ya esta verificando
     final password = _passwordCtrl.text;
     if (password.isEmpty) return;
-    setState(() => _error = null);
-    final ok = await ref.read(authProvider.notifier).desbloquearConPassword(password);
-    if (!mounted) return;
-    if (ok) {
-      TextInput.finishAutofillContext();
-    } else {
-      setState(() => _error = 'Contraseña incorrecta');
+    setState(() {
+      _error = null;
+      _verificandoPassword = true;
+    });
+    try {
+      final ok = await ref.read(authProvider.notifier).desbloquearConPassword(password);
+      if (!mounted) return;
+      if (ok) {
+        TextInput.finishAutofillContext();
+      } else {
+        setState(() {
+          _error = 'Contraseña incorrecta';
+          _verificandoPassword = false;
+        });
+      }
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.mensaje;
+        _verificandoPassword = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'No se pudo verificar. Revisá tu conexión e intentá de nuevo.';
+        _verificandoPassword = false;
+      });
     }
   }
 
@@ -166,9 +189,16 @@ class _DesbloquearScreenState extends ConsumerState<DesbloquearScreen> {
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
-                              onPressed: _confirmarPassword,
-                              child: const Text('Continuar',
-                                  style: TextStyle(fontWeight: FontWeight.w700)),
+                              onPressed: _verificandoPassword ? null : _confirmarPassword,
+                              child: _verificandoPassword
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: CEColors.primary),
+                                    )
+                                  : const Text('Continuar',
+                                      style: TextStyle(fontWeight: FontWeight.w700)),
                             ),
                           ),
                           if (_biometriaDisponible) ...[

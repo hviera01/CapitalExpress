@@ -33,8 +33,16 @@ class ReporteCobrosScreen extends ConsumerStatefulWidget {
 
 class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
   bool _cargando = true;
+  bool _refrescando = false;
   bool _esAdmin = true;
   String? _cobradorUid;
+
+  // Se incrementa en cada _cargar(): si el usuario cambia de fecha
+  // varias veces seguido (tablet/señal lenta), las respuestas pueden
+  // llegar DESORDENADAS -- sin esto, una consulta vieja que responde
+  // tarde pisaba el resultado de la mas nueva y mostraba pagos de la
+  // fecha equivocada sin ningun aviso.
+  int _cargaId = 0;
 
   List<PagoModel> _pagos = [];
   List<UsuarioSimple> _cobradores = [];
@@ -90,18 +98,26 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
   }
 
   Future<void> _cargar() async {
+    final miId = ++_cargaId;
     final primeraVez = !esEscritorioWeb(context) || _pagos.isEmpty;
-    if (primeraVez) {
-      setState(() => _cargando = true);
-    }
+    // _refrescando se prende SIEMPRE que haya una consulta en vuelo,
+    // incluso en el refresco "calladito" de escritorio Web -- antes,
+    // si ya habia datos en pantalla, cambiar de fecha no mostraba
+    // ningun indicio de que se estaba recargando (se veia la lista
+    // vieja quieta, como si el buscador no hubiera hecho nada).
+    setState(() {
+      if (primeraVez) _cargando = true;
+      _refrescando = true;
+    });
     final cobradorUid = _filtroCobradorUid ?? _cobradorUid;
     final pagos = await ref
         .read(pagoRepositoryProvider)
         .obtenerConRango(inicio: _fechaInicio, fin: _fechaFin, cobradorUid: cobradorUid);
-    if (!mounted) return;
+    if (!mounted || miId != _cargaId) return; // una consulta mas nueva ya esta en curso/aplicada
     setState(() {
       _pagos = pagos;
       _cargando = false;
+      _refrescando = false;
     });
     if (esEscritorioWeb(context)) {
       final cache = ref.read(reporteCobrosCacheProvider);
@@ -177,6 +193,18 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
+                // Se ve SIEMPRE que haya una consulta en vuelo (incluso
+                // el refresco calladito de escritorio Web) -- antes,
+                // cambiar de fecha con datos ya en pantalla no daba
+                // ningun indicio de que se estaba recargando.
+                if (_refrescando)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.all(Radius.circular(4)),
+                      child: LinearProgressIndicator(minHeight: 3),
+                    ),
+                  ),
                 CeCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

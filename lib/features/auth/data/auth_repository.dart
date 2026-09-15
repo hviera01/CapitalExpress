@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/models/usuario_model.dart';
+import '../../../core/utils/firestore_rapido.dart';
 
 class AuthException implements Exception {
   final String mensaje;
@@ -62,7 +63,7 @@ class AuthRepository {
     final uid = prefs.getString(_kUid);
     if (uid == null) return null;
 
-    final doc = await _col.doc(uid).get();
+    final doc = await obtenerDocRapido(_col.doc(uid));
     if (!doc.exists) return null;
 
     final usuario = UsuarioModel.fromDoc(doc);
@@ -89,7 +90,7 @@ class AuthRepository {
   /// el uid de la sesion guardada) -- usado para desbloquear cuando no
   /// hay huella/Face ID configurado.
   Future<bool> verificarPassword(String uid, String password) async {
-    final doc = await _col.doc(uid).get();
+    final doc = await obtenerDocRapido(_col.doc(uid));
     if (!doc.exists) return false;
     return (doc.data()?['password'] as String?) == password;
   }

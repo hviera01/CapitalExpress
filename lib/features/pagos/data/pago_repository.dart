@@ -4,6 +4,7 @@ import '../../../core/models/pago_model.dart';
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/cuotas_calculos.dart';
+import '../../../core/utils/firestore_rapido.dart';
 import '../../bitacora/data/bitacora_repository.dart';
 
 class PagoRegistrado {
@@ -62,7 +63,7 @@ class PagoRepository {
     if (inicio == null && fin == null) {
       query = query.orderBy('fechaPago', descending: true).limit(200);
     }
-    final snap = await query.get();
+    final snap = await obtenerRapido(query);
     final pagos = <PagoModel>[];
     for (final doc in snap.docs) {
       try {
@@ -99,7 +100,7 @@ class PagoRepository {
     }
 
     final snaps = await Future.wait(
-      lotes.map((lote) => _col.where('prestamoId', whereIn: lote).get()),
+      lotes.map((lote) => obtenerRapido(_col.where('prestamoId', whereIn: lote))),
     );
 
     for (final snap in snaps) {
@@ -137,7 +138,7 @@ class PagoRepository {
     }
 
     final snaps = await Future.wait(
-      lotes.map((lote) => _col.where('prestamoId', whereIn: lote).get()),
+      lotes.map((lote) => obtenerRapido(_col.where('prestamoId', whereIn: lote))),
     );
 
     for (final snap in snaps) {

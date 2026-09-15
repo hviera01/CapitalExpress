@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/prestamo_model.dart';
+import '../../../core/utils/firestore_rapido.dart';
 import '../../../core/utils/normalizar_texto.dart';
 import '../../bitacora/data/bitacora_repository.dart';
 
@@ -74,7 +75,7 @@ class PrestamoRepository {
     if (cobradorUid != null) {
       query = query.where('cobradoresAsignados', arrayContains: cobradorUid);
     }
-    final snap = await query.get();
+    final snap = await obtenerRapido(query);
     final prestamos = <PrestamoModel>[];
     for (final doc in snap.docs) {
       try {
@@ -103,10 +104,8 @@ class PrestamoRepository {
     final porPrestamo = await obtenerTodos(cobradorUid: cobradorUid);
     final porCliente = <PrestamoModel>[];
 
-    final clientesSnap = await _db
-        .collection('clientes')
-        .where('cobradoresAsignados', arrayContains: cobradorUid)
-        .get();
+    final clientesSnap = await obtenerRapido(
+        _db.collection('clientes').where('cobradoresAsignados', arrayContains: cobradorUid));
     final clienteIds = clientesSnap.docs.map((d) => d.id).toList();
 
     final lotes = <List<String>>[];
@@ -115,9 +114,8 @@ class PrestamoRepository {
     }
     // En paralelo (antes uno por uno): con mas de 10 clientes asignados
     // esto eran varios viajes de red seguidos en vez de a la vez.
-    final snaps = await Future.wait(lotes.map(
-      (lote) => _col.where('clienteId', whereIn: lote).where('eliminado', isEqualTo: false).get(),
-    ));
+    final snaps = await Future.wait(lotes.map((lote) =>
+        obtenerRapido(_col.where('clienteId', whereIn: lote).where('eliminado', isEqualTo: false))));
     for (final snap in snaps) {
       for (final doc in snap.docs) {
         try {

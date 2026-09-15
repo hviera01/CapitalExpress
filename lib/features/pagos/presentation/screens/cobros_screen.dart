@@ -77,6 +77,11 @@ class CobrosScreen extends ConsumerStatefulWidget {
 
 class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   bool _cargando = true;
+  bool _refrescando = false;
+  // Se incrementa en cada _cargar(): un refresco que responde tarde
+  // (llamado desde _irYRefrescar al volver de Pagar/Cuotas, por
+  // ejemplo) ya no puede pisar el resultado de uno mas nuevo.
+  int _cargaId = 0;
   List<NotifCobro> _notificaciones = [];
   final _busquedaCtrl = TextEditingController();
   String _filtroTipo = 'hoy';
@@ -117,14 +122,19 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   }
 
   Future<void> _cargar() async {
+    final miId = ++_cargaId;
     final usuario = ref.read(authProvider).usuario;
     final esAdmin = Roles.esAdminOEquivalente(usuario?.rol);
     // Solo en escritorio Web: si ya hay datos, el refresco pasa
-    // calladito, sin spinner. En mobile/Windows siempre se muestra el
-    // spinner, como siempre.
-    if (!esEscritorioWeb(context) || _notificaciones.isEmpty) {
-      setState(() => _cargando = true);
-    }
+    // calladito, sin spinner de pantalla completa. En mobile/Windows
+    // siempre se muestra el spinner, como siempre. _refrescando en
+    // cambio se prende SIEMPRE que haya una consulta en vuelo -- sin
+    // esto, el refresco calladito de escritorio Web no daba ningun
+    // indicio de que se estaba recargando.
+    setState(() {
+      if (!esEscritorioWeb(context) || _notificaciones.isEmpty) _cargando = true;
+      _refrescando = true;
+    });
 
     final prestamos = await ref
         .read(prestamoRepositoryProvider)
@@ -227,10 +237,11 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       return a.diferenciaDias.compareTo(b.diferenciaDias);
     });
 
-    if (!mounted) return;
+    if (!mounted || miId != _cargaId) return; // una consulta mas nueva ya esta en curso/aplicada
     setState(() {
       _notificaciones = notificaciones;
       _cargando = false;
+      _refrescando = false;
     });
     if (esEscritorioWeb(context)) {
       final cache = ref.read(cobrosCacheProvider);
@@ -408,6 +419,17 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Se ve SIEMPRE que haya una consulta en vuelo (incluso
+                // el refresco calladito de escritorio Web) -- antes no
+                // habia ningun indicio de que se estaba recargando.
+                if (_refrescando)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.all(Radius.circular(4)),
+                      child: LinearProgressIndicator(minHeight: 3),
+                    ),
+                  ),
                 TextField(
                   controller: _busquedaCtrl,
                   decoration: InputDecoration(

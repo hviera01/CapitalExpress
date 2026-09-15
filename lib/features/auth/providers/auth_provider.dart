@@ -130,7 +130,12 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<bool> desbloquearConPassword(String password) async {
     final uid = state.usuario?.uid;
     if (uid == null) return false;
-    final ok = await ref.read(authRepositoryProvider).verificarPassword(uid, password);
+    bool ok;
+    try {
+      ok = await ref.read(authRepositoryProvider).verificarPassword(uid, password);
+    } catch (_) {
+      throw AuthException('No se pudo verificar. Revisá tu conexión e intentá de nuevo.');
+    }
     if (ok) {
       await ref.read(authRepositoryProvider).desbloquear();
       state = state.copyWith(bloqueado: false);
