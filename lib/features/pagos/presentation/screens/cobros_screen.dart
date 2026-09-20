@@ -182,16 +182,32 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       }
       final datos = cuerpo['result'] as Map<String, dynamic>;
 
-      final prestamos = (datos['prestamos'] as List).map((p) {
-        final mapa = Map<String, dynamic>.from(p as Map);
-        return PrestamoModel.fromMap(mapa['id'] as String, mapa);
-      }).toList();
+      // Igual que en el resto del repositorio (obtenerTodos,
+      // obtenerPorPrestamos, etc.): cada documento se parsea en su
+      // propio try/catch y se omite si tiene un formato inesperado
+      // (datos viejos con algun campo corrupto) -- sin esto, UN solo
+      // documento con formato raro tumbaba TODA la lista via la
+      // funcion (el camino directo ya toleraba esto solo, salteando
+      // documento por documento).
+      final prestamos = <PrestamoModel>[];
+      for (final p in (datos['prestamos'] as List)) {
+        try {
+          final mapa = Map<String, dynamic>.from(p as Map);
+          prestamos.add(PrestamoModel.fromMap(mapa['id'] as String, mapa));
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
 
       final pagosPorPrestamo = <String, List<PagoModel>>{};
       for (final p in (datos['pagos'] as List)) {
-        final mapa = Map<String, dynamic>.from(p as Map);
-        final pago = PagoModel.fromMap(mapa['id'] as String, mapa);
-        (pagosPorPrestamo[pago.prestamoId] ??= []).add(pago);
+        try {
+          final mapa = Map<String, dynamic>.from(p as Map);
+          final pago = PagoModel.fromMap(mapa['id'] as String, mapa);
+          (pagosPorPrestamo[pago.prestamoId] ??= []).add(pago);
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
       }
       _debugOrigenCarga = 'función (${cronometro.elapsedMilliseconds}ms)';
       return (prestamos, pagosPorPrestamo);

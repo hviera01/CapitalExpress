@@ -114,10 +114,19 @@ class PagoModel {
       totalCuotasCompletas: (d['totalCuotasCompletas'] as num?)?.toInt() ?? 0,
       descripcionCuotas: (d['descripcionCuotas'] ?? '') as String,
       sistemaPagoEnCascada: (d['sistemaPagoEnCascada'] ?? false) as bool,
-      cuotasCubiertas: (d['cuotasCubiertas'] as List?)
-              ?.map((m) => CuotaCubierta.fromMap(Map<String, dynamic>.from(m as Map)))
-              .toList() ??
-          const [],
+      // ~219 pagos reales (confirmado contra Firestore) tienen este
+      // campo guardado como numero en vez de lista (dato viejo, de
+      // antes del sistema de cascada) -- si aca se exigiera "es una
+      // lista" a secas, TODO el pago se perdia (el constructor entero
+      // fallaba y el catch de quien llama a fromDoc/fromMap descartaba
+      // el documento completo, no solo este campo), sacándolo sin
+      // avisar de Cobros, Historial de Pagos Y del calculo de cuotas
+      // cubiertas de su prestamo.
+      cuotasCubiertas: (d['cuotasCubiertas'] is List)
+          ? (d['cuotasCubiertas'] as List)
+              .map((m) => CuotaCubierta.fromMap(Map<String, dynamic>.from(m as Map)))
+              .toList()
+          : const [],
     );
   }
 }
