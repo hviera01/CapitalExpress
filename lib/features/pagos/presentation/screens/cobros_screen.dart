@@ -82,6 +82,10 @@ class CobrosScreen extends ConsumerStatefulWidget {
 class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   bool _cargando = true;
   bool _refrescando = false;
+  // TEMPORAL: para diagnosticar por que la Cloud Function no parece
+  // acelerar nada en iOS Safari (reportado por el dueño) -- se saca en
+  // cuanto se confirme la causa real.
+  String? _debugOrigenCarga;
   // Se incrementa en cada _cargar(): un refresco que responde tarde
   // (llamado desde _irYRefrescar al volver de Pagar/Cuotas, por
   // ejemplo) ya no puede pisar el resultado de uno mas nuevo.
@@ -147,8 +151,10 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     required String? cobradorUid,
   }) async {
     if (!kIsWeb && Platform.isWindows) {
+      _debugOrigenCarga = 'directo (Windows, la función no aplica ahí)';
       return _obtenerPrestamosYPagosDirecto(esAdmin: esAdmin, cobradorUid: cobradorUid);
     }
+    final cronometro = Stopwatch()..start();
     try {
       final usuarioUid = ref.read(authProvider).usuario?.uid;
       final resultado = await FirebaseFunctions.instance
@@ -167,8 +173,10 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
         final pago = PagoModel.fromMap(mapa['id'] as String, mapa);
         (pagosPorPrestamo[pago.prestamoId] ??= []).add(pago);
       }
+      _debugOrigenCarga = 'función (${cronometro.elapsedMilliseconds}ms)';
       return (prestamos, pagosPorPrestamo);
-    } catch (_) {
+    } catch (e) {
+      _debugOrigenCarga = 'directo -- función falló a los ${cronometro.elapsedMilliseconds}ms: $e';
       return _obtenerPrestamosYPagosDirecto(esAdmin: esAdmin, cobradorUid: cobradorUid);
     }
   }
@@ -493,6 +501,13 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                       borderRadius: BorderRadius.all(Radius.circular(4)),
                       child: LinearProgressIndicator(minHeight: 3),
                     ),
+                  ),
+                // TEMPORAL: ver comentario en _debugOrigenCarga.
+                if (_debugOrigenCarga != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('Debug: $_debugOrigenCarga',
+                        style: const TextStyle(fontSize: 10, color: CEColors.textSecondary)),
                   ),
                 TextField(
                   controller: _busquedaCtrl,
