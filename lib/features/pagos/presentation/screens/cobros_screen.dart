@@ -1,9 +1,8 @@
-import 'dart:io' show Platform;
+import 'dart:convert';
 
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -129,16 +128,30 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     if (mounted) _cargar();
   }
 
+  /// URL de la Cloud Function `obtenerDatosCobros` -- misma region que
+  /// la base de Firestore (us-east1, confirmado via API; ver
+  /// functions/index.js), no us-central1 (el default si no se
+  /// especifica region al desplegar).
+  static const _urlObtenerDatosCobros =
+      'https://us-east1-capitalexpressapp-c03c5.cloudfunctions.net/obtenerDatosCobros';
+
   /// Trae prestamos+pagos para Cobros. Primero intenta la Cloud
   /// Function `obtenerDatosCobros` (agrupa las mismas consultas DENTRO
   /// del centro de datos de Google -- el celular paga un solo viaje
   /// largo en vez de varios); si no esta disponible (recien
-  /// desplegada, sin conexion al endpoint, o Windows -- `cloud_functions`
-  /// de FlutterFire no tiene soporte oficial ahi) cae SOLA al camino de
-  /// siempre, con el mismo resultado final, solo mas lento. El calculo
-  /// (fechas, mora, clasificacion) sigue siendo el mismo codigo Dart de
-  /// abajo en los dos casos -- esto solo cambia DE DONDE vienen los
-  /// documentos crudos.
+  /// desplegada, sin conexion al endpoint, o Windows) cae SOLA al
+  /// camino de siempre, con el mismo resultado final, solo mas lento.
+  /// El calculo (fechas, mora, clasificacion) sigue siendo el mismo
+  /// codigo Dart de abajo en los dos casos -- esto solo cambia DE
+  /// DONDE vienen los documentos crudos.
+  ///
+  /// Se llama con `package:http` (peticion HTTP comun), NO con
+  /// `FirebaseFunctions.instance.httpsCallable` -- ese paquete oficial
+  /// de FlutterFire falla en Web (dart2js) con "Int64 accessor not
+  /// supported", un bug conocido de esa libreria al armar la llamada
+  /// (nada que ver con esta funcion ni con los datos que se mandan).
+  /// Pedirselo a la funcion como una peticion HTTP cualquiera evita ese
+  /// camino roto por completo -- funciona igual en Android/Web/Windows.
   ///
   /// Se manda el uid de QUIEN llama (nunca "esAdmin"/"cobradorUid: null"
   /// tal cual lo calcula este celular) porque esta app no usa Firebase
@@ -150,17 +163,24 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     required bool esAdmin,
     required String? cobradorUid,
   }) async {
-    if (!kIsWeb && Platform.isWindows) {
-      _debugOrigenCarga = 'directo (Windows, la función no aplica ahí)';
-      return _obtenerPrestamosYPagosDirecto(esAdmin: esAdmin, cobradorUid: cobradorUid);
-    }
     final cronometro = Stopwatch()..start();
     try {
       final usuarioUid = ref.read(authProvider).usuario?.uid;
-      final resultado = await FirebaseFunctions.instance
-          .httpsCallable('obtenerDatosCobros')
-          .call({'usuarioUid': usuarioUid});
-      final datos = Map<String, dynamic>.from(resultado.data as Map);
+      final respuesta = await http
+          .post(
+            Uri.parse(_urlObtenerDatosCobros),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'data': {'usuarioUid': usuarioUid}
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
+      if (cuerpo['error'] != null) {
+        throw Exception(cuerpo['error']);
+      }
+      final datos = cuerpo['result'] as Map<String, dynamic>;
 
       final prestamos = (datos['prestamos'] as List).map((p) {
         final mapa = Map<String, dynamic>.from(p as Map);

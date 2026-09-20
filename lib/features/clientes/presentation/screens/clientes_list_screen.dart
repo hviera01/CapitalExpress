@@ -309,10 +309,78 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
         icon: const Icon(Icons.person_add_outlined),
         label: const Text('Nuevo cliente'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-        children: [
-          if (_errorStats != null)
+      body: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            sliver: SliverToBoxAdapter(child: _encabezado(esAdmin)),
+          ),
+          if (_seBusco && _resultados.isNotEmpty && !esEscritorioWeb(context))
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+              sliver: SliverList.separated(
+                itemCount: _resultados.length,
+                separatorBuilder: (context, i) => const SizedBox(height: 10),
+                itemBuilder: (context, i) {
+                  final c = _resultados[i];
+                  return _ClienteTile(
+                    cliente: c,
+                    tienePrestamo: _tienePrestamoReal[c.id] ?? c.tienePrestamo,
+                    nombreCobrador: c.cobradorAsignado.isEmpty
+                        ? 'Administrador'
+                        : _nombresCobradores[c.cobradorAsignado],
+                    onEliminado: () {
+                      setState(() => _resultados.removeWhere((r) => r.id == c.id));
+                      _guardarCache();
+                      _cargarStats();
+                    },
+                    onActualizado: (actualizado) {
+                      setState(() {
+                        final idx = _resultados.indexWhere((r) => r.id == actualizado.id);
+                        if (idx != -1) _resultados[idx] = actualizado;
+                      });
+                      _guardarCache();
+                    },
+                  );
+                },
+              ),
+            )
+          else if (_seBusco && _resultados.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+              sliver: SliverToBoxAdapter(
+                child: _TablaClientes(
+                  clientes: _resultados,
+                  tienePrestamoDe: (c) => _tienePrestamoReal[c.id] ?? c.tienePrestamo,
+                  nombreCobradorDe: (c) => c.cobradorAsignado.isEmpty
+                      ? 'Administrador'
+                      : _nombresCobradores[c.cobradorAsignado],
+                  onEliminado: (c) {
+                    setState(() => _resultados.removeWhere((r) => r.id == c.id));
+                    _guardarCache();
+                    _cargarStats();
+                  },
+                  onActualizado: (actualizado) {
+                    setState(() {
+                      final idx = _resultados.indexWhere((r) => r.id == actualizado.id);
+                      if (idx != -1) _resultados[idx] = actualizado;
+                    });
+                    _guardarCache();
+                  },
+                ),
+              ),
+            )
+          else
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+        ],
+      ),
+    );
+  }
+
+  Widget _encabezado(bool esAdmin) {
+    return Column(
+      children: [
+        if (_errorStats != null)
             CeCard(
               child: Row(
                 children: [
@@ -435,62 +503,17 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                 ),
               ),
             )
-          else ...[
+          else if (_resultados.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 24),
+              child: Center(child: Text('No se encontraron clientes')),
+            )
+          else
             Text(
               'Mostrando ${_resultados.length} de $_total clientes',
               style: const TextStyle(fontSize: 12, color: CEColors.textSecondary),
             ),
-            const SizedBox(height: 8),
-            if (_resultados.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 24),
-                child: Center(child: Text('No se encontraron clientes')),
-              )
-            else if (esEscritorioWeb(context))
-              _TablaClientes(
-                clientes: _resultados,
-                tienePrestamoDe: (c) => _tienePrestamoReal[c.id] ?? c.tienePrestamo,
-                nombreCobradorDe: (c) =>
-                    c.cobradorAsignado.isEmpty ? 'Administrador' : _nombresCobradores[c.cobradorAsignado],
-                onEliminado: (c) {
-                  setState(() => _resultados.removeWhere((r) => r.id == c.id));
-                  _guardarCache();
-                  _cargarStats();
-                },
-                onActualizado: (actualizado) {
-                  setState(() {
-                    final i = _resultados.indexWhere((r) => r.id == actualizado.id);
-                    if (i != -1) _resultados[i] = actualizado;
-                  });
-                  _guardarCache();
-                },
-              )
-            else
-              ..._resultados.map((c) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _ClienteTile(
-                      cliente: c,
-                      tienePrestamo: _tienePrestamoReal[c.id] ?? c.tienePrestamo,
-                      nombreCobrador: c.cobradorAsignado.isEmpty
-                          ? 'Administrador'
-                          : _nombresCobradores[c.cobradorAsignado],
-                      onEliminado: () {
-                        setState(() => _resultados.removeWhere((r) => r.id == c.id));
-                        _guardarCache();
-                        _cargarStats();
-                      },
-                      onActualizado: (actualizado) {
-                        setState(() {
-                          final i = _resultados.indexWhere((r) => r.id == actualizado.id);
-                          if (i != -1) _resultados[i] = actualizado;
-                        });
-                        _guardarCache();
-                      },
-                    ),
-                  )),
-          ],
-        ],
-      ),
+      ],
     );
   }
 }

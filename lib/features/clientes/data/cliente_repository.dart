@@ -201,24 +201,38 @@ class ClienteRepository {
   /// asignacion de cliente: el cliente es la fuente de verdad, el
   /// prestamo la sigue. Devuelve cuantos prestamos se corrigieron.
   Future<int> sincronizarAsignaciones() async {
+    final db = FirebaseFirestore.instance;
     final clientesSnap = await _col.get();
-    final prestamosCol = FirebaseFirestore.instance.collection('prestamos');
+    final prestamosSnap = await db.collection('prestamos').get();
+
+    final cobradorPorCliente = {
+      for (final d in clientesSnap.docs) d.id: (d.data()['cobradorAsignado'] as String?) ?? '',
+    };
+
+    var batch = db.batch();
+    var enLote = 0;
     var corregidos = 0;
-    for (final clienteDoc in clientesSnap.docs) {
-      final cobradorCliente = (clienteDoc.data()['cobradorAsignado'] as String?) ?? '';
-      final prestamosSnap =
-          await prestamosCol.where('clienteId', isEqualTo: clienteDoc.id).get();
-      for (final pDoc in prestamosSnap.docs) {
-        final cobradorPrestamo = (pDoc.data()['cobradorAsignado'] as String?) ?? '';
-        if (cobradorPrestamo == cobradorCliente) continue;
-        await pDoc.reference.update({
-          'cobradorAsignado': cobradorCliente,
-          'cobradoresAsignados': cobradorCliente.isNotEmpty ? [cobradorCliente] : [],
-          'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
-        });
-        corregidos++;
+    for (final pDoc in prestamosSnap.docs) {
+      final clienteId = pDoc.data()['clienteId'] as String?;
+      if (clienteId == null || !cobradorPorCliente.containsKey(clienteId)) continue;
+      final cobradorCliente = cobradorPorCliente[clienteId]!;
+      final cobradorPrestamo = (pDoc.data()['cobradorAsignado'] as String?) ?? '';
+      if (cobradorPrestamo == cobradorCliente) continue;
+
+      batch.update(pDoc.reference, {
+        'cobradorAsignado': cobradorCliente,
+        'cobradoresAsignados': cobradorCliente.isNotEmpty ? [cobradorCliente] : [],
+        'fechaUltimaActualizacion': FieldValue.serverTimestamp(),
+      });
+      corregidos++;
+      enLote++;
+      if (enLote == 400) {
+        await batch.commit();
+        batch = db.batch();
+        enLote = 0;
       }
     }
+    if (enLote > 0) await batch.commit();
     return corregidos;
   }
 }

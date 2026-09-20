@@ -278,6 +278,8 @@ class PrestamoRepository {
   /// mostrando el nombre del cobrador VIEJO en pantalla/PDF.
   Future<int> corregirNombresCobrador(Map<String, String> nombresPorUid) async {
     final snap = await _col.get();
+    var batch = _db.batch();
+    var enLote = 0;
     var corregidos = 0;
     for (final doc in snap.docs) {
       final uid = (doc.data()['cobradorAsignado'] as String?) ?? '';
@@ -286,9 +288,16 @@ class PrestamoRepository {
       if (nombreCorrecto == null || nombreCorrecto.isEmpty) continue;
       final nombreActual = (doc.data()['cobrador'] as String?) ?? '';
       if (nombreActual == nombreCorrecto) continue;
-      await doc.reference.update({'cobrador': nombreCorrecto});
+      batch.update(doc.reference, {'cobrador': nombreCorrecto});
       corregidos++;
+      enLote++;
+      if (enLote == 400) {
+        await batch.commit();
+        batch = _db.batch();
+        enLote = 0;
+      }
     }
+    if (enLote > 0) await batch.commit();
     return corregidos;
   }
 

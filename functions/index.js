@@ -168,7 +168,7 @@ exports.avisarSolicitudEdicionAprobada = onDocumentUpdated("solicitudes_edicion/
  * .marcarAplicada (quien deja el doc en 'aplicada' ANTES de que esto
  * lo alcance a marcar 'vencida', si se llega a usar a tiempo).
  */
-exports.vencerPermisosEdicion = onSchedule("every 10 minutes", async () => {
+exports.vencerPermisosEdicion = onSchedule({ schedule: "every 10 minutes", region: "us-east1" }, async () => {
   const db = getFirestore();
   const ahora = Timestamp.now();
   const snap = await db
@@ -288,7 +288,15 @@ const ESTADOS_EXCLUIDOS_COBROS = new Set([
 // Mismo criterio que Roles.esAdminOEquivalente en lib/core/constants/roles.dart.
 const ROLES_ADMIN = new Set(["admin", "desarrollador"]);
 
-exports.obtenerDatosCobros = onCall(async (request) => {
+// La base de Firestore de este proyecto vive en us-east1 (confirmado
+// via API: projects/.../databases/(default) -> locationId "us-east1"),
+// NO en us-central1 (el default de las Cloud Functions si no se dice
+// nada). Los triggers de Firestore (onDocumentCreated/onDocumentUpdated,
+// ver el resto de este archivo) heredan la region de la base solos,
+// pero onCall/onSchedule NO -- sin esto, la funcion queda en otra
+// region que la base, agregando un salto de mas entre regiones de
+// EE.UU. justo en la funcion que existe para achicar la distancia.
+exports.obtenerDatosCobros = onCall({ region: "us-east1" }, async (request) => {
   // Esta app no usa Firebase Auth (login propio por codigo+password
   // contra la coleccion `usuarios`, ver AuthRepository), asi que
   // `request.auth` nunca existe -- NO se puede confiar en un

@@ -213,10 +213,75 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Nuevo préstamo'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-        children: [
-          if (_errorStats != null)
+      body: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            sliver: SliverToBoxAdapter(child: _encabezado(esAdmin, hayFiltros)),
+          ),
+          if (_seBusco && _resultados.isNotEmpty && !esEscritorioWeb(context))
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+              sliver: SliverList.separated(
+                itemCount: _resultados.length,
+                separatorBuilder: (context, i) => const SizedBox(height: 10),
+                itemBuilder: (context, i) {
+                  final p = _resultados[i];
+                  return _PrestamoCard(
+                    prestamo: p,
+                    eliminadoView: _verEliminados,
+                    onActualizado: (actualizado) {
+                      setState(() {
+                        final idx =
+                            _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
+                        if (idx != -1) _resultados[idx] = actualizado;
+                      });
+                      _guardarCache();
+                    },
+                    onEliminado: () {
+                      setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
+                      _guardarCache();
+                      _cargarStats();
+                    },
+                  );
+                },
+              ),
+            )
+          else if (_seBusco && _resultados.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+              sliver: SliverToBoxAdapter(
+                child: _TablaPrestamos(
+                  prestamos: _resultados,
+                  eliminadoView: _verEliminados,
+                  esAdmin: esAdmin,
+                  onActualizado: (actualizado) {
+                    setState(() {
+                      final idx =
+                          _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
+                      if (idx != -1) _resultados[idx] = actualizado;
+                    });
+                    _guardarCache();
+                  },
+                  onEliminado: (p) {
+                    setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
+                    _guardarCache();
+                    _cargarStats();
+                  },
+                ),
+              ),
+            )
+          else
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+        ],
+      ),
+    );
+  }
+
+  Widget _encabezado(bool esAdmin, bool hayFiltros) {
+    return Column(
+      children: [
+        if (_errorStats != null)
             CeCard(
               child: Row(
                 children: [
@@ -379,47 +444,8 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
             const Padding(
               padding: EdgeInsets.only(top: 24),
               child: Center(child: Text('No hay préstamos')),
-            )
-          else if (esEscritorioWeb(context))
-            _TablaPrestamos(
-              prestamos: _resultados,
-              eliminadoView: _verEliminados,
-              esAdmin: esAdmin,
-              onActualizado: (actualizado) {
-                setState(() {
-                  final i = _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
-                  if (i != -1) _resultados[i] = actualizado;
-                });
-                _guardarCache();
-              },
-              onEliminado: (p) {
-                setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
-                _guardarCache();
-                _cargarStats();
-              },
-            )
-          else
-            ..._resultados.map((p) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _PrestamoCard(
-                    prestamo: p,
-                    eliminadoView: _verEliminados,
-                    onActualizado: (actualizado) {
-                      setState(() {
-                        final i = _resultados.indexWhere((r) => r.prestamoId == actualizado.prestamoId);
-                        if (i != -1) _resultados[i] = actualizado;
-                      });
-                      _guardarCache();
-                    },
-                    onEliminado: () {
-                      setState(() => _resultados.removeWhere((r) => r.prestamoId == p.prestamoId));
-                      _guardarCache();
-                      _cargarStats();
-                    },
-                  ),
-                )),
-        ],
-      ),
+            ),
+      ],
     );
   }
 }
