@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/cliente_model.dart';
+import '../../../../core/models/usuario_model.dart';
+import '../../../../core/services/cola_fotos_pendientes.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/uppercase_text_formatter.dart';
@@ -339,78 +342,46 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     setState(() => _guardando = true);
 
     try {
-      // Las fotos nuevas se suben todas EN PARALELO (antes era una por
-      // una, esperando a que terminara cada una para recien empezar la
-      // siguiente -- con los 10 casilleros llenos eso sumaba el tiempo
-      // de las 10 subidas en vez de tardar lo que tarda la mas lenta).
-      final storage = StorageService();
-      final subidas = await Future.wait(_fotos.entries.map((entry) async {
-        final url = entry.value != null
-            ? await storage.subirFoto(bytes: entry.value!, carpeta: 'clientes')
-            : _urlExistente(entry.key);
-        return MapEntry(entry.key, url);
-      }));
-      final urls = Map<String, String>.fromEntries(subidas);
-
       final usuario = ref.read(authProvider).usuario!;
-      final cliente = ClienteModel(
-        id: _clienteOriginal?.id ?? '',
-        nombre: _campos['nombre']!.text.trim(),
-        identidad: _campos['identidad']!.text.trim(),
-        telefono: _campos['telefono']!.text.trim(),
-        nombreEmpresa: _campos['nombreEmpresa']!.text.trim(),
-        direccionCasa: _campos['direccionCasa']!.text.trim(),
-        direccionNegocio: _campos['direccionNegocio']!.text.trim(),
-        estadoCivil: _estadoCivil,
-        ref1: ReferenciaPersonal(
-          nombre: _campos['ref1Nombre']!.text.trim(),
-          identidad: _campos['ref1Identidad']!.text.trim(),
-          telefono: _campos['ref1Telefono']!.text.trim(),
-          parentesco: _campos['ref1Parentesco']!.text.trim(),
-          direccion: _campos['ref1Direccion']!.text.trim(),
-        ),
-        ref2: ReferenciaPersonal(
-          nombre: _campos['ref2Nombre']!.text.trim(),
-          identidad: _campos['ref2Identidad']!.text.trim(),
-          telefono: _campos['ref2Telefono']!.text.trim(),
-          parentesco: _campos['ref2Parentesco']!.text.trim(),
-          direccion: _campos['ref2Direccion']!.text.trim(),
-        ),
-        fotoCasaUrl: urls['fotoCasaUrl']!,
-        fotoNegocioUrl: urls['fotoNegocioUrl']!,
-        fotoPersonaUrl: urls['fotoPersonaUrl']!,
-        fotoIdentidadFrenteUrl: urls['fotoIdentidadFrenteUrl']!,
-        fotoIdentidadReversoUrl: urls['fotoIdentidadReversoUrl']!,
-        fotoReciboLuzUrl: urls['fotoReciboLuzUrl']!,
-        fotoExtra1: urls['fotoExtra1']!,
-        fotoExtra2: urls['fotoExtra2']!,
-        fotoExtra3: urls['fotoExtra3']!,
-        garantia: _campos['garantia']!.text.trim(),
-        fotoGarantiaUrl: urls['fotoGarantiaUrl']!,
-        estado: _clienteOriginal?.estado ?? 'activo',
-        tienePrestamo: _clienteOriginal?.tienePrestamo ?? false,
-        // Cliente nuevo: queda asignado a quien lo crea, sea cobrador o
-        // admin/desarrollador (antes solo pasaba si el creador era
-        // cobrador -- un cliente creado por un admin quedaba con el
-        // NOMBRE del admin pero sin el UID real en cobradorAsignado,
-        // asi que no aparecia al filtrar "mis clientes" de ese admin).
-        cobradorAsignado: _clienteOriginal?.cobradorAsignado ?? usuario.uid,
-        cobrador: _clienteOriginal?.cobrador ?? usuario.nombre,
-      );
 
-      final repo = ref.read(clienteRepositoryProvider);
-      if (_clienteOriginal == null) {
-        await repo.crear(cliente);
+      // En Web no hay filesystem local para encolar fotos pendientes
+      // (ColaFotosPendientes usa dart:io) y en escritorio Web la
+      // conexion ya suele ser mucho mejor que la de un celular en la
+      // calle -- ahi se deja el camino de siempre: subir TODAS las
+      // fotos (en paralelo) y esperar antes de guardar.
+      //
+      // En mobile/Windows nativo: guardado "optimista" -- el cliente
+      // se guarda YA (con las fotos que ya tenia; las nuevas quedan
+      // vacias un instante) y cada foto nueva se encola aparte,
+      // subiendo sola en cuanto haya señal (ver ColaFotosPendientes),
+      // sin hacer esperar al cobrador mirando una rueda girando.
+      final String clienteId;
+      if (kIsWeb) {
+        final storage = StorageService();
+        final subidas = await Future.wait(_fotos.entries.map((entry) async {
+          final url = entry.value != null
+              ? await storage.subirFoto(bytes: entry.value!, carpeta: 'clientes')
+              : _urlExistente(entry.key);
+          return MapEntry(entry.key, url);
+        }));
+        final urls = Map<String, String>.fromEntries(subidas);
+        clienteId = await _guardarClienteDoc(usuario, urls);
       } else {
-        await repo.actualizar(cliente, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
-        final solicitudId = widget.solicitudEdicionId;
-        if (solicitudId != null) {
-          await ref.read(solicitudEdicionRepositoryProvider).marcarAplicada(
-                solicitudId,
-                usuarioUid: usuario.uid,
-                usuarioNombre: usuario.nombre,
-                descripcion: cliente.nombre,
-              );
+        final urls = {for (final k in _fotos.keys) k: _urlExistente(k)};
+        clienteId = await _guardarClienteDoc(usuario, urls);
+        // Encolar una por una (await, NO Future.wait/disparar todas
+        // juntas): encolar() escribe la cola persistida con un
+        // read-modify-write sobre el mismo archivo de SharedPreferences
+        // -- si dos llamadas corren a la vez pueden pisarse la lista
+        // entre si y perder una foto para siempre. Esto solo serializa
+        // la escritura local (rapida, sin red); la subida real de cada
+        // una sigue disparandose sola sin esperar, la pantalla no se
+        // frena por esto.
+        for (final entry in _fotos.entries) {
+          final bytes = entry.value;
+          if (bytes != null) {
+            await ColaFotosPendientes.encolar(clienteId: clienteId, campo: entry.key, bytes: bytes);
+          }
         }
       }
 
@@ -430,6 +401,72 @@ class _ClienteFormScreenState extends ConsumerState<ClienteFormScreen> {
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
+  }
+
+  /// Arma el ClienteModel con las fotos ([urls]) ya resueltas y lo
+  /// crea/actualiza -- comun a los 2 caminos de [_guardar]. Devuelve el
+  /// ID del cliente (nuevo o existente).
+  Future<String> _guardarClienteDoc(UsuarioModel usuario, Map<String, String> urls) async {
+    final cliente = ClienteModel(
+      id: _clienteOriginal?.id ?? '',
+      nombre: _campos['nombre']!.text.trim(),
+      identidad: _campos['identidad']!.text.trim(),
+      telefono: _campos['telefono']!.text.trim(),
+      nombreEmpresa: _campos['nombreEmpresa']!.text.trim(),
+      direccionCasa: _campos['direccionCasa']!.text.trim(),
+      direccionNegocio: _campos['direccionNegocio']!.text.trim(),
+      estadoCivil: _estadoCivil,
+      ref1: ReferenciaPersonal(
+        nombre: _campos['ref1Nombre']!.text.trim(),
+        identidad: _campos['ref1Identidad']!.text.trim(),
+        telefono: _campos['ref1Telefono']!.text.trim(),
+        parentesco: _campos['ref1Parentesco']!.text.trim(),
+        direccion: _campos['ref1Direccion']!.text.trim(),
+      ),
+      ref2: ReferenciaPersonal(
+        nombre: _campos['ref2Nombre']!.text.trim(),
+        identidad: _campos['ref2Identidad']!.text.trim(),
+        telefono: _campos['ref2Telefono']!.text.trim(),
+        parentesco: _campos['ref2Parentesco']!.text.trim(),
+        direccion: _campos['ref2Direccion']!.text.trim(),
+      ),
+      fotoCasaUrl: urls['fotoCasaUrl']!,
+      fotoNegocioUrl: urls['fotoNegocioUrl']!,
+      fotoPersonaUrl: urls['fotoPersonaUrl']!,
+      fotoIdentidadFrenteUrl: urls['fotoIdentidadFrenteUrl']!,
+      fotoIdentidadReversoUrl: urls['fotoIdentidadReversoUrl']!,
+      fotoReciboLuzUrl: urls['fotoReciboLuzUrl']!,
+      fotoExtra1: urls['fotoExtra1']!,
+      fotoExtra2: urls['fotoExtra2']!,
+      fotoExtra3: urls['fotoExtra3']!,
+      garantia: _campos['garantia']!.text.trim(),
+      fotoGarantiaUrl: urls['fotoGarantiaUrl']!,
+      estado: _clienteOriginal?.estado ?? 'activo',
+      tienePrestamo: _clienteOriginal?.tienePrestamo ?? false,
+      // Cliente nuevo: queda asignado a quien lo crea, sea cobrador o
+      // admin/desarrollador (antes solo pasaba si el creador era
+      // cobrador -- un cliente creado por un admin quedaba con el
+      // NOMBRE del admin pero sin el UID real en cobradorAsignado,
+      // asi que no aparecia al filtrar "mis clientes" de ese admin).
+      cobradorAsignado: _clienteOriginal?.cobradorAsignado ?? usuario.uid,
+      cobrador: _clienteOriginal?.cobrador ?? usuario.nombre,
+    );
+
+    final repo = ref.read(clienteRepositoryProvider);
+    if (_clienteOriginal == null) {
+      return repo.crear(cliente);
+    }
+    await repo.actualizar(cliente, usuarioUid: usuario.uid, usuarioNombre: usuario.nombre);
+    final solicitudId = widget.solicitudEdicionId;
+    if (solicitudId != null) {
+      await ref.read(solicitudEdicionRepositoryProvider).marcarAplicada(
+            solicitudId,
+            usuarioUid: usuario.uid,
+            usuarioNombre: usuario.nombre,
+            descripcion: cliente.nombre,
+          );
+    }
+    return _clienteOriginal!.id;
   }
 
   @override

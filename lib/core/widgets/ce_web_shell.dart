@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/tickets/providers/tickets_provider.dart';
 import 'ce_web_sections.dart';
+import 'contador_pendientes_sync.dart';
 import 'marca_lockup.dart';
 
 /// Chrome de escritorio Web: barra superior fija (marca, usuario,
@@ -236,6 +237,35 @@ class _BarraSuperior extends StatelessWidget {
                   Text(esAdmin ? 'Administrador' : 'Cobrador',
                       style: const TextStyle(color: Colors.white54, fontSize: 10.5)),
                 ],
+              ),
+              ContadorPendientesSync(
+                builder: (context, total) {
+                  if (total == 0) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Tooltip(
+                      message: '$total pendiente(s) de sincronizar -- se reintentan solas',
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.cloud_sync_outlined, color: Colors.white54, size: 19),
+                          Positioned(
+                            right: -6,
+                            top: -6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                  color: CEColors.danger, borderRadius: BorderRadius.circular(20)),
+                              child: Text('$total',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,

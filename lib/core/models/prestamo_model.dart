@@ -149,11 +149,19 @@ class PrestamoModel {
     return v.toString();
   }
 
-  factory PrestamoModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final d = doc.data() ?? const {};
+  factory PrestamoModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) =>
+      PrestamoModel.fromMap(doc.id, doc.data() ?? const {});
+
+  /// Igual que [fromDoc] pero a partir de un Map plano en vez de un
+  /// DocumentSnapshot -- usado para reconstruir el modelo desde la
+  /// respuesta JSON de la Cloud Function `obtenerDatosCobros` (que
+  /// manda los Timestamp como milisegundos: `asTimestamp`/
+  /// `asProximoPagoFecha` en firestore_parse.dart YA toleran ints,
+  /// asi que no hace falta ningun parseo especial aca).
+  factory PrestamoModel.fromMap(String id, Map<String, dynamic> d) {
     double dd(String k) => (d[k] as num?)?.toDouble() ?? 0.0;
     return PrestamoModel(
-      prestamoId: doc.id,
+      prestamoId: id,
       clienteId: (d['clienteId'] ?? '') as String,
       cliente: (d['cliente'] ?? '') as String,
       monto: dd('monto'),

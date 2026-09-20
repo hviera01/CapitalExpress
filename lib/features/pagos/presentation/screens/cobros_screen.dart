@@ -1,3 +1,7 @@
+import 'dart:io' show Platform;
+
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -121,6 +125,84 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     if (mounted) _cargar();
   }
 
+  /// Trae prestamos+pagos para Cobros. Primero intenta la Cloud
+  /// Function `obtenerDatosCobros` (agrupa las mismas consultas DENTRO
+  /// del centro de datos de Google -- el celular paga un solo viaje
+  /// largo en vez de varios); si no esta disponible (recien
+  /// desplegada, sin conexion al endpoint, o Windows -- `cloud_functions`
+  /// de FlutterFire no tiene soporte oficial ahi) cae SOLA al camino de
+  /// siempre, con el mismo resultado final, solo mas lento. El calculo
+  /// (fechas, mora, clasificacion) sigue siendo el mismo codigo Dart de
+  /// abajo en los dos casos -- esto solo cambia DE DONDE vienen los
+  /// documentos crudos.
+  ///
+  /// Se manda el uid de QUIEN llama (nunca "esAdmin"/"cobradorUid: null"
+  /// tal cual lo calcula este celular) porque esta app no usa Firebase
+  /// Auth -- la funcion verifica el rol REAL contra el doc de
+  /// `usuarios` antes de decidir si devuelve todo o solo lo de este
+  /// cobrador, para que no baste con mandar un valor cualquiera desde
+  /// afuera para llevarse los datos de todos los clientes.
+  Future<(List<PrestamoModel>, Map<String, List<PagoModel>>)> _obtenerPrestamosYPagos({
+    required bool esAdmin,
+    required String? cobradorUid,
+  }) async {
+    if (!kIsWeb && Platform.isWindows) {
+      return _obtenerPrestamosYPagosDirecto(esAdmin: esAdmin, cobradorUid: cobradorUid);
+    }
+    try {
+      final usuarioUid = ref.read(authProvider).usuario?.uid;
+      final resultado = await FirebaseFunctions.instance
+          .httpsCallable('obtenerDatosCobros')
+          .call({'usuarioUid': usuarioUid});
+      final datos = Map<String, dynamic>.from(resultado.data as Map);
+
+      final prestamos = (datos['prestamos'] as List).map((p) {
+        final mapa = Map<String, dynamic>.from(p as Map);
+        return PrestamoModel.fromMap(mapa['id'] as String, mapa);
+      }).toList();
+
+      final pagosPorPrestamo = <String, List<PagoModel>>{};
+      for (final p in (datos['pagos'] as List)) {
+        final mapa = Map<String, dynamic>.from(p as Map);
+        final pago = PagoModel.fromMap(mapa['id'] as String, mapa);
+        (pagosPorPrestamo[pago.prestamoId] ??= []).add(pago);
+      }
+      return (prestamos, pagosPorPrestamo);
+    } catch (_) {
+      return _obtenerPrestamosYPagosDirecto(esAdmin: esAdmin, cobradorUid: cobradorUid);
+    }
+  }
+
+  /// Camino de siempre (sin la Cloud Function): identico al que ya
+  /// habia antes de agregar `_obtenerPrestamosYPagos`.
+  Future<(List<PrestamoModel>, Map<String, List<PagoModel>>)> _obtenerPrestamosYPagosDirecto({
+    required bool esAdmin,
+    required String? cobradorUid,
+  }) async {
+    final prestamos = await ref
+        .read(prestamoRepositoryProvider)
+        .obtenerParaNotificaciones(cobradorUid: esAdmin ? null : cobradorUid);
+    final candidatos =
+        prestamos.where((p) => !_estadosExcluidos.contains(p.estado.toLowerCase())).toList();
+
+    // UN SOLO pedido con TODOS los pagos de cada candidato: sirve para
+    // la fecha de ultimo pago en pantalla Y para reconstruir la tabla
+    // de cuotas completa (no solo `proximoPago`, que guarda unicamente
+    // la cuota pendiente MAS ANTIGUA). Sin esto, un prestamo con varias
+    // cuotas atrasadas seguidas -- comun en plazo Diario/Lunes a
+    // Sabado -- se clasificaba siempre como "En mora" aunque HOY
+    // tambien cayera una cuota pendiente, y el cobrador no lo veia
+    // listado para visitar hoy.
+    var pagosPorPrestamo = const <String, List<PagoModel>>{};
+    try {
+      pagosPorPrestamo =
+          await ref.read(pagoRepositoryProvider).obtenerPorPrestamos(candidatos.map((p) => p.prestamoId).toList());
+    } catch (_) {
+      // sin conexion: se sigue con el respaldo de fecha de inicio / "Sin pagos aun".
+    }
+    return (candidatos, pagosPorPrestamo);
+  }
+
   Future<void> _cargar() async {
     final miId = ++_cargaId;
     final usuario = ref.read(authProvider).usuario;
@@ -136,14 +218,6 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
       _refrescando = true;
     });
 
-    final prestamos = await ref
-        .read(prestamoRepositoryProvider)
-        .obtenerParaNotificaciones(cobradorUid: esAdmin ? null : usuario?.uid);
-
-    final hoy = DateTime.now();
-    final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
-    final notificaciones = <NotifCobro>[];
-
     // Igual que procesarPrestamoUltraOptimizado en el sistema viejo: el
     // campo `proximoPago` del prestamo es la fuente principal, pero no
     // todos los prestamos (sobre todo los mas viejos) lo tienen bien
@@ -151,24 +225,14 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     // en vivo: ultimo pago real + un intervalo de plazo, o si nunca pago,
     // fecha de inicio + un intervalo. Sin este respaldo, esos prestamos
     // simplemente desaparecian de Cobros/Notificaciones.
-    final candidatos = prestamos.where((p) => !_estadosExcluidos.contains(p.estado.toLowerCase())).toList();
-    final pagoRepo = ref.read(pagoRepositoryProvider);
+    final (candidatos, pagosPorPrestamo) =
+        await _obtenerPrestamosYPagos(esAdmin: esAdmin, cobradorUid: usuario?.uid);
+
+    final hoy = DateTime.now();
+    final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
+    final notificaciones = <NotifCobro>[];
     final fechasPorPrestamo = <String, DateTime?>{};
 
-    // UN SOLO pedido con TODOS los pagos de cada candidato: sirve para
-    // la fecha de ultimo pago en pantalla Y para reconstruir la tabla
-    // de cuotas completa (no solo `proximoPago`, que guarda unicamente
-    // la cuota pendiente MAS ANTIGUA). Sin esto, un prestamo con varias
-    // cuotas atrasadas seguidas -- comun en plazo Diario/Lunes a
-    // Sabado -- se clasificaba siempre como "En mora" aunque HOY
-    // tambien cayera una cuota pendiente, y el cobrador no lo veia
-    // listado para visitar hoy.
-    var pagosPorPrestamo = const <String, List<PagoModel>>{};
-    try {
-      pagosPorPrestamo = await pagoRepo.obtenerPorPrestamos(candidatos.map((p) => p.prestamoId).toList());
-    } catch (_) {
-      // sin conexion: se sigue con el respaldo de fecha de inicio / "Sin pagos aun".
-    }
     final ultimosPagosTodos = <String, DateTime?>{
       for (final entry in pagosPorPrestamo.entries)
         entry.key: entry.value

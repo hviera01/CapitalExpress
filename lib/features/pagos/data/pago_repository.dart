@@ -4,6 +4,7 @@ import '../../../core/models/pago_model.dart';
 import '../../../core/models/prestamo_model.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/cuotas_calculos.dart';
+import '../../../core/services/pendientes_sincronizar_service.dart';
 import '../../../core/utils/firestore_rapido.dart';
 import '../../bitacora/data/bitacora_repository.dart';
 
@@ -77,7 +78,7 @@ class PagoRepository {
   }
 
   Future<List<PagoModel>> obtenerPorPrestamo(String prestamoId) async {
-    final snap = await _col.where('prestamoId', isEqualTo: prestamoId).get();
+    final snap = await obtenerRapido(_col.where('prestamoId', isEqualTo: prestamoId));
     return _ordenados(snap.docs);
   }
 
@@ -253,7 +254,7 @@ class PagoRepository {
     // despues de un pago anterior) -- sin esto, un cobrador podia
     // registrar el mismo pago dos veces si la lista de Cobros no se
     // habia actualizado sola.
-    final actual = await prestamoRef.get();
+    final actual = await obtenerDocRapido(prestamoRef);
     if ((actual.data()?['estado'] as String?) == 'saldado') {
       throw Exception('Este préstamo ya está saldado -- no se puede registrar otro pago.');
     }
@@ -286,31 +287,43 @@ class PagoRepository {
     final ahora = Timestamp.now();
     final descripcion = _descripcionPago(distribucion);
 
+    // Las escrituras de aca abajo se DISPARAN sin esperarlas (guardado
+    // "optimista"): Firestore ya tiene la persistencia offline
+    // activada (ver main.dart), asi que la escritura queda aplicada
+    // localmente de una -- esperar a que ademas el servidor la
+    // confirme era lo que hacia sentir "trabada" la pantalla con
+    // señal floja. PendientesSincronizarService.rastrear igual sigue
+    // el resultado real: si no hay señal, el Future se queda pendiente
+    // hasta reconectar (sin avisar, es lo esperado); si falla de
+    // verdad (no por señal), queda anotado para revisar.
     final pagoRef = _col.doc();
-    await pagoRef.set({
-      'clienteId': prestamo.clienteId,
-      'clienteNombre': prestamo.cliente,
-      'prestamoId': prestamo.prestamoId,
-      'numeroPrestamo': prestamo.numeroPrestamo,
-      'monto': distribucion.montoPagoNormal,
-      'mora': distribucion.moraAplicada,
-      'fechaPago': ahora,
-      'registradoPor': registradoPor,
-      'nombreCobrador': nombreCobrador,
-      'saldoRestante': nuevoSaldo,
-      'lugar': lugar,
-      'firma': firma,
-      'metodoPago': metodoPago,
-      'plazo': prestamo.plazo,
-      'proximaFechaProgramada': distribucion.fechaProximoPago != null
-          ? Timestamp.fromDate(distribucion.fechaProximoPago!)
-          : null,
-      'totalCuotasCompletas': distribucion.totalCuotasCompletas,
-      'cuotasCubiertas':
-          distribucion.cuotasCubiertas.where((c) => c.numeroCuota > 0).map((c) => c.toMap()).toList(),
-      'descripcionCuotas': descripcion,
-      'sistemaPagoEnCascada': true,
-    });
+    PendientesSincronizarService.rastrear(
+      pagoRef.set({
+        'clienteId': prestamo.clienteId,
+        'clienteNombre': prestamo.cliente,
+        'prestamoId': prestamo.prestamoId,
+        'numeroPrestamo': prestamo.numeroPrestamo,
+        'monto': distribucion.montoPagoNormal,
+        'mora': distribucion.moraAplicada,
+        'fechaPago': ahora,
+        'registradoPor': registradoPor,
+        'nombreCobrador': nombreCobrador,
+        'saldoRestante': nuevoSaldo,
+        'lugar': lugar,
+        'firma': firma,
+        'metodoPago': metodoPago,
+        'plazo': prestamo.plazo,
+        'proximaFechaProgramada': distribucion.fechaProximoPago != null
+            ? Timestamp.fromDate(distribucion.fechaProximoPago!)
+            : null,
+        'totalCuotasCompletas': distribucion.totalCuotasCompletas,
+        'cuotasCubiertas':
+            distribucion.cuotasCubiertas.where((c) => c.numeroCuota > 0).map((c) => c.toMap()).toList(),
+        'descripcionCuotas': descripcion,
+        'sistemaPagoEnCascada': true,
+      }),
+      descripcion: 'Pago de ${prestamo.cliente} (#${prestamo.numeroPrestamo})',
+    );
 
     final actualizacionPrestamo = <String, dynamic>{
       'saldo': nuevoSaldo,
@@ -327,16 +340,20 @@ class PagoRepository {
       actualizacionPrestamo['fechaCancelacion'] = ahora;
       actualizacionPrestamo['mora'] = 0.0;
     }
-    await prestamoRef.update(actualizacionPrestamo);
+    PendientesSincronizarService.rastrear(
+      prestamoRef.update(actualizacionPrestamo),
+      descripcion: 'Actualización de préstamo #${prestamo.numeroPrestamo}',
+    );
 
     // Best-effort, igual que el runCatching del Kotlin original: si esto
-    // falla no debe tumbar el pago que ya se guardo.
-    try {
-      await db.collection('clientes').doc(prestamo.clienteId).update({
-        'ultimaActividad': ahora,
-        'fechaUltimaActualizacion': ahora,
-      });
-    } catch (_) {}
+    // falla no debe tumbar el pago que ya se guardo -- por eso ni
+    // siquiera se rastrea en PendientesSincronizarService (nunca fue
+    // critico, ver el resto de usos de este mismo patron en
+    // BitacoraRepository).
+    db.collection('clientes').doc(prestamo.clienteId).update({
+      'ultimaActividad': ahora,
+      'fechaUltimaActualizacion': ahora,
+    }).catchError((_) {});
 
     final pagoGuardado = PagoModel(
       docId: pagoRef.id,

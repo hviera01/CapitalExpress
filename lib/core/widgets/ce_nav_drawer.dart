@@ -9,6 +9,7 @@ import '../services/actualizacion_service.dart';
 import '../services/web_refresh_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/actualizacion_dialog.dart';
+import '../widgets/contador_pendientes_sync.dart';
 import '../widgets/marca_lockup.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/tickets/providers/tickets_provider.dart';
@@ -89,6 +90,7 @@ class CeNavDrawer extends ConsumerWidget {
                   ] else
                     _item(context, Icons.payments_outlined, 'Mis Pagos', () => ir('/reportes/cobros')),
                   _itemTickets(context, ref, () => ir('/tickets')),
+                  _itemPendientesSincronizar(),
                 ],
               ),
             ),
@@ -176,6 +178,30 @@ class CeNavDrawer extends ConsumerWidget {
             )
           : null,
       onTap: onTap,
+    );
+  }
+
+  /// Solo aparece si hay algo pendiente (pago/cliente disparado sin
+  /// esperar confirmacion, o foto de cliente sin subir todavia) -- ver
+  /// PendientesSincronizarService/ColaFotosPendientes. No navega a
+  /// ningun lado, es solo un aviso.
+  Widget _itemPendientesSincronizar() {
+    return ContadorPendientesSync(
+      builder: (context, total) {
+        if (total == 0) return const SizedBox.shrink();
+        return ListTile(
+          leading: const Icon(Icons.cloud_sync_outlined, color: Colors.white),
+          title: const Text('Pendientes de sincronizar', style: TextStyle(color: Colors.white)),
+          subtitle: const Text('Se están reintentando solas cuando haya señal',
+              style: TextStyle(color: Colors.white54, fontSize: 11)),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(color: CEColors.danger, borderRadius: BorderRadius.circular(20)),
+            child: Text('$total',
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+        );
+      },
     );
   }
 

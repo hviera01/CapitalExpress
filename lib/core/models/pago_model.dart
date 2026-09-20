@@ -86,11 +86,16 @@ class PagoModel {
 
   double get total => monto + mora;
 
-  factory PagoModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final d = doc.data() ?? const {};
+  factory PagoModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) =>
+      PagoModel.fromMap(doc.id, doc.data() ?? const {});
+
+  /// Igual que [fromDoc] pero a partir de un Map plano -- ver el mismo
+  /// comentario en PrestamoModel.fromMap (usado por la respuesta de la
+  /// Cloud Function `obtenerDatosCobros`).
+  factory PagoModel.fromMap(String id, Map<String, dynamic> d) {
     double dd(String k) => (d[k] as num?)?.toDouble() ?? 0.0;
     return PagoModel(
-      docId: doc.id,
+      docId: id,
       clienteId: (d['clienteId'] ?? '') as String,
       clienteNombre: (d['clienteNombre'] ?? '') as String,
       prestamoId: (d['prestamoId'] ?? '') as String,

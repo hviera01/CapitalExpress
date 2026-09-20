@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/cliente_model.dart';
+import '../../../core/services/pendientes_sincronizar_service.dart';
 import '../../../core/utils/normalizar_texto.dart';
 import '../../bitacora/data/bitacora_repository.dart';
 
@@ -116,19 +117,29 @@ class ClienteRepository {
     return _col.doc(id).snapshots().map((doc) => doc.exists ? ClienteModel.fromDoc(doc) : null);
   }
 
+  /// Genera el ID del lado del cliente (`_col.doc()` no hace ningun
+  /// viaje de red) y dispara la escritura SIN esperarla -- guardado
+  /// "optimista", ver PendientesSincronizarService. Devuelve el ID de
+  /// una, sin esperar a que el documento termine de confirmarse en el
+  /// servidor (asi ClienteFormScreen puede encolar las fotos nuevas
+  /// contra ese ID y navegar de inmediato).
   Future<String> crear(ClienteModel cliente) async {
-    final doc = await _col.add({
-      ...cliente.toMap(),
-      // `cobradoresAsignados` (array) es el campo real que usan las
-      // consultas por cobrador -- sin esto, un cliente recien creado
-      // quedaria invisible para su cobrador hasta que alguien lo
-      // reasignara a mano. `actualizar()` NO toca este campo (para no
-      // pisar un cliente viejo que ya tenga varios cobradores en el
-      // array real).
-      'cobradoresAsignados': cliente.cobradorAsignado.isNotEmpty ? [cliente.cobradorAsignado] : [],
-      'fechaCreacion': FieldValue.serverTimestamp(),
-      'ultimaActividad': FieldValue.serverTimestamp(),
-    });
+    final doc = _col.doc();
+    PendientesSincronizarService.rastrear(
+      doc.set({
+        ...cliente.toMap(),
+        // `cobradoresAsignados` (array) es el campo real que usan las
+        // consultas por cobrador -- sin esto, un cliente recien creado
+        // quedaria invisible para su cobrador hasta que alguien lo
+        // reasignara a mano. `actualizar()` NO toca este campo (para no
+        // pisar un cliente viejo que ya tenga varios cobradores en el
+        // array real).
+        'cobradoresAsignados': cliente.cobradorAsignado.isNotEmpty ? [cliente.cobradorAsignado] : [],
+        'fechaCreacion': FieldValue.serverTimestamp(),
+        'ultimaActividad': FieldValue.serverTimestamp(),
+      }),
+      descripcion: 'Cliente nuevo: ${cliente.nombre}',
+    );
     return doc.id;
   }
 
@@ -137,10 +148,13 @@ class ClienteRepository {
     required String usuarioUid,
     required String usuarioNombre,
   }) async {
-    await _col.doc(cliente.id).update({
-      ...cliente.toMap(),
-      'ultimaActividad': FieldValue.serverTimestamp(),
-    });
+    PendientesSincronizarService.rastrear(
+      _col.doc(cliente.id).update({
+        ...cliente.toMap(),
+        'ultimaActividad': FieldValue.serverTimestamp(),
+      }),
+      descripcion: 'Edición de cliente: ${cliente.nombre}',
+    );
     BitacoraRepository().registrar(
       accion: 'editar_cliente',
       entidadTipo: 'cliente',

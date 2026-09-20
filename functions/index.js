@@ -1,5 +1,6 @@
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
@@ -188,4 +189,138 @@ exports.vencerPermisosEdicion = onSchedule("every 10 minutes", async () => {
       data: { tipo: "permiso_edicion_vencido", solicitudId: doc.id },
     });
   }));
+});
+
+/**
+ * Convierte recursivamente cualquier Timestamp de Firestore encontrado
+ * (en cualquier nivel de anidamiento) a milisegundos -- las funciones
+ * `asTimestamp`/`asProximoPagoFecha`/`asTimestampFlexible` del lado
+ * Flutter (core/utils/firestore_parse.dart) YA aceptan un int de
+ * milisegundos ademas de un Timestamp real, asi que este es el unico
+ * cambio de formato que hace falta para que `PrestamoModel.fromMap`/
+ * `PagoModel.fromMap` (lib/core/models) puedan leer esta respuesta sin
+ * ningun parseo especial nuevo del lado Dart.
+ */
+function serializar(valor) {
+  if (valor === null || valor === undefined) return valor;
+  if (typeof valor.toMillis === "function") return valor.toMillis();
+  if (Array.isArray(valor)) return valor.map(serializar);
+  if (typeof valor === "object") {
+    const out = {};
+    for (const k of Object.keys(valor)) out[k] = serializar(valor[k]);
+    return out;
+  }
+  return valor;
+}
+
+function docAJson(doc) {
+  return { id: doc.id, ...serializar(doc.data()) };
+}
+
+/** Igual que PrestamoRepository.obtenerTodos en Dart. */
+async function obtenerTodosPrestamos(db, cobradorUid) {
+  let query = db.collection("prestamos").where("eliminado", "==", false);
+  if (cobradorUid) query = query.where("cobradoresAsignados", "array-contains", cobradorUid);
+  const snap = await query.get();
+  return snap.docs.map(docAJson);
+}
+
+/** Igual que PrestamoRepository.obtenerParaNotificaciones en Dart. */
+async function obtenerParaNotificaciones(db, cobradorUid) {
+  if (!cobradorUid) return obtenerTodosPrestamos(db, null);
+
+  const porPrestamo = await obtenerTodosPrestamos(db, cobradorUid);
+
+  const clientesSnap = await db
+    .collection("clientes")
+    .where("cobradoresAsignados", "array-contains", cobradorUid)
+    .get();
+  const clienteIds = clientesSnap.docs.map((d) => d.id);
+
+  const lotes = [];
+  for (let i = 0; i < clienteIds.length; i += 10) lotes.push(clienteIds.slice(i, i + 10));
+
+  const snaps = await Promise.all(lotes.map((lote) =>
+    db.collection("prestamos").where("clienteId", "in", lote).where("eliminado", "==", false).get()
+  ));
+  const porCliente = [];
+  for (const snap of snaps) {
+    for (const doc of snap.docs) porCliente.push(docAJson(doc));
+  }
+
+  const combinados = new Map();
+  for (const p of porPrestamo) combinados.set(p.id, p);
+  for (const p of porCliente) combinados.set(p.id, p);
+  return [...combinados.values()];
+}
+
+/** Igual que PagoRepository.obtenerPorPrestamos en Dart. */
+async function obtenerPagosPorPrestamos(db, prestamoIds) {
+  if (prestamoIds.length === 0) return [];
+  const lotes = [];
+  for (let i = 0; i < prestamoIds.length; i += 10) lotes.push(prestamoIds.slice(i, i + 10));
+  const snaps = await Promise.all(lotes.map((lote) =>
+    db.collection("pagos").where("prestamoId", "in", lote).get()
+  ));
+  const pagos = [];
+  for (const snap of snaps) {
+    for (const doc of snap.docs) pagos.push(docAJson(doc));
+  }
+  return pagos;
+}
+
+// Mismo set que _estadosExcluidos en cobros_screen.dart.
+const ESTADOS_EXCLUIDOS_COBROS = new Set([
+  "saldado", "completado", "cancelado", "eliminado", "rechazado", "pendiente",
+]);
+
+/**
+ * Agrupa, DENTRO del centro de datos de Google, las mismas consultas
+ * que hoy hace cobros_screen.dart en varios viajes seguidos desde el
+ * celular (prestamos + pagos por lotes) -- el calculo real (fechas,
+ * mora, clasificacion vencido/hoy/proximo) se sigue haciendo en Dart,
+ * esto SOLO agrupa las lecturas para que el celular pague un solo
+ * viaje largo en vez de varios. Ver el mismo filtro de candidatos
+ * (`_estadosExcluidos`) que ya usa cobros_screen.dart, replicado aca
+ * para no bajar pagos de prestamos que la pantalla igual va a
+ * descartar.
+ */
+// Mismo criterio que Roles.esAdminOEquivalente en lib/core/constants/roles.dart.
+const ROLES_ADMIN = new Set(["admin", "desarrollador"]);
+
+exports.obtenerDatosCobros = onCall(async (request) => {
+  // Esta app no usa Firebase Auth (login propio por codigo+password
+  // contra la coleccion `usuarios`, ver AuthRepository), asi que
+  // `request.auth` nunca existe -- NO se puede confiar en un
+  // `cobradorUid`/"soy admin" que mande el celular sin mas: cualquiera
+  // podia mandar `cobradorUid: null` y llevarse los prestamos y pagos
+  // de TODOS los clientes. En cambio, se pide el uid de QUIEN llama y
+  // se verifica su rol REAL contra Firestore -- mismo nivel de
+  // confianza que ya usa el resto de la app (todo pasa por lo que dice
+  // el doc de `usuarios`, no hay tokens firmados), pero ya no le cree
+  // ciegamente al cliente si dice ser admin.
+  const usuarioUid = request.data && request.data.usuarioUid;
+  if (!usuarioUid) {
+    throw new HttpsError("invalid-argument", "Falta usuarioUid.");
+  }
+
+  const db = getFirestore();
+  const usuarioDoc = await db.collection("usuarios").doc(usuarioUid).get();
+  const usuario = usuarioDoc.data();
+  // Mismo default que UsuarioModel.fromDoc en Dart (data['estado'] ??
+  // 'activo'): varios usuarios reales (ej. el cobrador que mas usa la
+  // app hoy) nunca tienen este campo guardado -- si aca se exige
+  // "activo" a secas, se le niega el acceso a gente que la app SI deja
+  // entrar.
+  if (!usuario || (usuario.estado !== undefined && usuario.estado !== "activo")) {
+    throw new HttpsError("permission-denied", "Usuario inválido o inactivo.");
+  }
+
+  const cobradorUid = ROLES_ADMIN.has(usuario.rol) ? null : usuarioUid;
+
+  const todos = await obtenerParaNotificaciones(db, cobradorUid);
+  const candidatos = todos.filter((p) => !ESTADOS_EXCLUIDOS_COBROS.has(String(p.estado || "").toLowerCase()));
+  const pagos = await obtenerPagosPorPrestamos(db, candidatos.map((p) => p.id));
+
+  return { prestamos: candidatos, pagos };
 });

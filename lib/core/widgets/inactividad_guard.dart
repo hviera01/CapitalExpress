@@ -9,6 +9,7 @@ import '../providers/actualizacion_provider.dart';
 import '../providers/web_tabs_provider.dart';
 import '../routing/app_router.dart';
 import '../services/actualizacion_service.dart';
+import '../services/cola_fotos_pendientes.dart';
 import '../services/push_notifications_service.dart';
 import '../version_app.dart';
 import '../widgets/actualizacion_dialog.dart';
@@ -17,6 +18,7 @@ import '../../features/dispositivos/providers/dispositivos_provider.dart';
 
 const _tiempoInactividad = Duration(hours: 1);
 const _intervaloChequeoActualizacion = Duration(minutes: 10);
+const _intervaloReintentoColaFotos = Duration(minutes: 2);
 
 /// Envuelve toda la app (por encima del Navigator, en el `builder` de
 /// MaterialApp.router): si pasa una hora sin ningun toque/click/scroll
@@ -41,6 +43,7 @@ class InactividadGuard extends ConsumerStatefulWidget {
 class _InactividadGuardState extends ConsumerState<InactividadGuard> with WidgetsBindingObserver {
   Timer? _timer;
   Timer? _timerActualizacion;
+  Timer? _timerColaFotos;
   bool _dialogoActualizacionAbierto = false;
 
   void _reiniciar() {
@@ -101,6 +104,20 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> with Widget
     _timerActualizacion = Timer.periodic(_intervaloChequeoActualizacion, (_) => _chequearActualizacion());
   }
 
+  /// Reintenta la cola de fotos pendientes (ver ColaFotosPendientes)
+  /// cada [_intervaloReintentoColaFotos] mientras la app este abierta
+  /// -- ademas del intento inmediato al volver a primer plano (ver
+  /// didChangeAppLifecycleState). No aplica en Web (sin filesystem
+  /// local, ver ClienteFormScreen._guardar).
+  void _iniciarReintentoColaFotos() {
+    if (kIsWeb) return;
+    _timerColaFotos?.cancel();
+    _timerColaFotos = Timer.periodic(
+      _intervaloReintentoColaFotos,
+      (_) => ColaFotosPendientes.reintentarTodos(),
+    );
+  }
+
   Future<void> _chequearActualizacion() async {
     if (_dialogoActualizacionAbierto) return;
     final actualizacion = await ActualizacionService.buscarActualizacion();
@@ -117,6 +134,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> with Widget
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _reiniciar();
+    _iniciarReintentoColaFotos();
     if (ref.read(authProvider).autenticado) {
       _iniciarChequeoActualizacion();
       _reportarDispositivo();
@@ -129,6 +147,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> with Widget
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _timerActualizacion?.cancel();
+    _timerColaFotos?.cancel();
     super.dispose();
   }
 
@@ -144,6 +163,7 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> with Widget
       ref.read(authProvider.notifier).registrarBackground();
     } else if (appState == AppLifecycleState.resumed) {
       ref.read(authProvider.notifier).revisarLimiteBackground();
+      if (!kIsWeb) ColaFotosPendientes.reintentarTodos();
     }
   }
 

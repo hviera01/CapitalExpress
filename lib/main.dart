@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import 'core/routing/app_router.dart';
+import 'core/services/cola_fotos_pendientes.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/inactividad_guard.dart';
 import 'firebase_options.dart';
@@ -29,6 +31,12 @@ Future<void> main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
+  // ColaFotosPendientes usa dart:io (File/Directory) para guardar
+  // fotos de cliente en el disco del telefono mientras esperan señal
+  // para subir -- no aplica en Web (sin filesystem local, ver
+  // ClienteFormScreen._guardar). Sin await: no hay que retrasar el
+  // primer frame por esto, ya reintenta sola en segundo plano.
+  if (!kIsWeb) ColaFotosPendientes.inicializar();
   runApp(const ProviderScope(child: CapitalExpressApp()));
 }
 
