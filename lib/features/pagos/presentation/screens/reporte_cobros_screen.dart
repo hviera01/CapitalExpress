@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/pago_model.dart';
 import '../../../../core/models/usuario_simple.dart';
+import '../../../../core/services/cloud_functions_http.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/normalizar_texto.dart';
@@ -109,10 +110,7 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
       if (primeraVez) _cargando = true;
       _refrescando = true;
     });
-    final cobradorUid = _filtroCobradorUid ?? _cobradorUid;
-    final pagos = await ref
-        .read(pagoRepositoryProvider)
-        .obtenerConRango(inicio: _fechaInicio, fin: _fechaFin, cobradorUid: cobradorUid);
+    final pagos = await _obtenerPagos();
     if (!mounted || miId != _cargaId) return; // una consulta mas nueva ya esta en curso/aplicada
     setState(() {
       _pagos = pagos;
@@ -128,6 +126,38 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
         ..filtroCobradorUid = _filtroCobradorUid
         ..pagos = pagos
         ..cobradores = _cobradores;
+    }
+  }
+
+  /// Trae los pagos del rango via la Cloud Function `obtenerHistorialPagos`
+  /// (mismo patron que Cobros: agrupa la consulta DENTRO del centro de
+  /// datos, un solo viaje largo en vez de que el celular le pegue
+  /// directo a Firestore). Si falla, cae al camino de siempre.
+  Future<List<PagoModel>> _obtenerPagos() async {
+    final cobradorUid = _filtroCobradorUid ?? _cobradorUid;
+    try {
+      final usuarioUid = ref.read(authProvider).usuario?.uid;
+      final datos = await llamarCloudFunction('obtenerHistorialPagos', {
+        'usuarioUid': usuarioUid,
+        'filtroCobradorUid': _filtroCobradorUid,
+        'inicio': _fechaInicio?.millisecondsSinceEpoch,
+        'fin': _fechaFin?.millisecondsSinceEpoch,
+      });
+      final pagos = <PagoModel>[];
+      for (final p in (datos['pagos'] as List)) {
+        try {
+          final mapa = Map<String, dynamic>.from(p as Map);
+          pagos.add(PagoModel.fromMap(mapa['id'] as String, mapa));
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
+      pagos.sort((a, b) => (b.fechaPago?.compareTo(a.fechaPago ?? b.fechaPago!) ?? 0));
+      return pagos;
+    } catch (_) {
+      return ref
+          .read(pagoRepositoryProvider)
+          .obtenerConRango(inicio: _fechaInicio, fin: _fechaFin, cobradorUid: cobradorUid);
     }
   }
 

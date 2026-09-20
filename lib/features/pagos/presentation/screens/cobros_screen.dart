@@ -1,12 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
 import '../../../../core/models/prestamo_model.dart';
+import '../../../../core/services/cloud_functions_http.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/contacto_utils.dart';
 import '../../../../core/utils/currency_utils.dart';
@@ -128,30 +126,16 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     if (mounted) _cargar();
   }
 
-  /// URL de la Cloud Function `obtenerDatosCobros` -- misma region que
-  /// la base de Firestore (us-east1, confirmado via API; ver
-  /// functions/index.js), no us-central1 (el default si no se
-  /// especifica region al desplegar).
-  static const _urlObtenerDatosCobros =
-      'https://us-east1-capitalexpressapp-c03c5.cloudfunctions.net/obtenerDatosCobros';
-
   /// Trae prestamos+pagos para Cobros. Primero intenta la Cloud
   /// Function `obtenerDatosCobros` (agrupa las mismas consultas DENTRO
   /// del centro de datos de Google -- el celular paga un solo viaje
   /// largo en vez de varios); si no esta disponible (recien
-  /// desplegada, sin conexion al endpoint, o Windows) cae SOLA al
-  /// camino de siempre, con el mismo resultado final, solo mas lento.
-  /// El calculo (fechas, mora, clasificacion) sigue siendo el mismo
-  /// codigo Dart de abajo en los dos casos -- esto solo cambia DE
-  /// DONDE vienen los documentos crudos.
-  ///
-  /// Se llama con `package:http` (peticion HTTP comun), NO con
-  /// `FirebaseFunctions.instance.httpsCallable` -- ese paquete oficial
-  /// de FlutterFire falla en Web (dart2js) con "Int64 accessor not
-  /// supported", un bug conocido de esa libreria al armar la llamada
-  /// (nada que ver con esta funcion ni con los datos que se mandan).
-  /// Pedirselo a la funcion como una peticion HTTP cualquiera evita ese
-  /// camino roto por completo -- funciona igual en Android/Web/Windows.
+  /// desplegada, sin conexion al endpoint) cae SOLA al camino de
+  /// siempre, con el mismo resultado final, solo mas lento. El calculo
+  /// (fechas, mora, clasificacion) sigue siendo el mismo codigo Dart de
+  /// abajo en los dos casos -- esto solo cambia DE DONDE vienen los
+  /// documentos crudos. Ver llamarCloudFunction para por que se llama
+  /// por HTTP y no con el paquete oficial de FlutterFire.
   ///
   /// Se manda el uid de QUIEN llama (nunca "esAdmin"/"cobradorUid: null"
   /// tal cual lo calcula este celular) porque esta app no usa Firebase
@@ -166,21 +150,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     final cronometro = Stopwatch()..start();
     try {
       final usuarioUid = ref.read(authProvider).usuario?.uid;
-      final respuesta = await http
-          .post(
-            Uri.parse(_urlObtenerDatosCobros),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'data': {'usuarioUid': usuarioUid}
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
-      if (cuerpo['error'] != null) {
-        throw Exception(cuerpo['error']);
-      }
-      final datos = cuerpo['result'] as Map<String, dynamic>;
+      final datos = await llamarCloudFunction('obtenerDatosCobros', {'usuarioUid': usuarioUid});
 
       // Igual que en el resto del repositorio (obtenerTodos,
       // obtenerPorPrestamos, etc.): cada documento se parsea en su

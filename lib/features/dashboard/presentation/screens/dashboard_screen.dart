@@ -13,6 +13,8 @@ import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/filtro_fecha_rango.dart';
 import '../../../../core/widgets/pdf_preview_screen.dart';
 import '../../../../core/models/pago_model.dart';
+import '../../../../core/services/cloud_functions_http.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../pagos/providers/pagos_provider.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
@@ -96,16 +98,48 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _cargar());
   }
 
-  Future<void> _cargar() async {
-    final primeraVez = !esEscritorioWeb(context) || _cargando;
-    if (primeraVez) {
-      setState(() {
-        _cargando = true;
-        _error = null;
-      });
-    }
-
+  /// Trae el resumen via la Cloud Function `obtenerResumenPanel` (mismo
+  /// patron que Cobros/Historial de Pagos: agrupa las 7 consultas
+  /// DENTRO del centro de datos, un solo viaje largo en vez de 7). Si
+  /// falla, cae al camino de siempre (las mismas 7 consultas directas).
+  Future<
+      ({
+        int totalClientes,
+        double totalPrestado,
+        double totalInteres,
+        double totalPendiente,
+        List<PagoModel> pagos,
+        int activos,
+        int enMora,
+        int saldados,
+      })> _obtenerResumen() async {
     try {
+      final usuarioUid = ref.read(authProvider).usuario?.uid;
+      final datos = await llamarCloudFunction('obtenerResumenPanel', {
+        'usuarioUid': usuarioUid,
+        'inicio': _fechaInicio?.millisecondsSinceEpoch,
+        'fin': _fechaFin?.millisecondsSinceEpoch,
+      });
+      final pagos = <PagoModel>[];
+      for (final p in (datos['pagosRango'] as List)) {
+        try {
+          final mapa = Map<String, dynamic>.from(p as Map);
+          pagos.add(PagoModel.fromMap(mapa['id'] as String, mapa));
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
+      return (
+        totalClientes: (datos['totalClientes'] as num).toInt(),
+        totalPrestado: (datos['totalPrestado'] as num).toDouble(),
+        totalInteres: (datos['totalInteres'] as num).toDouble(),
+        totalPendiente: (datos['totalPendiente'] as num).toDouble(),
+        pagos: pagos,
+        activos: (datos['prestamosActivos'] as num).toInt(),
+        enMora: (datos['prestamosMora'] as num).toInt(),
+        saldados: (datos['prestamosSaldados'] as num).toInt(),
+      );
+    } catch (_) {
       final prestamoRepo = ref.read(prestamoRepositoryProvider);
       final resultados = await Future.wait([
         ref.read(clienteRepositoryProvider).contar(),
@@ -116,19 +150,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         prestamoRepo.contarPorEstado('mora'),
         prestamoRepo.contarPorEstado('saldado'),
       ]);
-
-      final totalClientes = resultados[0] as int;
       final montoEInteres = resultados[1] as ({double monto, double interes});
-      final pagos = resultados[2] as List<PagoModel>;
-      final totalPendiente = resultados[3] as double;
-      final activos = resultados[4] as int;
-      final enMora = resultados[5] as int;
-      final saldados = resultados[6] as int;
+      return (
+        totalClientes: resultados[0] as int,
+        totalPrestado: montoEInteres.monto,
+        totalInteres: montoEInteres.interes,
+        totalPendiente: resultados[3] as double,
+        pagos: resultados[2] as List<PagoModel>,
+        activos: resultados[4] as int,
+        enMora: resultados[5] as int,
+        saldados: resultados[6] as int,
+      );
+    }
+  }
+
+  Future<void> _cargar() async {
+    final primeraVez = !esEscritorioWeb(context) || _cargando;
+    if (primeraVez) {
+      setState(() {
+        _cargando = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final r = await _obtenerResumen();
 
       double totalPagado = 0, totalMoras = 0;
       var cantidadMoras = 0;
       final porCobrador = <String, double>{};
-      for (final p in pagos) {
+      for (final p in r.pagos) {
         totalPagado += p.monto;
         totalMoras += p.mora;
         if (p.mora > 0) cantidadMoras++;
@@ -138,18 +189,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (!mounted) return;
       setState(() {
-        _totalClientes = totalClientes;
-        _totalPrestado = montoEInteres.monto;
-        _totalInteres = montoEInteres.interes;
-        _totalPendiente = totalPendiente;
-        _totalCobros = pagos.length;
+        _totalClientes = r.totalClientes;
+        _totalPrestado = r.totalPrestado;
+        _totalInteres = r.totalInteres;
+        _totalPendiente = r.totalPendiente;
+        _totalCobros = r.pagos.length;
         _totalPagado = totalPagado;
         _totalMoras = totalMoras;
         _cantidadMoras = cantidadMoras;
         _porCobrador = porCobrador;
-        _prestamosActivos = activos;
-        _prestamosMora = enMora;
-        _prestamosSaldados = saldados;
+        _prestamosActivos = r.activos;
+        _prestamosMora = r.enMora;
+        _prestamosSaldados = r.saldados;
         _cargando = false;
       });
       if (esEscritorioWeb(context)) {

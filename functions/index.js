@@ -3,7 +3,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp, AggregateField } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const nodemailer = require("nodemailer");
 
@@ -288,31 +288,23 @@ const ESTADOS_EXCLUIDOS_COBROS = new Set([
 // Mismo criterio que Roles.esAdminOEquivalente en lib/core/constants/roles.dart.
 const ROLES_ADMIN = new Set(["admin", "desarrollador"]);
 
-// La base de Firestore de este proyecto vive en us-east1 (confirmado
-// via API: projects/.../databases/(default) -> locationId "us-east1"),
-// NO en us-central1 (el default de las Cloud Functions si no se dice
-// nada). Los triggers de Firestore (onDocumentCreated/onDocumentUpdated,
-// ver el resto de este archivo) heredan la region de la base solos,
-// pero onCall/onSchedule NO -- sin esto, la funcion queda en otra
-// region que la base, agregando un salto de mas entre regiones de
-// EE.UU. justo en la funcion que existe para achicar la distancia.
-exports.obtenerDatosCobros = onCall({ region: "us-east1" }, async (request) => {
-  // Esta app no usa Firebase Auth (login propio por codigo+password
-  // contra la coleccion `usuarios`, ver AuthRepository), asi que
-  // `request.auth` nunca existe -- NO se puede confiar en un
-  // `cobradorUid`/"soy admin" que mande el celular sin mas: cualquiera
-  // podia mandar `cobradorUid: null` y llevarse los prestamos y pagos
-  // de TODOS los clientes. En cambio, se pide el uid de QUIEN llama y
-  // se verifica su rol REAL contra Firestore -- mismo nivel de
-  // confianza que ya usa el resto de la app (todo pasa por lo que dice
-  // el doc de `usuarios`, no hay tokens firmados), pero ya no le cree
-  // ciegamente al cliente si dice ser admin.
-  const usuarioUid = request.data && request.data.usuarioUid;
+/**
+ * Comun a las 3 funciones callable de abajo -- esta app no usa Firebase
+ * Auth (login propio por codigo+password contra la coleccion
+ * `usuarios`, ver AuthRepository), asi que `request.auth` nunca existe
+ * -- NO se puede confiar en un "soy admin"/cobradorUid que mande el
+ * celular sin mas: cualquiera podia mandarlo y llevarse los datos de
+ * todos los clientes. En cambio, se pide el uid de QUIEN llama y se
+ * verifica su rol REAL contra Firestore -- mismo nivel de confianza
+ * que ya usa el resto de la app (todo pasa por lo que dice el doc de
+ * `usuarios`, no hay tokens firmados), pero ya no le cree ciegamente
+ * al cliente. Devuelve `cobradorUid: null` si es admin (ve todo),
+ * o su propio uid si es cobrador (solo lo suyo).
+ */
+async function verificarUsuarioYRol(db, usuarioUid) {
   if (!usuarioUid) {
     throw new HttpsError("invalid-argument", "Falta usuarioUid.");
   }
-
-  const db = getFirestore();
   const usuarioDoc = await db.collection("usuarios").doc(usuarioUid).get();
   const usuario = usuarioDoc.data();
   // Mismo default que UsuarioModel.fromDoc en Dart (data['estado'] ??
@@ -323,12 +315,131 @@ exports.obtenerDatosCobros = onCall({ region: "us-east1" }, async (request) => {
   if (!usuario || (usuario.estado !== undefined && usuario.estado !== "activo")) {
     throw new HttpsError("permission-denied", "Usuario inválido o inactivo.");
   }
+  const esAdmin = ROLES_ADMIN.has(usuario.rol);
+  return { esAdmin, cobradorUid: esAdmin ? null : usuarioUid };
+}
 
-  const cobradorUid = ROLES_ADMIN.has(usuario.rol) ? null : usuarioUid;
+// La base de Firestore de este proyecto vive en us-east1 (confirmado
+// via API: projects/.../databases/(default) -> locationId "us-east1"),
+// NO en us-central1 (el default de las Cloud Functions si no se dice
+// nada). Los triggers de Firestore (onDocumentCreated/onDocumentUpdated,
+// ver el resto de este archivo) heredan la region de la base solos,
+// pero onCall/onSchedule NO -- sin esto, la funcion queda en otra
+// region que la base, agregando un salto de mas entre regiones de
+// EE.UU. justo en la funcion que existe para achicar la distancia.
+exports.obtenerDatosCobros = onCall({ region: "us-east1" }, async (request) => {
+  const db = getFirestore();
+  const { cobradorUid } = await verificarUsuarioYRol(db, request.data && request.data.usuarioUid);
 
   const todos = await obtenerParaNotificaciones(db, cobradorUid);
   const candidatos = todos.filter((p) => !ESTADOS_EXCLUIDOS_COBROS.has(String(p.estado || "").toLowerCase()));
   const pagos = await obtenerPagosPorPrestamos(db, candidatos.map((p) => p.id));
 
   return { prestamos: candidatos, pagos };
+});
+
+/**
+ * Igual que PagoRepository.obtenerConRango en Dart. Si [filtroCobradorUid]
+ * viene del celular y quien llama es admin/desarrollador, se respeta
+ * (es el dropdown "Cobrador" de Historial de Pagos); si quien llama es
+ * cobrador, se ignora y se fuerza su propio uid -- nunca puede pedir
+ * ver los pagos de otro.
+ */
+exports.obtenerHistorialPagos = onCall({ region: "us-east1" }, async (request) => {
+  const db = getFirestore();
+  const { esAdmin, cobradorUid: propioUid } = await verificarUsuarioYRol(
+    db,
+    request.data && request.data.usuarioUid
+  );
+
+  const filtroCobradorUid = request.data && request.data.filtroCobradorUid;
+  const cobradorUid = esAdmin ? (filtroCobradorUid || null) : propioUid;
+
+  const inicioMs = request.data && request.data.inicio;
+  const finMs = request.data && request.data.fin;
+
+  let query = db.collection("pagos");
+  if (inicioMs) query = query.where("fechaPago", ">=", Timestamp.fromMillis(inicioMs));
+  if (finMs) query = query.where("fechaPago", "<=", Timestamp.fromMillis(finMs));
+  if (cobradorUid) query = query.where("registradoPor", "==", cobradorUid);
+  if (!inicioMs && !finMs) query = query.orderBy("fechaPago", "desc").limit(200);
+
+  const snap = await query.get();
+  return { pagos: snap.docs.map(docAJson) };
+});
+
+/**
+ * Cubre los 3 paneles con el mismo patron de "7 consultas" (Dashboard,
+ * panel de escritorio Admin, panel de escritorio Cobrador) -- cada
+ * pantalla usa solo los campos que le sirven de la respuesta, el resto
+ * los ignora. Igual filtro por rol que las otras funciones.
+ */
+exports.obtenerResumenPanel = onCall({ region: "us-east1" }, async (request) => {
+  const db = getFirestore();
+  const { cobradorUid } = await verificarUsuarioYRol(db, request.data && request.data.usuarioUid);
+
+  const inicioMs = request.data && request.data.inicio;
+  const finMs = request.data && request.data.fin;
+  const hoy = new Date();
+  const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const rangoInicio = inicioMs ? new Date(inicioMs) : hoyInicio;
+  const rangoFin = finMs ? new Date(finMs) : hoy;
+
+  const prestamosCol = db.collection("prestamos");
+  const clientesCol = db.collection("clientes");
+  const pagosCol = db.collection("pagos");
+
+  const conCobrador = (q) => (cobradorUid ? q.where("cobradoresAsignados", "array-contains", cobradorUid) : q);
+
+  const [
+    totalClientes,
+    montoInteresAgg,
+    saldoPendienteAgg,
+    prestamosActivos,
+    prestamosMora,
+    prestamosSaldados,
+    totalPrestamos,
+    pagosRango,
+    pagosRecientesSnap,
+    solicitudesPendientesSnap,
+  ] = await Promise.all([
+    conCobrador(clientesCol).count().get().then((a) => a.data().count),
+    prestamosCol.aggregate({ monto: AggregateField.sum("monto"), interes: AggregateField.sum("interesTotal") }).get(),
+    conCobrador(prestamosCol.where("eliminado", "==", false)).aggregate({ saldo: AggregateField.sum("saldo") }).get(),
+    conCobrador(prestamosCol.where("estado", "==", "activo").where("eliminado", "==", false)).count().get().then((a) => a.data().count),
+    conCobrador(prestamosCol.where("estado", "==", "mora").where("eliminado", "==", false)).count().get().then((a) => a.data().count),
+    conCobrador(prestamosCol.where("estado", "==", "saldado").where("eliminado", "==", false)).count().get().then((a) => a.data().count),
+    conCobrador(prestamosCol.where("eliminado", "==", false)).count().get().then((a) => a.data().count),
+    (() => {
+      let q = pagosCol.where("fechaPago", ">=", Timestamp.fromDate(rangoInicio)).where("fechaPago", "<=", Timestamp.fromDate(rangoFin));
+      if (cobradorUid) q = q.where("registradoPor", "==", cobradorUid);
+      return q.get();
+    })(),
+    (() => {
+      let q = pagosCol.orderBy("fechaPago", "desc").limit(5);
+      if (cobradorUid) q = pagosCol.where("registradoPor", "==", cobradorUid).orderBy("fechaPago", "desc").limit(5);
+      return q.get();
+    })(),
+    db.collection("solicitudes_prestamo").where("estado", "==", "pendiente").get(),
+  ]);
+
+  let solicitudesFiltradas = solicitudesPendientesSnap.docs;
+  if (cobradorUid) {
+    solicitudesFiltradas = solicitudesFiltradas.filter((d) => d.data().cobradorUid === cobradorUid);
+  }
+
+  return {
+    totalClientes,
+    totalPrestado: (montoInteresAgg.data().monto || 0),
+    totalInteres: (montoInteresAgg.data().interes || 0),
+    totalPendiente: (saldoPendienteAgg.data().saldo || 0),
+    prestamosActivos,
+    prestamosMora,
+    prestamosSaldados,
+    totalPrestamos,
+    pagosRango: pagosRango.docs.map(docAJson),
+    pagosRecientes: pagosRecientesSnap.docs.map(docAJson),
+    solicitudesPendientesCount: solicitudesFiltradas.length,
+    solicitudesRecientes: solicitudesFiltradas.slice(0, 4).map(docAJson),
+  };
 });
