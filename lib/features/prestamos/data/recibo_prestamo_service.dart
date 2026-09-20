@@ -43,7 +43,11 @@ class ReciboPrestamoService {
     final total = p.totalPagar > 0 ? p.totalPagar : (p.monto + p.interes);
     final ahora = DateTime.now();
 
-    final pdf = pw.Document();
+    // PdfVersion.pdf_1_4 fuerza la tabla xref clasica (texto plano) en
+    // vez de la xref COMPRIMIDA que usa por defecto la libreria desde
+    // PDF 1.5 -- ver el mismo comentario en recibo_pago_service.dart
+    // (misma causa probable de que RawBT "cargue" y nunca imprima).
+    final pdf = pw.Document(version: PdfVersion.pdf_1_4);
     pdf.addPage(
       // Medidas EXACTAS del sistema viejo: 189x756pt (5cm x 20cm), no
       // las mismas que el recibo de abono (189x612pt) -- este recibo

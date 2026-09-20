@@ -83,7 +83,14 @@ class ReciboPagoService {
 
     final ahora = DateTime.now();
 
-    final pdf = pw.Document();
+    // PdfVersion.pdf_1_4 fuerza la tabla xref clasica (texto plano) en
+    // vez de la xref COMPRIMIDA que usa por defecto la libreria desde
+    // PDF 1.5 -- el parser de PDF de RawBT (y el de varias apps chicas
+    // de impresion termica por Bluetooth) no la soporta: el recibo
+    // "carga" en RawBT pero nunca llega a imprimir nada, sin ningun
+    // error visible. Confirmado generando el PDF real: sin esto el
+    // archivo trae un objeto `/Type/XRef` con `/Filter/FlateDecode`.
+    final pdf = pw.Document(version: PdfVersion.pdf_1_4);
     pdf.addPage(
       // Mismas medidas EXACTAS que ReciboHelper.generarReciboPDF en el
       // sistema viejo: 189x612pt (no son "80mm genericos" -- son los
