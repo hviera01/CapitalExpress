@@ -396,9 +396,14 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                 Text(
                     'Con el plazo y la tasa elegidos, equivale a un capital de hasta ${formatearLempiras(capitalEquivalente)}.',
                     style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
-              if (e.tasaMinimaPct != null)
-                Text('Tasa obligatoria: ${e.tasaMinimaPct!.toStringAsFixed(0)}% (perdió la preferencial)',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+              if (e.perdioTasaPreferencial)
+                Text('Tasa obligatoria: ${_fmtPct(tasaGeneralPct)}% (perdió la preferencial)',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))
+              else if (e.tasaMinimaPct != null)
+                Text(
+                    'Tasa ${e.esPreferencial ? 'preferencial' : 'general'} de este cliente: ${_fmtPct(e.tasaMinimaPct!)}% '
+                    '(menos de eso requiere autorización especial).',
+                    style: const TextStyle(fontSize: 12, color: CEColors.textSecondary)),
               for (final m in e.motivoIncremento)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
