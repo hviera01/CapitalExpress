@@ -147,6 +147,51 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
               ],
             ),
           ),
+          if (s.autorizacionEspecial) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: CEColors.danger.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: CEColors.danger.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.gavel_outlined, size: 18, color: CEColors.danger),
+                      SizedBox(width: 8),
+                      Text('AUTORIZACIÓN ESPECIAL SOLICITADA',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 12, color: CEColors.danger)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Esta solicitud incumple las reglas de crédito. Si la aprueba, la excepción queda registrada a su nombre.',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final m in s.motivosAutorizacion)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6, right: 8),
+                            child: Icon(Icons.circle, size: 5, color: CEColors.danger),
+                          ),
+                          Expanded(child: Text(m, style: const TextStyle(fontSize: 12.5, height: 1.35))),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           CeCard(
             child: Column(

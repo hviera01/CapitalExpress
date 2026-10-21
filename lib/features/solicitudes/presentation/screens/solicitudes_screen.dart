@@ -93,6 +93,22 @@ class SolicitudesScreen extends ConsumerWidget {
                                       Text('${s.cuotas} cuotas · ${s.plazo}',
                                           style: const TextStyle(
                                               fontSize: 12, color: CEColors.textSecondary)),
+                                      if (s.autorizacionEspecial) ...[
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: CEColors.danger.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: CEColors.danger.withValues(alpha: 0.6)),
+                                          ),
+                                          child: const Text('Pide autorización especial',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: CEColors.danger,
+                                                  fontWeight: FontWeight.w700)),
+                                        ),
+                                      ],
                                       const SizedBox(height: 4),
                                       Row(
                                         children: [
@@ -240,7 +256,19 @@ class _TablaSolicitudes extends StatelessWidget {
                   ruta: '/solicitudes/${s.id}',
                   pantalla: SolicitudDetalleScreen(solicitudId: s.id)),
               cells: [
-                DataCell(Text(s.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(s.cliente, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    if (s.autorizacionEspecial) ...[
+                      const SizedBox(width: 8),
+                      const Tooltip(
+                        message: 'Pide autorización especial',
+                        child: Icon(Icons.gavel_outlined, size: 16, color: CEColors.danger),
+                      ),
+                    ],
+                  ],
+                )),
                 DataCell(Text(formatearLempiras(s.monto),
                     style: const TextStyle(fontWeight: FontWeight.w700, color: CEColors.accent))),
                 DataCell(Text('${s.cuotas} · ${s.plazo}')),

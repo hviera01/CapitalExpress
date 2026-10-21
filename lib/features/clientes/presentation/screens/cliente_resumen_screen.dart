@@ -23,6 +23,7 @@ import '../../../../core/widgets/visor_foto_zoom.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../pagos/providers/pagos_provider.dart';
 import '../../../prestamos/presentation/screens/prestamo_detalle_screen.dart';
+import '../../../reglas_credito/presentation/widgets/credito_widgets.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
 import '../../../usuarios/providers/usuarios_provider.dart';
 import '../../providers/clientes_provider.dart';
@@ -248,6 +249,33 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
     );
   }
 
+  Widget _seccionCredito(ClienteModel c) {
+    return CeCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.fact_check_outlined, size: 18, color: CEColors.primary),
+              SizedBox(width: 8),
+              Text('Seguimiento de crédito',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          PanelSeguimientoCredito(
+            key: ValueKey('credito-${c.id}'),
+            clienteId: c.id,
+            clienteNombre: c.nombre,
+            usuario: ref.read(authProvider).usuario?.nombre ?? '',
+            usuarioUid: ref.read(authProvider).usuario?.uid ?? '',
+            esAdmin: Roles.esAdminOEquivalente(ref.read(authProvider).usuario?.rol),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _cuerpoMobile(BuildContext context, ClienteModel c, List<PrestamoModel> prestamos,
       List<CeStatItem> statItems, bool esAdmin) {
     return ListView(
@@ -258,6 +286,8 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
         CeStatGrid(mobileCrossAxisCount: 3, mobileChildAspectRatio: 1.05, items: statItems),
         const SizedBox(height: 14),
         _filaCobrador(c, prestamos),
+        const SizedBox(height: 14),
+        _seccionCredito(c),
         const SizedBox(height: 20),
         GridView.count(
           crossAxisCount: 2,
@@ -359,6 +389,8 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 CeStatGrid(mobileCrossAxisCount: 3, mobileChildAspectRatio: 1.05, items: statItems),
+                const SizedBox(height: 16),
+                _seccionCredito(c),
                 if (prestamos.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   const Text('Préstamos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),

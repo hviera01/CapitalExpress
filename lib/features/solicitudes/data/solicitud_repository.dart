@@ -60,6 +60,8 @@ class SolicitudRepository {
     required String cobradorNombre,
     required String cobradorUid,
     required String numeroCobrador,
+    bool autorizacionEspecial = false,
+    List<String> motivosAutorizacion = const [],
   }) async {
     final f = fechaInicio;
     final fechaStr =
@@ -104,6 +106,8 @@ class SolicitudRepository {
       'saldo': totalAPagar,
       'tipoDocumento': 'solicitud',
       'requiereAprobacion': true,
+      'autorizacionEspecial': autorizacionEspecial,
+      'motivosAutorizacion': motivosAutorizacion,
     });
   }
 

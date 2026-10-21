@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/models/cliente_model.dart';
 import '../../../core/models/solicitud_model.dart';
 import '../../../core/utils/currency_utils.dart';
 import '../../../core/utils/prestamo_calculos.dart';
+import '../../../core/utils/reglas_credito.dart' show tasaGeneralPct;
+import '../../bitacora/data/bitacora_repository.dart';
 import '../../prestamos/data/prestamo_repository.dart';
+import '../../reglas_credito/data/reglas_credito_service.dart';
 import 'solicitud_repository.dart';
 
 class SolicitudAprobada {
@@ -31,6 +35,20 @@ Future<SolicitudAprobada> aprobarSolicitud({
   required String usuarioUid,
   required String usuarioNombre,
 }) async {
+  final reglas = ReglasCreditoService();
+  final clienteDocPrevio = await FirebaseFirestore.instance.collection('clientes').doc(s.clienteId).get();
+  if (clienteDocPrevio.exists && !s.autorizacionEspecial) {
+    final clientePrevio = ClienteModel.fromDoc(clienteDocPrevio);
+    final evaluacion = await reglas.evaluarCliente(clientePrevio.id);
+    if (evaluacion.tienePrestamoActivo) {
+      throw Exception('Cliente ya cuenta con préstamo activo.');
+    }
+    final externo = await reglas.motivoPrestamoActivoExterno(clientePrevio, excluirSolicitudId: s.id);
+    if (externo != null) {
+      throw Exception('Cliente ya cuenta con préstamo activo. $externo');
+    }
+  }
+
   final numeroPrestamo = await prestamoRepo.generarNumeroPrestamo(s.cliente);
 
   final fechaInicio = DateTime.now();
@@ -43,6 +61,7 @@ Future<SolicitudAprobada> aprobarSolicitud({
     'monto': s.monto,
     'interes': s.interesTotal,
     'interesMensual': s.interesMensual,
+    'tipoTasa': s.interesMensual > 0 ? (s.interesMensual < tasaGeneralPct ? 'preferencial' : 'general') : '',
     'interesTotal': s.interesTotal,
     'usarInteresMensual': s.interesMensual > 0,
     'interesTotalFijo': s.interesManual,
@@ -87,6 +106,25 @@ Future<SolicitudAprobada> aprobarSolicitud({
   } catch (_) {
     // best-effort, no debe tumbar la aprobacion si esto falla.
   }
+
+  if (s.autorizacionEspecial) {
+    try {
+      await reglas.registrarExcepcion(
+        clienteId: s.clienteId,
+        clienteNombre: s.cliente,
+        motivos: s.motivosAutorizacion,
+        usuario: usuarioNombre,
+      );
+      BitacoraRepository().registrar(
+        accion: 'excepcion_reglas_credito',
+        entidadTipo: 'cliente',
+        descripcion: '${s.cliente}: autorización especial aprobada. ${s.motivosAutorizacion.join(' | ')}',
+        usuarioUid: usuarioUid,
+        usuarioNombre: usuarioNombre,
+      );
+    } catch (_) {}
+  }
+  reglas.evaluarDespuesDe(s.clienteId, origen: 'prestamo', usuario: usuarioNombre);
 
   await solicitudRepo.aprobar(
     s.id,

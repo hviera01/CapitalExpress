@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/services/cloud_functions_http.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -28,6 +29,8 @@ import 'cobrar_screen.dart';
 import 'ver_cuotas_screen.dart';
 import '../../providers/cobros_cache.dart';
 import '../../providers/pagos_provider.dart';
+import '../../../../core/utils/reglas_credito.dart';
+import '../../../reglas_credito/presentation/widgets/credito_widgets.dart';
 
 const _estadosExcluidos = {
   'saldado',
@@ -54,6 +57,17 @@ class NotifCobro {
   final int diferenciaDias;
   final String tipo;
   final int cuotasCompletadas;
+  final CicloCredito? ciclo;
+
+  String get letraCategoria => ciclo == null ? '' : categoriaDeCiclo(ciclo!).letra;
+
+  String get tipoTasa {
+    final c = ciclo;
+    if (c == null || c.tasaPct == null) return '';
+    return c.tasaPreferencial && !cicloPierdeTasaPreferencial(c) ? 'preferencial' : 'general';
+  }
+
+  bool get perdioTasa => ciclo != null && cicloPierdeTasaPreferencial(ciclo!);
 
   const NotifCobro({
     required this.prestamo,
@@ -62,6 +76,7 @@ class NotifCobro {
     required this.diferenciaDias,
     required this.tipo,
     required this.cuotasCompletadas,
+    this.ciclo,
   });
 }
 
@@ -90,6 +105,8 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
   List<NotifCobro> _notificaciones = [];
   final _busquedaCtrl = TextEditingController();
   String _filtroTipo = 'hoy';
+  String _filtroCategoria = 'Todas';
+  String _filtroTasa = 'Todas';
 
   @override
   void initState() {
@@ -305,6 +322,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
         diferenciaDias: diferenciaDias,
         tipo: tipo,
         cuotasCompletadas: cuotasCompletadas,
+        ciclo: construirCiclo(p, pagosPorPrestamo[p.prestamoId] ?? const [], hoy),
       ));
     }
 
@@ -333,6 +351,14 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     var lista = _notificaciones;
     if (_filtroTipo != 'Todos') {
       lista = lista.where((n) => n.tipo == _filtroTipo).toList();
+    }
+    if (_filtroCategoria != 'Todas') {
+      lista = lista.where((n) => n.letraCategoria == _filtroCategoria).toList();
+    }
+    if (_filtroTasa == 'Preferencial') {
+      lista = lista.where((n) => n.tipoTasa == 'preferencial').toList();
+    } else if (_filtroTasa == 'General') {
+      lista = lista.where((n) => n.tipoTasa != 'preferencial').toList();
     }
     final q = _busquedaCtrl.text;
     if (q.trim().isNotEmpty) {
@@ -517,6 +543,10 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                   ),
                 TextField(
                   controller: _busquedaCtrl,
+                  inputFormatters: const [upperCaseTextFormatter],
+                  textCapitalization: TextCapitalization.characters,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   decoration: InputDecoration(
                     hintText: 'Buscar cliente',
                     prefixIcon: const Icon(Icons.search),
@@ -547,6 +577,30 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                             onSelected: (_) => setState(() => _filtroTipo = t),
                           ))
                       .toList(),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Text('Categoría:',
+                        style: TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+                    for (final cat in const ['Todas', 'A', 'B', 'C'])
+                      ChoiceChip(
+                        label: Text(cat),
+                        selected: _filtroCategoria == cat,
+                        onSelected: (_) => setState(() => _filtroCategoria = cat),
+                      ),
+                    const SizedBox(width: 8),
+                    const Text('Tasa:', style: TextStyle(fontSize: 12, color: CEColors.textSecondary)),
+                    for (final t in const ['Todas', 'Preferencial', 'General'])
+                      ChoiceChip(
+                        label: Text(t),
+                        selected: _filtroTasa == t,
+                        onSelected: (_) => setState(() => _filtroTasa = t),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 if (filtradas.isEmpty)
@@ -588,8 +642,26 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(p.cliente,
-                                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(p.cliente,
+                                                style: const TextStyle(fontWeight: FontWeight.w700)),
+                                          ),
+                                          if (n.letraCategoria.isNotEmpty) ...[
+                                            const SizedBox(width: 8),
+                                            CategoriaCreditoChip(
+                                              letra: n.letraCategoria,
+                                              onTap: () => mostrarDetalleCreditoCliente(context,
+                                                  clienteId: p.clienteId, clienteNombre: p.cliente),
+                                            ),
+                                          ],
+                                          if (n.tipoTasa == 'preferencial' || n.perdioTasa) ...[
+                                            const SizedBox(width: 6),
+                                            TasaCreditoChip(tipo: n.tipoTasa, perdio: n.perdioTasa),
+                                          ],
+                                        ],
+                                      ),
                                       Text('N° ${p.numeroPrestamo}',
                                           style: const TextStyle(
                                               fontSize: 11, color: CEColors.textSecondary)),
@@ -776,7 +848,24 @@ class _TablaCobros extends StatelessWidget {
                 onRefrescar();
               },
               cells: [
-              DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if (n.letraCategoria.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    CategoriaCreditoChip(
+                      letra: n.letraCategoria,
+                      onTap: () => mostrarDetalleCreditoCliente(context,
+                          clienteId: p.clienteId, clienteNombre: p.cliente),
+                    ),
+                  ],
+                  if (n.tipoTasa == 'preferencial' || n.perdioTasa) ...[
+                    const SizedBox(width: 6),
+                    TasaCreditoChip(tipo: n.tipoTasa, perdio: n.perdioTasa),
+                  ],
+                ],
+              )),
               DataCell(Text('#${p.numeroPrestamo}')),
               DataCell(Text(formatearLempiras(p.saldo),
                   style: const TextStyle(fontWeight: FontWeight.w700))),

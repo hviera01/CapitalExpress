@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
+import 'core/entorno.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/cola_fotos_pendientes.dart';
 import 'core/theme/app_theme.dart';
@@ -61,7 +62,16 @@ class CapitalExpressApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       routerConfig: router,
-      builder: (context, child) => InactividadGuard(child: child!),
+      builder: (context, child) {
+        final contenido = InactividadGuard(child: child!);
+        if (!esPruebas) return contenido;
+        return Banner(
+          message: 'PRUEBAS',
+          location: BannerLocation.topEnd,
+          color: const Color(0xFFB3261E),
+          child: contenido,
+        );
+      },
     );
   }
 }

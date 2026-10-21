@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/models/pago_model.dart';
 import '../../../../core/models/usuario_simple.dart';
 import '../../../../core/services/cloud_functions_http.dart';
@@ -241,6 +242,10 @@ class _ReporteCobrosScreenState extends ConsumerState<ReporteCobrosScreen> {
                     children: [
                       TextField(
                         controller: _busquedaCtrl,
+                        inputFormatters: const [upperCaseTextFormatter],
+                        textCapitalization: TextCapitalization.characters,
+                        autocorrect: false,
+                        enableSuggestions: false,
                         decoration: InputDecoration(
                           hintText: 'Buscar cliente',
                           prefixIcon: const Icon(Icons.search),

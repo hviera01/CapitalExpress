@@ -7,6 +7,7 @@ import '../../../core/utils/cuotas_calculos.dart';
 import '../../../core/services/pendientes_sincronizar_service.dart';
 import '../../../core/utils/firestore_rapido.dart';
 import '../../bitacora/data/bitacora_repository.dart';
+import '../../reglas_credito/data/reglas_credito_service.dart';
 
 class PagoRegistrado {
   final PagoModel pago;
@@ -354,6 +355,8 @@ class PagoRepository {
       'ultimaActividad': ahora,
       'fechaUltimaActualizacion': ahora,
     }).catchError((_) {});
+
+    ReglasCreditoService().evaluarDespuesDe(prestamo.clienteId, origen: 'pago', usuario: nombreCobrador);
 
     final pagoGuardado = PagoModel(
       docId: pagoRef.id,

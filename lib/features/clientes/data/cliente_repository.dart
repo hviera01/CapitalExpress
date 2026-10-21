@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/cliente_model.dart';
 import '../../../core/services/pendientes_sincronizar_service.dart';
+import '../../../core/utils/firestore_rapido.dart';
 import '../../../core/utils/normalizar_texto.dart';
 import '../../bitacora/data/bitacora_repository.dart';
 
@@ -51,7 +52,7 @@ class ClienteRepository {
       query = query.where('estado', isEqualTo: estado);
     }
 
-    final snap = await query.get();
+    final snap = await obtenerRapido(query);
     final clientes = <ClienteModel>[];
     for (final doc in snap.docs) {
       try {
@@ -137,6 +138,12 @@ class ClienteRepository {
         'cobradoresAsignados': cliente.cobradorAsignado.isNotEmpty ? [cliente.cobradorAsignado] : [],
         'fechaCreacion': FieldValue.serverTimestamp(),
         'ultimaActividad': FieldValue.serverTimestamp(),
+        'categoriaCredito': 'A',
+        'tasaTipo': 'general',
+        'perdioTasaPreferencial': false,
+        'incrementoElegible': false,
+        'limitePorVencimiento': false,
+        'prestamoActivoCredito': false,
       }),
       descripcion: 'Cliente nuevo: ${cliente.nombre}',
     );

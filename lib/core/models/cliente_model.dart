@@ -77,6 +77,13 @@ class ClienteModel {
   final String cobrador;
   final Timestamp? fechaCreacion;
   final Timestamp? ultimaActividad;
+  final String categoriaCredito;
+  final String tasaTipo;
+  final bool perdioTasaPreferencial;
+  final double? tasaVigentePct;
+  final bool incrementoElegible;
+  final bool limitePorVencimiento;
+  final bool prestamoActivoCredito;
 
   const ClienteModel({
     required this.id,
@@ -107,6 +114,13 @@ class ClienteModel {
     this.cobrador = '',
     this.fechaCreacion,
     this.ultimaActividad,
+    this.categoriaCredito = '',
+    this.tasaTipo = '',
+    this.perdioTasaPreferencial = false,
+    this.tasaVigentePct,
+    this.incrementoElegible = false,
+    this.limitePorVencimiento = false,
+    this.prestamoActivoCredito = false,
   });
 
   factory ClienteModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -141,6 +155,13 @@ class ClienteModel {
       cobrador: s('cobrador'),
       fechaCreacion: asTimestamp(d['fechaCreacion']),
       ultimaActividad: asTimestamp(d['ultimaActividad']),
+      categoriaCredito: s('categoriaCredito'),
+      tasaTipo: s('tasaTipo'),
+      perdioTasaPreferencial: (d['perdioTasaPreferencial'] ?? false) as bool,
+      tasaVigentePct: (d['tasaVigentePct'] as num?)?.toDouble(),
+      incrementoElegible: (d['incrementoElegible'] ?? false) as bool,
+      limitePorVencimiento: (d['limitePorVencimiento'] ?? false) as bool,
+      prestamoActivoCredito: (d['prestamoActivoCredito'] ?? false) as bool,
     );
   }
 

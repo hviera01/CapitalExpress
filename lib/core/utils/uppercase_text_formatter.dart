@@ -5,14 +5,24 @@ import 'package:flutter/services.dart';
 /// (nombres, direcciones, notas, etc.) -- NUNCA en codigo/contrasena de
 /// login (son sensibles a mayus/minus contra lo ya guardado en
 /// Firestore) ni en campos de email.
+///
+/// Si el texto ya esta en mayusculas no se toca el valor (evita pelear
+/// con el teclado del telefono mientras compone una palabra); si el
+/// largo cambia (ej. la ß) se resetea la zona de composicion.
 class UpperCaseTextFormatter extends TextInputFormatter {
   const UpperCaseTextFormatter();
 
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    return newValue.copyWith(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
+    final mayus = newValue.text.toUpperCase();
+    if (mayus == newValue.text) return newValue;
+    if (mayus.length == newValue.text.length) {
+      return newValue.copyWith(text: mayus);
+    }
+    final offset = newValue.selection.baseOffset.clamp(0, mayus.length);
+    return TextEditingValue(
+      text: mayus,
+      selection: TextSelection.collapsed(offset: offset),
     );
   }
 }

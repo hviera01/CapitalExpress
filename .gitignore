@@ -50,3 +50,4 @@ app.*.map.json
 # Cloud Functions (functions/index.js SI se versiona, solo el output)
 functions/node_modules
 functions/.runtimeconfig.json
+.firebase/

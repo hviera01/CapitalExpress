@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../entorno.dart';
+
 /// Llama una Cloud Function callable como una peticion HTTP comun, NO
 /// con `FirebaseFunctions.instance.httpsCallable` -- ese paquete
 /// oficial de FlutterFire falla en Web (dart2js) con "Int64 accessor
@@ -18,7 +20,7 @@ Future<Map<String, dynamic>> llamarCloudFunction(
 ) async {
   final respuesta = await http
       .post(
-        Uri.parse('https://us-east1-capitalexpressapp-c03c5.cloudfunctions.net/$nombre'),
+        Uri.parse('https://us-east1-$proyectoFirebaseId.cloudfunctions.net/$nombre'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'data': datos}),
       )

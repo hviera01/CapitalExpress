@@ -17,6 +17,8 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../pagos/presentation/screens/cobrar_screen.dart';
 import '../../../pagos/presentation/screens/historial_pagos_prestamo_screen.dart';
 import '../../../pagos/presentation/screens/ver_cuotas_screen.dart';
+import '../../../../core/utils/reglas_credito.dart' show tasaGeneralPct;
+import '../../../reglas_credito/presentation/widgets/credito_widgets.dart';
 import '../../data/recibo_prestamo_service.dart';
 import '../../providers/prestamos_provider.dart';
 
@@ -330,6 +332,16 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
                 _filaFinanciera('Monto prestado', formatearLempiras(p.monto)),
                 if (p.usarInteresMensual)
                   _filaFinanciera('Interés mensual', '${p.interesMensual}%'),
+                if (p.usarInteresMensual && p.interesMensual > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: TasaCreditoChip(
+                        tipo: p.interesMensual < tasaGeneralPct - 0.0001 ? 'preferencial' : 'general',
+                      ),
+                    ),
+                  ),
                 _filaFinanciera('Interés total', formatearLempiras(p.interes)),
                 _filaFinanciera('Total a pagar', formatearLempiras(p.totalPagar)),
                 _filaFinanciera('Monto pagado', formatearLempiras(p.montoPagado),

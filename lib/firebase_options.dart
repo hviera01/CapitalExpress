@@ -4,6 +4,8 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
+import 'core/entorno.dart';
+
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
 /// Example:
@@ -17,11 +19,11 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      return esPruebas ? webPruebas : web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return android;
+        return esPruebas ? androidPruebas : android;
       case TargetPlatform.iOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for ios - '
@@ -33,7 +35,7 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        return windows;
+        return esPruebas ? webPruebas : windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -45,6 +47,23 @@ class DefaultFirebaseOptions {
         );
     }
   }
+
+  static const FirebaseOptions webPruebas = FirebaseOptions(
+    apiKey: 'AIzaSyBZphxzvMhTfEds7OYjMwOhDVQOVrmjY7s',
+    appId: '1:838914343241:web:b32740fa7315215fe11a98',
+    messagingSenderId: '838914343241',
+    projectId: 'capital-ef124',
+    authDomain: 'capital-ef124.firebaseapp.com',
+    storageBucket: 'capital-ef124.firebasestorage.app',
+  );
+
+  static const FirebaseOptions androidPruebas = FirebaseOptions(
+    apiKey: 'AIzaSyB0fUhVlMHOsvgDfMtAP770Mv4qVFNg1TQ',
+    appId: '1:838914343241:android:e361dab9022c490fe11a98',
+    messagingSenderId: '838914343241',
+    projectId: 'capital-ef124',
+    storageBucket: 'capital-ef124.firebasestorage.app',
+  );
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyCKrOaJP8cyApDju7pEnhsmpHDL1mlEsgg',

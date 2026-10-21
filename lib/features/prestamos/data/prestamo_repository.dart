@@ -242,6 +242,18 @@ class PrestamoRepository {
   /// se salda) -- esto verifica el estado real contra `prestamos` en vez
   /// de confiar en esa bandera, para no mostrar "Con préstamo" en un
   /// cliente que ya no debe nada.
+  Future<Set<String>> idsClientesConPrestamoActivo() async {
+    final snap = await obtenerRapido(_col.where('saldo', isGreaterThan: 0.01));
+    final ids = <String>{};
+    for (final doc in snap.docs) {
+      final d = doc.data();
+      if (d['eliminado'] == true) continue;
+      final clienteId = (d['clienteId'] ?? '') as String;
+      if (clienteId.isNotEmpty) ids.add(clienteId);
+    }
+    return ids;
+  }
+
   Future<bool> tienePrestamoActivo(String clienteId) async {
     final prestamos = await obtenerPorCliente(clienteId);
     return prestamos.any((p) => p.saldo > 0.01);

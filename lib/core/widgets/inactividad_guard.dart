@@ -13,6 +13,7 @@ import '../services/cola_fotos_pendientes.dart';
 import '../services/push_notifications_service.dart';
 import '../version_app.dart';
 import '../widgets/actualizacion_dialog.dart';
+import '../../features/reglas_credito/data/reglas_credito_service.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/dispositivos/providers/dispositivos_provider.dart';
 
@@ -90,6 +91,9 @@ class _InactividadGuardState extends ConsumerState<InactividadGuard> with Widget
       tipos.addAll(['tickets', 'solicitudes']);
     } else if (usuario.rol == Roles.admin && !kIsWeb) {
       tipos.add('solicitudes');
+    }
+    if (Roles.esAdminOEquivalente(usuario.rol)) {
+      ReglasCreditoService().recalcularSiHaceFalta(usuario: usuario.nombre).catchError((_) => null);
     }
     if (!kIsWeb) tipos.add('permisos_edicion');
     if (tipos.isNotEmpty) {

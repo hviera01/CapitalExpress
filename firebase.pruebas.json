@@ -1,0 +1,1 @@
+{"firestore":{"rules":"firestore.pruebas.rules","indexes":"firestore.indexes.json"},"functions":{"source":"functions"},"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"]}}

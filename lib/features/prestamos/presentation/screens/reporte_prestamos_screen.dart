@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/roles.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/models/prestamo_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_utils.dart';
@@ -193,6 +194,10 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                     children: [
                       TextField(
                         controller: _busquedaCtrl,
+                        inputFormatters: const [upperCaseTextFormatter],
+                        textCapitalization: TextCapitalization.characters,
+                        autocorrect: false,
+                        enableSuggestions: false,
                         decoration: InputDecoration(
                           hintText: 'Buscar cliente o número',
                           prefixIcon: const Icon(Icons.search),

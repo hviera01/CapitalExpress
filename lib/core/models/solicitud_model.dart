@@ -28,6 +28,8 @@ class SolicitudModel {
   final String cobradorSolicitante;
   final int diasEfectivos;
   final Timestamp? fechaCreacion;
+  final bool autorizacionEspecial;
+  final List<String> motivosAutorizacion;
 
   const SolicitudModel({
     required this.id,
@@ -54,6 +56,8 @@ class SolicitudModel {
     this.cobradorSolicitante = '',
     this.diasEfectivos = 0,
     this.fechaCreacion,
+    this.autorizacionEspecial = false,
+    this.motivosAutorizacion = const [],
   });
 
   factory SolicitudModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -84,6 +88,8 @@ class SolicitudModel {
       cobradorSolicitante: (d['cobradorSolicitante'] ?? '') as String,
       diasEfectivos: (d['diasEfectivos'] as num?)?.toInt() ?? 0,
       fechaCreacion: d['fechaCreacion'] as Timestamp?,
+      autorizacionEspecial: (d['autorizacionEspecial'] ?? false) as bool,
+      motivosAutorizacion: (d['motivosAutorizacion'] as List?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 }

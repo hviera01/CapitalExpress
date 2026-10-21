@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
+import '../entorno.dart';
 import '../version_app.dart';
 
 class ActualizacionDisponible {
@@ -24,7 +25,8 @@ class ActualizacionDisponible {
 class ActualizacionService {
   static const _repo = 'hviera01/CapitalExpress';
 
-  static bool get aplica => !kIsWeb && (Platform.isWindows || Platform.isAndroid);
+  static bool get aplica =>
+      !esPruebas && !kIsWeb && (Platform.isWindows || Platform.isAndroid);
 
   static String get _extensionEsperada => Platform.isAndroid ? '.apk' : '.exe';
 

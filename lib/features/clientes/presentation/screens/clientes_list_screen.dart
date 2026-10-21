@@ -10,6 +10,7 @@ import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/reporte_clientes_calculos.dart';
 import '../../../../core/utils/permisos_edicion.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../../../core/widgets/ce_card.dart';
 import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
@@ -22,6 +23,8 @@ import '../../providers/clientes_busqueda_cache.dart';
 import '../../providers/clientes_provider.dart';
 import 'cliente_form_screen.dart';
 import 'cliente_resumen_screen.dart';
+import '../../../reglas_credito/data/reglas_credito_service.dart';
+import '../../../reglas_credito/presentation/widgets/credito_widgets.dart';
 
 const _estados = ['Todos', 'Activo', 'Inactivo'];
 
@@ -34,6 +37,33 @@ const _sinAsignarSentinel = '__sin_asignar__';
 /// estadisticas de arriba salen de consultas de agregacion livianas
 /// (count/sum, sin bajar documentos) y la lista solo se trae cuando el
 /// usuario aprieta "Buscar".
+const _filtrosCategoria = ['Todas', 'A', 'B', 'C'];
+const _filtrosTasa = ['Todas', 'Preferencial', 'General'];
+const _filtrosCondicion = [
+  'Todas',
+  'Aplica a incremento',
+  'Total limitado (dejó vencer)',
+  'Perdió la tasa preferencial',
+  'Con préstamo activo',
+  'Sin préstamo activo',
+  'Bloqueado por Categoría C',
+];
+
+bool _pasaFiltrosCredito(ClienteModel c, String categoria, String tasa, String condicion) {
+  if (categoria != 'Todas' && c.categoriaCredito != categoria) return false;
+  if (tasa == 'Preferencial' && c.tasaTipo != 'preferencial') return false;
+  if (tasa == 'General' && c.tasaTipo == 'preferencial') return false;
+  return switch (condicion) {
+    'Aplica a incremento' => c.incrementoElegible,
+    'Total limitado (dejó vencer)' => c.limitePorVencimiento,
+    'Perdió la tasa preferencial' => c.perdioTasaPreferencial,
+    'Con préstamo activo' => c.prestamoActivoCredito,
+    'Sin préstamo activo' => !c.prestamoActivoCredito,
+    'Bloqueado por Categoría C' => c.categoriaCredito == 'C',
+    _ => true,
+  };
+}
+
 class ClientesListScreen extends ConsumerStatefulWidget {
   const ClientesListScreen({super.key});
 
@@ -44,6 +74,10 @@ class ClientesListScreen extends ConsumerStatefulWidget {
 class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
   final _busquedaCtrl = TextEditingController();
   String _filtroEstado = 'Todos';
+  String _filtroCategoria = 'Todas';
+  String _filtroTasa = 'Todas';
+  String _filtroCondicion = 'Todas';
+  bool _recalculando = false;
   // null = "Todos"; _sinAsignarSentinel = clientes sin cobrador; o el
   // uid de un cobrador puntual. Solo admin/desarrollador lo usan (un
   // cobrador ya ve solo lo suyo).
@@ -234,54 +268,78 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     }
   }
 
+  Future<void> _recalcularCategorias() async {
+    if (_recalculando) return;
+    setState(() => _recalculando = true);
+    final mensajero = ScaffoldMessenger.of(context);
+    mensajero.showSnackBar(const SnackBar(
+      content: Text('Recalculando categorías de todos los clientes...'),
+      duration: Duration(seconds: 4),
+    ));
+    try {
+      final usuario = ref.read(authProvider).usuario;
+      final r = await ReglasCreditoService().recalcularTodos(usuario: usuario?.nombre ?? '', origen: 'recalculo');
+      if (!mounted) return;
+      setState(() => _recalculando = false);
+      mensajero.showSnackBar(SnackBar(
+        content: Text('Listo: A ${r.categoriaA} · B ${r.categoriaB} · C ${r.categoriaC} · '
+            '${r.eventos} cambios registrados'),
+      ));
+      if (_seBusco) _buscar();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _recalculando = false);
+      mensajero.showSnackBar(SnackBar(content: Text('No se pudo recalcular: $e')));
+    }
+  }
+
   Future<void> _buscar() async {
     setState(() => _buscando = true);
-    final estado = switch (_filtroEstado) {
-      'Activo' => 'activo',
-      'Inactivo' => 'inactivo',
-      _ => null,
-    };
-    // El filtro de asignacion (solo admin/desarrollador) es aparte del
-    // alcance normal (_cobradorUid, que para ellos siempre es null):
-    // si eligieron un cobrador puntual, se lo pasa a la consulta igual
-    // que si fueran ese cobrador; si eligieron "Administrador" (sin
-    // asignar), no hay forma de pedirselo a Firestore directo, se trae
-    // todo el alcance y se filtra en memoria.
-    final filtroCobrador = _filtroCobradorUid;
-    final cobradorParaConsulta =
-        (filtroCobrador != null && filtroCobrador != _sinAsignarSentinel)
-            ? filtroCobrador
-            : _cobradorUid;
-    var resultados = await ref.read(clienteRepositoryProvider).buscar(
-          cobradorUid: cobradorParaConsulta,
-          estado: estado,
-          texto: _busquedaCtrl.text,
-        );
-    if (filtroCobrador == _sinAsignarSentinel) {
-      resultados = resultados.where((c) => c.cobradorAsignado.isEmpty).toList();
-    }
-    if (!mounted) return;
-    setState(() {
-      _resultados = resultados;
-      _buscando = false;
-      _seBusco = true;
-    });
-    _guardarCache();
-
-    // El campo `tienePrestamo` del doc del cliente puede estar
-    // desactualizado (ver PrestamoRepository.tienePrestamoActivo); se
-    // verifica el real aparte, sin bloquear que la lista ya se muestre.
-    final prestamoRepo = ref.read(prestamoRepositoryProvider);
-    final verificaciones = await Future.wait(
-      resultados.map((c) => prestamoRepo.tienePrestamoActivo(c.id)),
-    );
-    if (!mounted) return;
-    setState(() {
-      for (var i = 0; i < resultados.length; i++) {
-        _tienePrestamoReal[resultados[i].id] = verificaciones[i];
+    try {
+      final estado = switch (_filtroEstado) {
+        'Activo' => 'activo',
+        'Inactivo' => 'inactivo',
+        _ => null,
+      };
+      final filtroCobrador = _filtroCobradorUid;
+      final cobradorParaConsulta =
+          (filtroCobrador != null && filtroCobrador != _sinAsignarSentinel)
+              ? filtroCobrador
+              : _cobradorUid;
+      var resultados = await ref.read(clienteRepositoryProvider).buscar(
+            cobradorUid: cobradorParaConsulta,
+            estado: estado,
+            texto: _busquedaCtrl.text,
+          );
+      if (filtroCobrador == _sinAsignarSentinel) {
+        resultados = resultados.where((c) => c.cobradorAsignado.isEmpty).toList();
       }
-    });
-    _guardarCache();
+      resultados = resultados
+          .where((c) => _pasaFiltrosCredito(c, _filtroCategoria, _filtroTasa, _filtroCondicion))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _resultados = resultados;
+        _buscando = false;
+        _seBusco = true;
+      });
+      _guardarCache();
+
+      try {
+        final conPrestamo = await ref.read(prestamoRepositoryProvider).idsClientesConPrestamoActivo();
+        if (!mounted) return;
+        setState(() {
+          for (final c in resultados) {
+            _tienePrestamoReal[c.id] = conPrestamo.contains(c.id);
+          }
+        });
+        _guardarCache();
+      } catch (_) {}
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _buscando = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo buscar: $e')));
+    }
   }
 
   @override
@@ -295,6 +353,18 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
         leading: const BackButton(),
         title: Text(esAdmin ? 'Ver Clientes' : 'Mis Clientes'),
         actions: [
+          if (esAdmin)
+            IconButton(
+              icon: _recalculando
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.fact_check_outlined),
+              tooltip: 'Recalcular categorías A/B/C y tasas de todos los clientes',
+              onPressed: _recalculando ? null : _recalcularCategorias,
+            ),
           if (esAdmin)
             IconButton(
               icon: const Icon(Icons.sync_outlined),
@@ -433,6 +503,10 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
               children: [
                 TextField(
                   controller: _busquedaCtrl,
+                  inputFormatters: const [upperCaseTextFormatter],
+                  textCapitalization: TextCapitalization.characters,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   decoration: InputDecoration(
                     hintText: 'Buscar por nombre, identidad o teléfono',
                     prefixIcon: const Icon(Icons.search),
@@ -454,6 +528,43 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
                   items:
                       _estados.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                   onChanged: (v) => setState(() => _filtroEstado = v ?? 'Todos'),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _filtroCategoria,
+                        decoration: const InputDecoration(labelText: 'Categoría'),
+                        items: _filtrosCategoria
+                            .map((e) => DropdownMenuItem(
+                                value: e, child: Text(e.length == 1 ? 'Categoría $e' : e)))
+                            .toList(),
+                        onChanged: (v) => setState(() => _filtroCategoria = v ?? 'Todas'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _filtroTasa,
+                        decoration: const InputDecoration(labelText: 'Tasa'),
+                        items: _filtrosTasa
+                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                            .toList(),
+                        onChanged: (v) => setState(() => _filtroTasa = v ?? 'Todas'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: _filtroCondicion,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Condición de crédito'),
+                  items: _filtrosCondicion
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _filtroCondicion = v ?? 'Todas'),
                 ),
                 if (_esAdmin) ...[
                   const SizedBox(height: 10),
@@ -608,6 +719,8 @@ class _TablaClientes extends ConsumerWidget {
         DataColumn(label: Text('Identidad')),
         DataColumn(label: Text('Cobrador')),
         DataColumn(label: Text('Préstamo')),
+        DataColumn(label: Text('Categoría')),
+        DataColumn(label: Text('Tasa')),
         DataColumn(label: Text('')),
       ],
       rows: clientes.map((c) {
@@ -622,6 +735,29 @@ class _TablaClientes extends ConsumerWidget {
                 DataCell(tienePrestamoDe(c)
                     ? ceTableBadge('Con préstamo', CEColors.accent)
                     : const Text('—')),
+                DataCell(c.categoriaCredito.isEmpty
+                    ? const Text('—')
+                    : CategoriaCreditoChip(
+                        letra: c.categoriaCredito,
+                        onTap: () => mostrarDetalleCreditoCliente(context,
+                            clienteId: c.id, clienteNombre: c.nombre),
+                      )),
+                DataCell(c.tasaTipo.isEmpty
+                    ? const Text('—')
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TasaCreditoChip(tipo: c.tasaTipo, perdio: c.perdioTasaPreferencial, pct: c.tasaVigentePct),
+                          if (c.incrementoElegible) ...[
+                            const SizedBox(width: 6),
+                            const EtiquetaCreditoChip(texto: 'Incremento', color: CEColors.success),
+                          ],
+                          if (c.limitePorVencimiento) ...[
+                            const SizedBox(width: 6),
+                            const EtiquetaCreditoChip(texto: 'Total limitado', color: CEColors.danger),
+                          ],
+                        ],
+                      )),
                 DataCell(PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, size: 18, color: CEColors.textSecondary),
                   onSelected: (accion) {
@@ -856,6 +992,26 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                       children: [
                         Text(c.nombre,
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        if (c.categoriaCredito.isNotEmpty || c.tasaTipo.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              CategoriaCreditoChip(
+                                letra: c.categoriaCredito,
+                                onTap: () => mostrarDetalleCreditoCliente(context,
+                                    clienteId: c.id, clienteNombre: c.nombre),
+                              ),
+                              TasaCreditoChip(tipo: c.tasaTipo, perdio: c.perdioTasaPreferencial, pct: c.tasaVigentePct),
+                              if (c.incrementoElegible)
+                                const EtiquetaCreditoChip(texto: 'Aplica a incremento', color: CEColors.success),
+                              if (c.limitePorVencimiento)
+                                const EtiquetaCreditoChip(texto: 'Total limitado', color: CEColors.danger),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         if (c.telefono.isNotEmpty) _filaIcono(Icons.call_outlined, c.telefono),
                         if (c.nombreEmpresa.isNotEmpty)
