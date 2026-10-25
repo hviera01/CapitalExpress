@@ -11,6 +11,8 @@ import '../../../../core/widgets/visor_foto_zoom.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../prestamos/data/recibo_prestamo_service.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../../reglas_credito/data/reglas_credito_service.dart';
+import '../../../../core/utils/reglas_credito.dart';
 import '../../data/aprobar_solicitud.dart';
 import '../../providers/solicitudes_provider.dart';
 
@@ -149,47 +151,116 @@ class _SolicitudDetalleScreenState extends ConsumerState<SolicitudDetalleScreen>
           ),
           if (s.autorizacionEspecial) ...[
             const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: CEColors.danger.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: CEColors.danger.withValues(alpha: 0.5)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
+            FutureBuilder<EvaluacionCredito>(
+              future: ReglasCreditoService().evaluarCliente(s.clienteId),
+              builder: (context, snap) {
+                final eval = snap.data;
+                final yaNoTienePrestamo = eval != null && !eval.tienePrestamoActivo;
+
+                final motivosActivos = <String>[];
+                final motivosSaldados = <String>[];
+                for (final m in s.motivosAutorizacion) {
+                  if (m.contains('ya cuenta con un préstamo activo') && yaNoTienePrestamo) {
+                    motivosSaldados.add(m);
+                  } else {
+                    motivosActivos.add(m);
+                  }
+                }
+
+                if (yaNoTienePrestamo && motivosActivos.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: CEColors.success.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: CEColors.success.withValues(alpha: 0.6)),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle_outline, size: 18, color: CEColors.success),
+                            SizedBox(width: 8),
+                            Text('PRÉSTAMO ANTERIOR SALDADO',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w800, fontSize: 12, color: CEColors.success)),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'El cliente ya no tiene saldo pendiente ni préstamos activos (el préstamo anterior ya fue cancelado en su totalidad). Al aprobarse, no requerirá registrar excepción por préstamo activo.',
+                          style: TextStyle(fontSize: 12.5),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: CEColors.danger.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: CEColors.danger.withValues(alpha: 0.5)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.gavel_outlined, size: 18, color: CEColors.danger),
-                      SizedBox(width: 8),
-                      Text('AUTORIZACIÓN ESPECIAL SOLICITADA',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 12, color: CEColors.danger)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Esta solicitud incumple las reglas de crédito. Si la aprueba, la excepción queda registrada a su nombre.',
-                    style: TextStyle(fontSize: 12.5),
-                  ),
-                  const SizedBox(height: 8),
-                  for (final m in s.motivosAutorizacion)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const Row(
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.only(top: 6, right: 8),
-                            child: Icon(Icons.circle, size: 5, color: CEColors.danger),
-                          ),
-                          Expanded(child: Text(m, style: const TextStyle(fontSize: 12.5, height: 1.35))),
+                          Icon(Icons.gavel_outlined, size: 18, color: CEColors.danger),
+                          SizedBox(width: 8),
+                          Text('AUTORIZACIÓN ESPECIAL SOLICITADA',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800, fontSize: 12, color: CEColors.danger)),
                         ],
                       ),
-                    ),
-                ],
-              ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Esta solicitud incumple las reglas de crédito. Si la aprueba, la excepción queda registrada a su nombre.',
+                        style: TextStyle(fontSize: 12.5),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final m in s.motivosAutorizacion)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6, right: 8),
+                                child: Icon(
+                                  m.contains('ya cuenta con un préstamo activo') && yaNoTienePrestamo
+                                      ? Icons.check_circle
+                                      : Icons.circle,
+                                  size: m.contains('ya cuenta con un préstamo activo') && yaNoTienePrestamo ? 12 : 5,
+                                  color: m.contains('ya cuenta con un préstamo activo') && yaNoTienePrestamo
+                                      ? CEColors.success
+                                      : CEColors.danger,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  m.contains('ya cuenta con un préstamo activo') && yaNoTienePrestamo
+                                      ? '$m\n✓ Verificado en tiempo real: el préstamo ya fue saldado (saldo actual L. 0.00).'
+                                      : m,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    height: 1.35,
+                                    color: m.contains('ya cuenta con un préstamo activo') && yaNoTienePrestamo
+                                        ? CEColors.success
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
           const SizedBox(height: 14),

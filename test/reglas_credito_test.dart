@@ -379,6 +379,45 @@ void main() {
       final e = _eval([], {}, hoy);
       expect(_validar(e, 99999, tasa: 15), isEmpty);
     });
+
+    test('caso reportado: préstamo de 7800 que debía 900 se salda con pago de 900 -> saldo cero y sin préstamo activo', () {
+      final p = PrestamoModel(
+        prestamoId: 'EIP-00368',
+        numeroPrestamo: 'EIP-00368',
+        clienteId: 'c1',
+        cliente: 'ELBA ISABEL PAGUAGA',
+        monto: 6000,
+        totalPagar: 7800,
+        cuota: 975,
+        cuotas: 8,
+        plazo: 'Semanal',
+        interesMensual: 15,
+        usarInteresMensual: true,
+        saldo: 900,
+        estado: 'activo',
+        fecha: Timestamp.fromDate(DateTime(2026, 9, 10)),
+      );
+
+      final pagosIncompletos = [
+        _pago('EIP-00368', 6900, DateTime(2026, 10, 23), n: 1),
+      ];
+      final eAntes = _eval([p], {'EIP-00368': pagosIncompletos}, DateTime(2026, 10, 24));
+      expect(eAntes.tienePrestamoActivo, true);
+      expect(eAntes.detalleActivo, contains('saldo pendiente L.900.00'));
+      expect(_validar(eAntes, 6000).any((v) => v.tipo == TipoViolacion.prestamoActivo), true);
+
+      final pagosCompletos = [
+        _pago('EIP-00368', 6900, DateTime(2026, 10, 23), n: 1),
+        _pago('EIP-00368', 900, DateTime(2026, 10, 24, 7, 30), n: 2),
+      ];
+      final eDespues = _eval([p], {'EIP-00368': pagosCompletos}, DateTime(2026, 10, 24));
+      expect(eDespues.tienePrestamoActivo, false,
+          reason: 'El préstamo ya fue saldado por sus pagos y no debe considerarse activo');
+      expect(eDespues.cicloActivo, isNull);
+      final vDespues = _validar(eDespues, 6000);
+      expect(vDespues.any((v) => v.tipo == TipoViolacion.prestamoActivo), false,
+          reason: 'No debe violar la regla de préstamo activo');
+    });
   });
 
   group('Regla 4: dejó vencer el crédito -> total a pagar 30% menor', () {

@@ -208,7 +208,7 @@ class ReglasCreditoService {
     String clienteId, {
     required String origen,
     String usuario = '',
-    Duration espera = const Duration(seconds: 6),
+    Duration espera = const Duration(milliseconds: 500),
   }) {
     Future<void>.delayed(espera, () async {
       try {

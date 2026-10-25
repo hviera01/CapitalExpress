@@ -209,10 +209,13 @@ class _PrestamosListScreenState extends ConsumerState<PrestamosListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            irAPantalla(context, ruta: '/prestamos/nuevo', pantalla: const CrearPrestamoScreen()),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo préstamo'),
+        onPressed: () => irAPantalla(
+          context,
+          ruta: esAdmin ? '/prestamos/nuevo' : '/prestamos/solicitar',
+          pantalla: CrearPrestamoScreen(modoSolicitud: !esAdmin),
+        ),
+        icon: Icon(esAdmin ? Icons.add : Icons.send_outlined),
+        label: Text(esAdmin ? 'Nuevo préstamo' : 'Solicitar préstamo'),
       ),
       body: CustomScrollView(
         slivers: [

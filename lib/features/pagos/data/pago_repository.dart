@@ -351,12 +351,23 @@ class PagoRepository {
     // siquiera se rastrea en PendientesSincronizarService (nunca fue
     // critico, ver el resto de usos de este mismo patron en
     // BitacoraRepository).
-    db.collection('clientes').doc(prestamo.clienteId).update({
+    final actualizacionCliente = <String, dynamic>{
       'ultimaActividad': ahora,
       'fechaUltimaActualizacion': ahora,
-    }).catchError((_) {});
+    };
+    if (nuevoSaldo <= 0.01) {
+      actualizacionCliente['prestamoActivoCredito'] = false;
+      actualizacionCliente['prestamoActivoDetalle'] = '';
+      actualizacionCliente['tienePrestamo'] = false;
+    }
+    db.collection('clientes').doc(prestamo.clienteId).update(actualizacionCliente).catchError((_) {});
 
-    ReglasCreditoService().evaluarDespuesDe(prestamo.clienteId, origen: 'pago', usuario: nombreCobrador);
+    ReglasCreditoService().evaluarDespuesDe(
+      prestamo.clienteId,
+      origen: 'pago',
+      usuario: nombreCobrador,
+      espera: const Duration(milliseconds: 300),
+    );
 
     final pagoGuardado = PagoModel(
       docId: pagoRef.id,

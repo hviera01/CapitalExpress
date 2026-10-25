@@ -74,6 +74,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
   bool _autorizacionEspecial = false;
 
   bool get _esAdmin => Roles.esAdminOEquivalente(ref.read(authProvider).usuario?.rol);
+  bool get _esModoSolicitud => widget.modoSolicitud || !_esAdmin;
 
   Future<void> _seleccionarCliente(ClienteModel? c) async {
     setState(() {
@@ -513,18 +514,36 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
       final cuotas = int.parse(_cuotasCtrl.text);
 
       final calculo = _calculo;
-      final violaciones = _evaluacion != null
-          ? validarNuevoPrestamo(
-              evaluacion: _evaluacion!,
-              totalAPagar: calculo.totalAPagar,
-              interesMensualPct: _tasaEfectivaPct,
-              prestamoActivoExterno: _prestamoActivoExterno,
-            )
-          : await _reglas.validarNuevoPrestamo(
-              cliente: _clienteSeleccionado!,
-              totalAPagar: calculo.totalAPagar,
-              interesMensualPct: _tasaEfectivaPct,
-            );
+      EvaluacionCredito evalFresca;
+      String? externoFresco;
+      try {
+        final resultados = await Future.wait<Object?>([
+          _reglas.evaluarCliente(_clienteSeleccionado!.id),
+          _reglas.motivoPrestamoActivoExterno(_clienteSeleccionado!),
+        ]);
+        evalFresca = resultados[0] as EvaluacionCredito;
+        externoFresco = resultados[1] as String?;
+        if (mounted) {
+          setState(() {
+            _evaluacion = evalFresca;
+            _prestamoActivoExterno = externoFresco;
+          });
+        }
+      } catch (_) {
+        evalFresca = _evaluacion ?? await _reglas.evaluarCliente(_clienteSeleccionado!.id);
+        externoFresco = _prestamoActivoExterno;
+      }
+
+      final violaciones = validarNuevoPrestamo(
+        evaluacion: evalFresca,
+        totalAPagar: calculo.totalAPagar,
+        interesMensualPct: _tasaEfectivaPct,
+        prestamoActivoExterno: externoFresco,
+      );
+
+      if (violaciones.isEmpty && mounted) {
+        setState(() => _autorizacionEspecial = false);
+      }
       var mensajesAutorizacion = <String>[];
       if (violaciones.isNotEmpty) {
         if (!_autorizacionEspecial) {
@@ -539,7 +558,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
           if (mounted) setState(() => _autorizacionEspecial = true);
         }
         mensajesAutorizacion = violaciones.map((v) => v.mensaje).toList();
-        if (!widget.modoSolicitud) {
+        if (!_esModoSolicitud) {
           await _reglas.registrarExcepcion(
             clienteId: _clienteSeleccionado!.id,
             clienteNombre: _clienteSeleccionado!.nombre,
@@ -564,7 +583,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
         urlsFotos.add(await storage.subirFoto(bytes: bytes, carpeta: 'prestamos'));
       }
 
-      if (widget.modoSolicitud) {
+      if (_esModoSolicitud) {
         await ref.read(solicitudRepositoryProvider).crear(
               clienteId: _clienteSeleccionado!.id,
               clienteNombre: _clienteSeleccionado!.nombre,
@@ -686,7 +705,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo ${widget.modoSolicitud ? 'enviar la solicitud' : 'crear el préstamo'}: $e')),
+          SnackBar(content: Text('No se pudo ${_esModoSolicitud ? 'enviar la solicitud' : 'crear el préstamo'}: $e')),
         );
       }
     } finally {
@@ -706,7 +725,7 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
       maxWidth: 720,
       appBar: AppBar(
         leading: const BackButton(),
-        title: Text(widget.modoSolicitud ? 'Solicitar Préstamo' : 'Nuevo Préstamo'),
+        title: Text(_esModoSolicitud ? 'Solicitar Préstamo' : 'Nuevo Préstamo'),
       ),
       body: Form(
         key: _formKey,
@@ -934,8 +953,8 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : Icon(widget.modoSolicitud ? Icons.send_outlined : Icons.print_outlined),
-                label: Text(widget.modoSolicitud ? 'Enviar Solicitud' : 'Guardar e Imprimir'),
+                    : Icon(_esModoSolicitud ? Icons.send_outlined : Icons.print_outlined),
+                label: Text(_esModoSolicitud ? 'Enviar Solicitud' : 'Guardar e Imprimir'),
               ),
             ),
             const SizedBox(height: 24),

@@ -94,6 +94,7 @@ class CicloCredito {
   final PrestamoModel prestamo;
   final List<CuotaAtraso> cuotas;
   final bool saldado;
+  final double saldoPendiente;
   final DateTime? vencimientoFinal;
   final DateTime? fechaSaldadoEfectiva;
 
@@ -101,6 +102,7 @@ class CicloCredito {
     required this.prestamo,
     required this.cuotas,
     required this.saldado,
+    this.saldoPendiente = 0.0,
     required this.vencimientoFinal,
     required this.fechaSaldadoEfectiva,
   });
@@ -233,8 +235,9 @@ class EvaluacionCredito {
     final c = cicloActivo;
     if (c == null) return detalleActivoAlmacenado;
     final f = c.fechaInicio;
+    final saldoMostrar = c.saldoPendiente > 0 ? c.saldoPendiente : c.prestamo.saldo;
     return 'Préstamo ${c.etiqueta}: total a pagar ${formatearLempiras(c.totalPagar)}, '
-        'saldo pendiente ${formatearLempiras(c.prestamo.saldo)}'
+        'saldo pendiente ${formatearLempiras(saldoMostrar)}'
         '${f != null ? ', iniciado el ${_fmt.format(f)}' : ''}.';
   }
 
@@ -263,11 +266,22 @@ DateTime? _fechaInicioDe(PrestamoModel p) => p.fecha?.toDate() ?? p.fechaCreacio
 
 CicloCredito construirCiclo(PrestamoModel prestamo, List<PagoModel> pagos, DateTime hoy) {
   final hoySolo = _soloFecha(hoy);
-  final saldado = _estaSaldado(prestamo);
   final inicio = _fechaInicioDe(prestamo);
 
   final ordenados = pagos.where((p) => p.fechaPago != null).toList()
     ..sort((a, b) => a.fechaPago!.compareTo(b.fechaPago!));
+
+  final totalPagar =
+      prestamo.totalPagar > 0 ? prestamo.totalPagar : (prestamo.monto + prestamo.interes);
+  final totalPagado = ordenados.fold<double>(0.0, (acc, p) => acc + p.monto);
+  final saldoCalculado = (totalPagar - totalPagado).clamp(0.0, double.infinity);
+
+  final saldado = _estaSaldado(prestamo) || (totalPagar > 0 && saldoCalculado <= 0.01);
+  final saldoEfectivo = saldado
+      ? 0.0
+      : (prestamo.saldo >= 0 && prestamo.saldo < saldoCalculado
+          ? prestamo.saldo
+          : saldoCalculado);
 
   final cuotas = <CuotaAtraso>[];
   if (inicio != null) {
@@ -312,6 +326,7 @@ CicloCredito construirCiclo(PrestamoModel prestamo, List<PagoModel> pagos, DateT
     prestamo: prestamo,
     cuotas: cuotas,
     saldado: saldado,
+    saldoPendiente: saldoEfectivo,
     vencimientoFinal: cuotas.isEmpty ? null : cuotas.last.vencimiento,
     fechaSaldadoEfectiva: cuotas.isEmpty ? null : cuotas.last.fechaCumplida,
   );
@@ -558,7 +573,7 @@ List<ViolacionCredito> validarNuevoPrestamo({
   } else if (prestamoActivoExterno != null) {
     v.add(ViolacionCredito(
         TipoViolacion.prestamoActivo,
-        'Este cliente no se puede elegir porque ya cuenta con un préstamo activo. $prestamoActivoExterno'));
+        prestamoActivoExterno));
   }
 
   if (evaluacion.bloqueadoPorCategoriaC) {

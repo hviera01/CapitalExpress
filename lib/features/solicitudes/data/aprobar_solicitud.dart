@@ -109,19 +109,32 @@ Future<SolicitudAprobada> aprobarSolicitud({
 
   if (s.autorizacionEspecial) {
     try {
-      await reglas.registrarExcepcion(
-        clienteId: s.clienteId,
-        clienteNombre: s.cliente,
-        motivos: s.motivosAutorizacion,
-        usuario: usuarioNombre,
-      );
-      BitacoraRepository().registrar(
-        accion: 'excepcion_reglas_credito',
-        entidadTipo: 'cliente',
-        descripcion: '${s.cliente}: autorización especial aprobada. ${s.motivosAutorizacion.join(' | ')}',
-        usuarioUid: usuarioUid,
-        usuarioNombre: usuarioNombre,
-      );
+      final evaluacionActual = await reglas.evaluarCliente(s.clienteId);
+      final motivosReales = <String>[];
+      for (final m in s.motivosAutorizacion) {
+        if (m.contains('ya cuenta con un préstamo activo')) {
+          if (evaluacionActual.tienePrestamoActivo) {
+            motivosReales.add(m);
+          }
+        } else {
+          motivosReales.add(m);
+        }
+      }
+      if (motivosReales.isNotEmpty) {
+        await reglas.registrarExcepcion(
+          clienteId: s.clienteId,
+          clienteNombre: s.cliente,
+          motivos: motivosReales,
+          usuario: usuarioNombre,
+        );
+        BitacoraRepository().registrar(
+          accion: 'excepcion_reglas_credito',
+          entidadTipo: 'cliente',
+          descripcion: '${s.cliente}: autorización especial aprobada. ${motivosReales.join(' | ')}',
+          usuarioUid: usuarioUid,
+          usuarioNombre: usuarioNombre,
+        );
+      }
     } catch (_) {}
   }
   reglas.evaluarDespuesDe(s.clienteId, origen: 'prestamo', usuario: usuarioNombre);

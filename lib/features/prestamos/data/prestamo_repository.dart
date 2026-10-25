@@ -256,7 +256,7 @@ class PrestamoRepository {
 
   Future<bool> tienePrestamoActivo(String clienteId) async {
     final prestamos = await obtenerPorCliente(clienteId);
-    return prestamos.any((p) => p.saldo > 0.01);
+    return prestamos.any((p) => p.saldo > 0.01 && p.estado != 'saldado' && p.estado != 'completado');
   }
 
   /// Reasigna el cobrador del prestamo (usado al "Asignar Cobrador" a un
