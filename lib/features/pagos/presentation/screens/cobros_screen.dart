@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -24,6 +26,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../clientes/providers/clientes_provider.dart';
 import '../../../prestamos/presentation/screens/prestamo_detalle_screen.dart';
 import '../../../prestamos/providers/prestamos_provider.dart';
+import '../../data/pagos_cobros_cache.dart';
 import '../../data/reporte_cobros_pdf_service.dart';
 import 'cobrar_screen.dart';
 import 'ver_cuotas_screen.dart';
@@ -167,35 +170,71 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
     final cronometro = Stopwatch()..start();
     try {
       final usuarioUid = ref.read(authProvider).usuario?.uid;
-      final datos = await llamarCloudFunction('obtenerDatosCobros', {'usuarioUid': usuarioUid});
+      final cache = await PagosCobrosCache.cargar();
+      var datos = await llamarCloudFunction('obtenerDatosCobros', {
+        'usuarioUid': usuarioUid,
+        'firmas': PagosCobrosCache.firmasVigentes(cache),
+      });
+      var vigentes = <String>{
+        for (final id in (datos['pagosVigentes'] as List? ?? const [])) id as String,
+      };
+      if (vigentes.any((id) => !cache.containsKey(id))) {
+        cache.clear();
+        datos = await llamarCloudFunction('obtenerDatosCobros', {'usuarioUid': usuarioUid});
+        vigentes = <String>{};
+      }
 
-      // Igual que en el resto del repositorio (obtenerTodos,
-      // obtenerPorPrestamos, etc.): cada documento se parsea en su
-      // propio try/catch y se omite si tiene un formato inesperado
-      // (datos viejos con algun campo corrupto) -- sin esto, UN solo
-      // documento con formato raro tumbaba TODA la lista via la
-      // funcion (el camino directo ya toleraba esto solo, salteando
-      // documento por documento).
       final prestamos = <PrestamoModel>[];
+      final firmas = <String, String>{};
       for (final p in (datos['prestamos'] as List)) {
         try {
           final mapa = Map<String, dynamic>.from(p as Map);
-          prestamos.add(PrestamoModel.fromMap(mapa['id'] as String, mapa));
+          final prestamo = PrestamoModel.fromMap(mapa['id'] as String, mapa);
+          prestamos.add(prestamo);
+          final firma = mapa['firma'];
+          if (firma is String) firmas[prestamo.prestamoId] = firma;
         } catch (_) {
           // documento con formato inesperado: se omite.
         }
       }
 
-      final pagosPorPrestamo = <String, List<PagoModel>>{};
+      final crudosNuevos = <String, List<Map<String, dynamic>>>{};
       for (final p in (datos['pagos'] as List)) {
         try {
           final mapa = Map<String, dynamic>.from(p as Map);
-          final pago = PagoModel.fromMap(mapa['id'] as String, mapa);
-          (pagosPorPrestamo[pago.prestamoId] ??= []).add(pago);
+          (crudosNuevos[(mapa['prestamoId'] ?? '') as String] ??= []).add(mapa);
         } catch (_) {
           // documento con formato inesperado: se omite.
         }
       }
+
+      final ahoraMs = DateTime.now().millisecondsSinceEpoch;
+      final nuevaCache = <String, EntradaPagosCobros>{};
+      final pagosPorPrestamo = <String, List<PagoModel>>{};
+      for (final prestamo in prestamos) {
+        final id = prestamo.prestamoId;
+        final firma = firmas[id];
+        final List<Map<String, dynamic>> crudos;
+        if (vigentes.contains(id)) {
+          final entrada = cache[id]!;
+          crudos = entrada.pagos;
+          nuevaCache[id] = entrada;
+        } else {
+          crudos = crudosNuevos[id] ?? const [];
+          if (firma != null) {
+            nuevaCache[id] = EntradaPagosCobros(firma: firma, guardadoMs: ahoraMs, pagos: crudos);
+          }
+        }
+        for (final mapa in crudos) {
+          try {
+            final pago = PagoModel.fromMap((mapa['id'] ?? '') as String, mapa);
+            (pagosPorPrestamo[pago.prestamoId] ??= []).add(pago);
+          } catch (_) {
+            // documento con formato inesperado: se omite.
+          }
+        }
+      }
+      unawaited(PagosCobrosCache.guardar(nuevaCache));
       _debugOrigenCarga = 'función (${cronometro.elapsedMilliseconds}ms)';
       return (prestamos, pagosPorPrestamo);
     } catch (e) {

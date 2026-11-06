@@ -11,6 +11,7 @@ import '../../../core/utils/reglas_credito.dart' as reglas show validarNuevoPres
 import '../../bitacora/data/bitacora_repository.dart';
 import '../../pagos/data/pago_repository.dart';
 import '../../prestamos/data/prestamo_repository.dart';
+import 'pagos_credito_cache.dart';
 
 class EventoCredito {
   final String id;
@@ -444,6 +445,7 @@ class ReglasCreditoService {
     String usuario = '',
     String origen = 'recalculo',
     void Function(String)? avance,
+    bool forzar = false,
   }) async {
     avance?.call('Leyendo clientes y préstamos...');
     final clientesSnap = await _db.collection('clientes').get();
@@ -459,10 +461,117 @@ class ReglasCreditoService {
     }
 
     avance?.call('Leyendo pagos...');
-    final ids = prestamosPorCliente.values.expand((l) => l.map((p) => p.prestamoId)).toList();
-    final pagos = await _pagos.obtenerPorPrestamos(ids);
+    final pagos = await _pagosConCache(prestamosPorCliente.values.expand((l) => l), forzar: forzar, podar: true);
 
     avance?.call('Evaluando ${clientesSnap.docs.length} clientes...');
+    final resultado = await _evaluarYGuardarClientes(
+      clientes: [for (final d in clientesSnap.docs) MapEntry(d.id, d.data())],
+      prestamosPorCliente: prestamosPorCliente,
+      pagos: pagos,
+      usuario: usuario,
+      origen: origen,
+    );
+
+    await _db.collection('configuracion').doc(_docControl).set({
+      'ultimaCorrida': FieldValue.serverTimestamp(),
+      'ultimaCorridaCompleta': FieldValue.serverTimestamp(),
+      'clientes': clientesSnap.docs.length,
+    }, SetOptions(merge: true));
+
+    return resultado;
+  }
+
+  /// Version liviana del recalculo: solo los clientes con un prestamo por
+  /// saldar (activo o en mora). Son los unicos cuya categoria/tasa puede
+  /// cambiar sola con el paso del tiempo (sus cuotas se siguen atrasando);
+  /// los clientes sin prestamos abiertos solo cambian cuando alguien
+  /// registra un pago o crea un prestamo, y eso ya se evalua en el momento
+  /// (evaluarDespuesDe). Lee unos pocos cientos de documentos en vez de
+  /// toda la base.
+  Future<ResultadoRecalculo> recalcularActivos({
+    String usuario = '',
+    String origen = 'automatico',
+  }) async {
+    final idsClientes = await _prestamos.idsClientesConPrestamoPorSaldar();
+    if (idsClientes.isEmpty) {
+      return const ResultadoRecalculo(clientes: 0, categoriaA: 0, categoriaB: 0, categoriaC: 0, eventos: 0);
+    }
+
+    final ids = idsClientes.toList();
+    final lotes = <List<String>>[];
+    for (var i = 0; i < ids.length; i += 10) {
+      lotes.add(ids.sublist(i, (i + 10).clamp(0, ids.length)));
+    }
+    final resultados = await Future.wait<Object>([
+      _prestamos.obtenerPorClientes(ids),
+      Future.wait(lotes.map((lote) => _db.collection('clientes').where(FieldPath.documentId, whereIn: lote).get())),
+    ]);
+    final prestamosPorCliente = resultados[0] as Map<String, List<PrestamoModel>>;
+    final snapsClientes = resultados[1] as List<QuerySnapshot<Map<String, dynamic>>>;
+
+    final pagos = await _pagosConCache(prestamosPorCliente.values.expand((l) => l));
+
+    return _evaluarYGuardarClientes(
+      clientes: [
+        for (final snap in snapsClientes)
+          for (final d in snap.docs) MapEntry(d.id, d.data()),
+      ],
+      prestamosPorCliente: prestamosPorCliente,
+      pagos: pagos,
+      usuario: usuario,
+      origen: origen,
+    );
+  }
+
+  /// Pagos de estos prestamos, leyendo de Firestore solo los de los
+  /// prestamos que cambiaron desde la ultima vez (un pago registrado o
+  /// borrado cambia montoPagado/saldo/mora/fechaUltimaActualizacion del
+  /// prestamo, ver firmaPrestamoCredito). Los prestamos saldados no
+  /// cambian nunca, asi que despues de la primera corrida casi no se
+  /// leen pagos. Con [forzar] se ignora lo guardado y se lee todo de
+  /// nuevo (boton manual "Recalcular categorias").
+  Future<Map<String, List<PagoModel>>> _pagosConCache(
+    Iterable<PrestamoModel> prestamos, {
+    bool forzar = false,
+    bool podar = false,
+  }) async {
+    final lista = prestamos.toList();
+    final cache = forzar ? <String, EntradaPagosCredito>{} : await PagosCreditoCache.cargar();
+    final resultado = <String, List<PagoModel>>{};
+    final faltan = <PrestamoModel>[];
+    for (final p in lista) {
+      final e = cache[p.prestamoId];
+      if (e != null && e.firma == firmaPrestamoCredito(p) && PagosCreditoCache.esVigente(e)) {
+        resultado[p.prestamoId] = e.pagos;
+      } else {
+        faltan.add(p);
+      }
+    }
+    if (faltan.isNotEmpty) {
+      final nuevos = await _pagos.obtenerPorPrestamos(faltan.map((p) => p.prestamoId).toList());
+      final ahora = DateTime.now().millisecondsSinceEpoch;
+      for (final p in faltan) {
+        final pagos = nuevos[p.prestamoId] ?? const <PagoModel>[];
+        resultado[p.prestamoId] = pagos;
+        cache[p.prestamoId] =
+            EntradaPagosCredito(firma: firmaPrestamoCredito(p), guardadoMs: ahora, pagos: pagos);
+      }
+    }
+    if (podar) {
+      final vigentes = {for (final p in lista) p.prestamoId};
+      cache.removeWhere((id, _) => !vigentes.contains(id));
+    }
+    if (faltan.isNotEmpty || podar) await PagosCreditoCache.guardar(cache);
+    return resultado;
+  }
+
+  Future<ResultadoRecalculo> _evaluarYGuardarClientes({
+    required List<MapEntry<String, Map<String, dynamic>>> clientes,
+    required Map<String, List<PrestamoModel>> prestamosPorCliente,
+    required Map<String, List<PagoModel>> pagos,
+    required String usuario,
+    required String origen,
+  }) async {
     final hoy = DateTime.now();
     var a = 0, b = 0, c = 0, eventos = 0;
     var batch = _db.batch();
@@ -475,9 +584,9 @@ class ReglasCreditoService {
       operaciones = 0;
     }
 
-    for (final doc in clientesSnap.docs) {
-      final datos = doc.data();
-      final prestamos = prestamosPorCliente[doc.id] ?? const <PrestamoModel>[];
+    for (final cliente in clientes) {
+      final datos = cliente.value;
+      final prestamos = prestamosPorCliente[cliente.key] ?? const <PrestamoModel>[];
       final Map<String, List<PagoModel>> pagosCliente = {
         for (final p in prestamos) p.prestamoId: pagos[p.prestamoId] ?? const [],
       };
@@ -498,7 +607,7 @@ class ReglasCreditoService {
           c++;
       }
       final n = await _persistir(
-        clienteId: doc.id,
+        clienteId: cliente.key,
         clienteNombre: (datos['nombre'] ?? '') as String,
         evaluacion: evaluacion,
         almacenado: datos,
@@ -512,13 +621,8 @@ class ReglasCreditoService {
     }
     await volcar();
 
-    await _db.collection('configuracion').doc(_docControl).set({
-      'ultimaCorrida': FieldValue.serverTimestamp(),
-      'clientes': clientesSnap.docs.length,
-    }, SetOptions(merge: true));
-
     return ResultadoRecalculo(
-      clientes: clientesSnap.docs.length,
+      clientes: clientes.length,
       categoriaA: a,
       categoriaB: b,
       categoriaC: c,
@@ -526,15 +630,31 @@ class ReglasCreditoService {
     );
   }
 
+  /// Corrida automatica al abrir sesion un admin, como maximo cada
+  /// [cadaCuanto]. La mayoria de las veces es la version liviana
+  /// ([recalcularActivos]); la completa ([recalcularTodos], que lee toda
+  /// la base) corre como red de seguridad una vez por semana, y siempre
+  /// se puede forzar con el boton "Recalcular categorias" de Ver Clientes.
   Future<ResultadoRecalculo?> recalcularSiHaceFalta({
     String usuario = '',
     Duration cadaCuanto = const Duration(hours: 20),
+    Duration completaCadaCuanto = const Duration(days: 7),
   }) async {
     final ref = _db.collection('configuracion').doc(_docControl);
     final doc = await ref.get();
-    final ultima = (doc.data()?['ultimaCorrida'] as Timestamp?)?.toDate();
+    final datos = doc.data();
+    final ultima = (datos?['ultimaCorrida'] as Timestamp?)?.toDate();
     if (ultima != null && DateTime.now().difference(ultima) < cadaCuanto) return null;
-    await ref.set({'ultimaCorrida': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-    return recalcularTodos(usuario: usuario, origen: 'automatico');
+    final ultimaCompleta =
+        ((datos?['ultimaCorridaCompleta'] ?? datos?['ultimaCorrida']) as Timestamp?)?.toDate();
+    final hacerCompleta = ultimaCompleta == null || DateTime.now().difference(ultimaCompleta) >= completaCadaCuanto;
+    await ref.set({
+      'ultimaCorrida': FieldValue.serverTimestamp(),
+      if (!hacerCompleta && datos?['ultimaCorridaCompleta'] == null)
+        'ultimaCorridaCompleta': Timestamp.fromDate(ultimaCompleta),
+    }, SetOptions(merge: true));
+    return hacerCompleta
+        ? recalcularTodos(usuario: usuario, origen: 'automatico')
+        : recalcularActivos(usuario: usuario, origen: 'automatico');
   }
 }

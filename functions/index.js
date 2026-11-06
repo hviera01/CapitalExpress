@@ -217,56 +217,81 @@ function docAJson(doc) {
   return { id: doc.id, ...serializar(doc.data()) };
 }
 
-/** Igual que PrestamoRepository.obtenerTodos en Dart. */
-async function obtenerTodosPrestamos(db, cobradorUid) {
-  let query = db.collection("prestamos").where("eliminado", "==", false);
-  if (cobradorUid) query = query.where("cobradoresAsignados", "array-contains", cobradorUid);
-  const snap = await query.get();
-  return snap.docs.map(docAJson);
+// Solo estos estados llegan a Cobros (los demas -- saldado, etc. -- la
+// pantalla los descarta igual): se filtra en el servidor para no leer ni
+// pagar por los cientos de prestamos saldados en cada apertura.
+const ESTADOS_COBRABLES = ["activo", "mora"];
+
+function prestamosCobrables(db) {
+  return db
+    .collection("prestamos")
+    .where("eliminado", "==", false)
+    .where("estado", "in", ESTADOS_COBRABLES);
 }
 
-/** Igual que PrestamoRepository.obtenerParaNotificaciones en Dart. */
+/** Igual que PrestamoRepository.obtenerParaNotificaciones en Dart (solo cobrables). */
 async function obtenerParaNotificaciones(db, cobradorUid) {
-  if (!cobradorUid) return obtenerTodosPrestamos(db, null);
+  if (!cobradorUid) {
+    const snap = await prestamosCobrables(db).get();
+    return snap.docs.map(docAJson);
+  }
 
-  const porPrestamo = await obtenerTodosPrestamos(db, cobradorUid);
-
-  const clientesSnap = await db
-    .collection("clientes")
-    .where("cobradoresAsignados", "array-contains", cobradorUid)
-    .get();
+  const [snapPorPrestamo, clientesSnap] = await Promise.all([
+    prestamosCobrables(db).where("cobradoresAsignados", "array-contains", cobradorUid).get(),
+    db.collection("clientes").where("cobradoresAsignados", "array-contains", cobradorUid).select().get(),
+  ]);
   const clienteIds = clientesSnap.docs.map((d) => d.id);
 
   const lotes = [];
   for (let i = 0; i < clienteIds.length; i += 10) lotes.push(clienteIds.slice(i, i + 10));
 
   const snaps = await Promise.all(lotes.map((lote) =>
-    db.collection("prestamos").where("clienteId", "in", lote).where("eliminado", "==", false).get()
+    prestamosCobrables(db).where("clienteId", "in", lote).get()
   ));
-  const porCliente = [];
-  for (const snap of snaps) {
-    for (const doc of snap.docs) porCliente.push(docAJson(doc));
-  }
 
   const combinados = new Map();
-  for (const p of porPrestamo) combinados.set(p.id, p);
-  for (const p of porCliente) combinados.set(p.id, p);
+  for (const doc of snapPorPrestamo.docs) combinados.set(doc.id, docAJson(doc));
+  for (const snap of snaps) {
+    for (const doc of snap.docs) combinados.set(doc.id, docAJson(doc));
+  }
   return [...combinados.values()];
 }
 
-/** Igual que PagoRepository.obtenerPorPrestamos en Dart. */
+// Solo los campos que Cobros usa para armar la tabla de cuotas, el ciclo de
+// credito y la fecha del ultimo pago. Deja afuera `firma` (imagen en base64,
+// lo mas pesado del documento) y demas texto que Cobros nunca muestra.
+const CAMPOS_PAGO_COBROS = [
+  "prestamoId", "clienteId", "numeroPrestamo", "monto", "mora",
+  "fechaPago", "cuotasCubiertas", "totalCuotasCompletas",
+];
+
+/** Igual que PagoRepository.obtenerPorPrestamos en Dart (con solo los campos que usa Cobros). */
 async function obtenerPagosPorPrestamos(db, prestamoIds) {
   if (prestamoIds.length === 0) return [];
   const lotes = [];
   for (let i = 0; i < prestamoIds.length; i += 10) lotes.push(prestamoIds.slice(i, i + 10));
   const snaps = await Promise.all(lotes.map((lote) =>
-    db.collection("pagos").where("prestamoId", "in", lote).get()
+    db.collection("pagos").where("prestamoId", "in", lote).select(...CAMPOS_PAGO_COBROS).get()
   ));
   const pagos = [];
   for (const snap of snaps) {
     for (const doc of snap.docs) pagos.push(docAJson(doc));
   }
   return pagos;
+}
+
+const aCentavos = (v) => Math.round((Number(v) || 0) * 100);
+
+/**
+ * "Huella" del estado de un prestamo respecto a sus pagos: cualquier pago
+ * registrado o borrado cambia montoPagado/saldo/mora/fechaUltimaActualizacion
+ * (ver PagoRepository.registrarPago / eliminarConReversion). El celular
+ * guarda los pagos junto con esta huella y la manda de vuelta: si no cambio,
+ * no hace falta volver a leer ni a bajar los pagos de ese prestamo.
+ */
+function firmaPrestamo(p) {
+  const f = typeof p.fechaUltimaActualizacion === "number" ? p.fechaUltimaActualizacion : 0;
+  return `${aCentavos(p.montoPagado)}|${aCentavos(p.saldo)}|${aCentavos(p.mora)}|${p.estado || ""}|${f}`;
 }
 
 // Mismo set que _estadosExcluidos en cobros_screen.dart.
@@ -333,9 +358,18 @@ exports.obtenerDatosCobros = onCall({ region: "us-east1" }, async (request) => {
 
   const todos = await obtenerParaNotificaciones(db, cobradorUid);
   const candidatos = todos.filter((p) => !ESTADOS_EXCLUIDOS_COBROS.has(String(p.estado || "").toLowerCase()));
-  const pagos = await obtenerPagosPorPrestamos(db, candidatos.map((p) => p.id));
 
-  return { prestamos: candidatos, pagos };
+  const firmasConocidas = (request.data && request.data.firmas) || {};
+  const necesitanPagos = [];
+  const pagosVigentes = [];
+  for (const p of candidatos) {
+    p.firma = firmaPrestamo(p);
+    if (firmasConocidas[p.id] === p.firma) pagosVigentes.push(p.id);
+    else necesitanPagos.push(p.id);
+  }
+  const pagos = await obtenerPagosPorPrestamos(db, necesitanPagos);
+
+  return { prestamos: candidatos, pagos, pagosVigentes };
 });
 
 /**

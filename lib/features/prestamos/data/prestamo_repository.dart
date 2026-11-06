@@ -99,41 +99,93 @@ class PrestamoRepository {
   /// prestamos.cobradoresAsignados). Sin esto, Cobros mostraba muchos
   /// menos prestamos que el sistema viejo para el mismo cobrador.
   Future<List<PrestamoModel>> obtenerParaNotificaciones({String? cobradorUid}) async {
-    if (cobradorUid == null) return obtenerTodos();
+    Future<List<PrestamoModel>> leer(Query<Map<String, dynamic>> query) async {
+      final snap = await obtenerRapido(query);
+      final lista = <PrestamoModel>[];
+      for (final doc in snap.docs) {
+        try {
+          lista.add(PrestamoModel.fromDoc(doc));
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
+      return lista;
+    }
 
-    final porPrestamo = await obtenerTodos(cobradorUid: cobradorUid);
-    final porCliente = <PrestamoModel>[];
+    if (cobradorUid == null) return leer(_consultaCobrables());
 
-    final clientesSnap = await obtenerRapido(
-        _db.collection('clientes').where('cobradoresAsignados', arrayContains: cobradorUid));
-    final clienteIds = clientesSnap.docs.map((d) => d.id).toList();
+    final resultados = await Future.wait([
+      leer(_consultaCobrables().where('cobradoresAsignados', arrayContains: cobradorUid)),
+      obtenerRapido(_db.collection('clientes').where('cobradoresAsignados', arrayContains: cobradorUid)),
+    ]);
+    final porPrestamo = resultados[0] as List<PrestamoModel>;
+    final clienteIds = (resultados[1] as QuerySnapshot<Map<String, dynamic>>).docs.map((d) => d.id).toList();
 
     final lotes = <List<String>>[];
     for (var i = 0; i < clienteIds.length; i += 10) {
       lotes.add(clienteIds.sublist(i, (i + 10).clamp(0, clienteIds.length)));
     }
-    // En paralelo (antes uno por uno): con mas de 10 clientes asignados
-    // esto eran varios viajes de red seguidos en vez de a la vez.
-    final snaps = await Future.wait(lotes.map((lote) =>
-        obtenerRapido(_col.where('clienteId', whereIn: lote).where('eliminado', isEqualTo: false))));
-    for (final snap in snaps) {
-      for (final doc in snap.docs) {
-        try {
-          porCliente.add(PrestamoModel.fromDoc(doc));
-        } catch (_) {
-          // documento con formato inesperado: se omite.
-        }
-      }
-    }
+    final porCliente = await Future.wait(lotes.map((lote) => leer(_consultaCobrables().where('clienteId', whereIn: lote))));
 
     final combinados = <String, PrestamoModel>{};
     for (final p in porPrestamo) {
       combinados[p.prestamoId] = p;
     }
-    for (final p in porCliente) {
-      combinados[p.prestamoId] = p;
+    for (final lista in porCliente) {
+      for (final p in lista) {
+        combinados[p.prestamoId] = p;
+      }
     }
     return combinados.values.toList();
+  }
+
+  /// Solo los estados que Cobros muestra de verdad (el resto -- saldado,
+  /// etc. -- se descartaba igual despues de leerlo): filtrar en el
+  /// servidor evita leer y pagar por los cientos de prestamos saldados
+  /// cada vez que se abre Cobros.
+  static const _estadosCobrables = ['activo', 'mora'];
+
+  Query<Map<String, dynamic>> _consultaCobrables() =>
+      _col.where('eliminado', isEqualTo: false).where('estado', whereIn: _estadosCobrables);
+
+  /// Ids de clientes con algun prestamo por saldar (activo o en mora):
+  /// son los unicos cuya categoria de credito puede cambiar solo por el
+  /// paso del tiempo (cuotas que se siguen atrasando).
+  Future<Set<String>> idsClientesConPrestamoPorSaldar() async {
+    final snap = await _consultaCobrables().get();
+    final ids = <String>{};
+    for (final doc in snap.docs) {
+      final clienteId = (doc.data()['clienteId'] ?? '') as String;
+      if (clienteId.isNotEmpty) ids.add(clienteId);
+    }
+    return ids;
+  }
+
+  /// Todos los prestamos no eliminados de estos clientes (cualquier
+  /// estado), agrupados por cliente -- el historial completo que
+  /// necesita evaluar el credito de cada uno.
+  Future<Map<String, List<PrestamoModel>>> obtenerPorClientes(Iterable<String> clienteIds) async {
+    final ids = clienteIds.toList();
+    final lotes = <List<String>>[];
+    for (var i = 0; i < ids.length; i += 10) {
+      lotes.add(ids.sublist(i, (i + 10).clamp(0, ids.length)));
+    }
+    final snaps = await Future.wait(
+      lotes.map((lote) => _col.where('clienteId', whereIn: lote).where('eliminado', isEqualTo: false).get()),
+    );
+    final porCliente = <String, List<PrestamoModel>>{};
+    for (final snap in snaps) {
+      for (final doc in snap.docs) {
+        try {
+          final p = PrestamoModel.fromDoc(doc);
+          if (p.eliminado || p.clienteId.isEmpty) continue;
+          (porCliente[p.clienteId] ??= []).add(p);
+        } catch (_) {
+          // documento con formato inesperado: se omite.
+        }
+      }
+    }
+    return porCliente;
   }
 
   /// Cantidad total de prestamos del alcance dado (para el stat "Total"

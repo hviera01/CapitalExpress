@@ -278,7 +278,7 @@ class _ClientesListScreenState extends ConsumerState<ClientesListScreen> {
     ));
     try {
       final usuario = ref.read(authProvider).usuario;
-      final r = await ReglasCreditoService().recalcularTodos(usuario: usuario?.nombre ?? '', origen: 'recalculo');
+      final r = await ReglasCreditoService().recalcularTodos(usuario: usuario?.nombre ?? '', origen: 'recalculo', forzar: true);
       if (!mounted) return;
       setState(() => _recalculando = false);
       mensajero.showSnackBar(SnackBar(
