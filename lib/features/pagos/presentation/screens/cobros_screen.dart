@@ -642,26 +642,31 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(p.cliente,
-                                                style: const TextStyle(fontWeight: FontWeight.w700)),
-                                          ),
-                                          if (n.letraCategoria.isNotEmpty) ...[
-                                            const SizedBox(width: 8),
-                                            CategoriaCreditoChip(
-                                              letra: n.letraCategoria,
-                                              onTap: () => mostrarDetalleCreditoCliente(context,
-                                                  clienteId: p.clienteId, clienteNombre: p.cliente),
-                                            ),
+                                      Text(p.cliente,
+                                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      if (n.letraCategoria.isNotEmpty ||
+                                          n.tipoTasa == 'preferencial' ||
+                                          n.perdioTasa) ...[
+                                        const SizedBox(height: 4),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          children: [
+                                            if (n.letraCategoria.isNotEmpty)
+                                              CategoriaCreditoChip(
+                                                letra: n.letraCategoria,
+                                                onTap: () => mostrarDetalleCreditoCliente(context,
+                                                    clienteId: p.clienteId,
+                                                    clienteNombre: p.cliente),
+                                              ),
+                                            if (n.tipoTasa == 'preferencial' || n.perdioTasa)
+                                              TasaCreditoChip(
+                                                  tipo: n.tipoTasa, perdio: n.perdioTasa),
                                           ],
-                                          if (n.tipoTasa == 'preferencial' || n.perdioTasa) ...[
-                                            const SizedBox(width: 6),
-                                            TasaCreditoChip(tipo: n.tipoTasa, perdio: n.perdioTasa),
-                                          ],
-                                        ],
-                                      ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 2),
                                       Text('N° ${p.numeroPrestamo}',
                                           style: const TextStyle(
                                               fontSize: 11, color: CEColors.textSecondary)),
