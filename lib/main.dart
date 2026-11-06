@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -16,6 +17,13 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // En web, por defecto go_router NO agrega al historial del navegador
+  // las pantallas abiertas con context.push (detalle, formularios...).
+  // Toda la sesion quedaba en UNA sola entrada de historial, asi que el
+  // gesto/boton "atras" del navegador (deslizar en el iPhone) salia del
+  // documento y la app arrancaba de cero (pantalla de carga). Con esto
+  // cada pantalla es una entrada y "atras" solo cierra la pantalla.
+  if (kIsWeb) GoRouter.optionURLReflectsImperativeAPIs = true;
   // Todos los DateFormat(...) de la app (recibos, tablas, filtros de
   // fecha) usan el locale por defecto de intl -- sin esto salian en
   // ingles (nombres de mes, AM/PM) aunque el patron fuera el mismo.
