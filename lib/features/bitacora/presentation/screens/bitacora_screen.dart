@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -126,6 +127,8 @@ class BitacoraScreen extends ConsumerWidget {
       return (Icons.restore_from_trash_outlined, CEColors.success);
     case 'cancelar_mora':
       return (Icons.remove_circle_outline, CEColors.warning);
+    case 'reestructurar_prestamo':
+      return (Icons.sync_alt, CEColors.warning);
     default:
       return (Icons.history, CEColors.textSecondary);
   }
@@ -155,6 +158,8 @@ String _tituloAccion(String accion) {
       return 'Préstamo restaurado';
     case 'cancelar_mora':
       return 'Mora cancelada';
+    case 'reestructurar_prestamo':
+      return 'Préstamo ${TxtR.part}';
     default:
       return 'Movimiento';
   }

@@ -296,7 +296,7 @@ function firmaPrestamo(p) {
 
 // Mismo set que _estadosExcluidos en cobros_screen.dart.
 const ESTADOS_EXCLUIDOS_COBROS = new Set([
-  "saldado", "completado", "cancelado", "eliminado", "rechazado", "pendiente",
+  "saldado", "completado", "cancelado", "eliminado", "rechazado", "pendiente", "reestructurado",
 ]);
 
 /**

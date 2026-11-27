@@ -160,7 +160,7 @@ class ReestructuracionService {
       });
 
       final detalle = 'Préstamo N° $numeroViejo ${TxtR.part} el ${fmt.format(hoy)} en el N° $numero '
-          '(${propuesta.cuotas} cuotas ${propuesta.plazo.toLowerCase()} de ${formatearLempiras(calculo.cuotaEstimada)}).';
+          '(${propuesta.cuotas} cuotas de ${formatearLempiras(calculo.cuotaEstimada)}, ${propuesta.plazo.toLowerCase()}).';
       tx.update(clienteRef, {
         'reestructurado': true,
         'reestructuradoDetalle': detalle,

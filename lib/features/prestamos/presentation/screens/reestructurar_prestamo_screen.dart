@@ -175,7 +175,7 @@ class _ReestructurarPrestamoScreenState extends ConsumerState<ReestructurarPrest
               children: [
                 _fila('Cliente', _p.cliente),
                 _fila('Préstamo', 'N° ${_p.numeroPrestamo}'),
-                _fila('Cuotas', '${_p.cuotas} ${_p.plazo.toLowerCase()} de ${formatearLempiras(_p.cuota)}'),
+                _fila('Cuotas', '${_p.cuotas} de ${formatearLempiras(_p.cuota)} (${_p.plazo.toLowerCase()})'),
                 _fila('Total a pagar', formatearLempiras(_p.totalPagar)),
                 _fila('Pagado', formatearLempiras(_p.montoPagado), color: CEColors.success),
                 if (_p.mora > 0.01) _fila('Mora incluida en el saldo', formatearLempiras(_p.mora), color: CEColors.danger),
@@ -325,7 +325,7 @@ class _ReestructurarPrestamoScreenState extends ConsumerState<ReestructurarPrest
                   ? const SizedBox(
                       width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.sync_alt),
-              label: Text(_guardando ? 'Reestructurando...' : '${TxtR.verboMay} préstamo'),
+              label: Text(_guardando ? '${TxtR.gerundioMay}...' : '${TxtR.verboMay} préstamo'),
             ),
           ),
           const SizedBox(height: 24),

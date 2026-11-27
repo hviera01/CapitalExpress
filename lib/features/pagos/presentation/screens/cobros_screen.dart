@@ -42,6 +42,7 @@ const _estadosExcluidos = {
   'eliminado',
   'rechazado',
   'pendiente',
+  'reestructurado',
 };
 
 const _filtrosTipo = ['hoy', 'vencido', 'proximo', 'futuro', 'Todos'];

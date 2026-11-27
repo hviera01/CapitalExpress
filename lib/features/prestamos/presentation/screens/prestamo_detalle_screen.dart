@@ -477,7 +477,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
                     if (i > 0) const Divider(height: 20),
                     CeMoraTile(
                       mora: p.morasIndividuales[i],
-                      onCancelar: esAdmin && !p.morasIndividuales[i].cancelada
+                      onCancelar: esAdmin && !p.morasIndividuales[i].cancelada && p.estado != 'reestructurado'
                           ? () => _cancelarMoraIndividual(context, p, p.morasIndividuales[i])
                           : null,
                     ),
