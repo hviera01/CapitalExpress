@@ -685,7 +685,8 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                           style: const TextStyle(fontWeight: FontWeight.w700)),
                                       if (n.letraCategoria.isNotEmpty ||
                                           n.tipoTasa == 'preferencial' ||
-                                          n.perdioTasa) ...[
+                                          n.perdioTasa ||
+                                          p.esReestructuracion) ...[
                                         const SizedBox(height: 4),
                                         Wrap(
                                           spacing: 6,
@@ -702,6 +703,7 @@ class _CobrosScreenState extends ConsumerState<CobrosScreen> {
                                             if (n.tipoTasa == 'preferencial' || n.perdioTasa)
                                               TasaCreditoChip(
                                                   tipo: n.tipoTasa, perdio: n.perdioTasa),
+                                            if (p.esReestructuracion) const ReestructuradoChip(),
                                           ],
                                         ),
                                       ],
@@ -907,6 +909,10 @@ class _TablaCobros extends StatelessWidget {
                   if (n.tipoTasa == 'preferencial' || n.perdioTasa) ...[
                     const SizedBox(width: 6),
                     TasaCreditoChip(tipo: n.tipoTasa, perdio: n.perdioTasa),
+                  ],
+                  if (p.esReestructuracion) ...[
+                    const SizedBox(width: 6),
+                    const ReestructuradoChip(),
                   ],
                 ],
               )),

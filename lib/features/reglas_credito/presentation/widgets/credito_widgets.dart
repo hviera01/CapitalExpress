@@ -1,10 +1,82 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/reglas_credito.dart';
 import '../../../../core/utils/uppercase_text_formatter.dart';
 import '../../data/reglas_credito_service.dart';
+
+const Color colorReestructurado = Color(0xFF9A3412);
+
+class ReestructuradoChip extends StatelessWidget {
+  final String texto;
+
+  const ReestructuradoChip({super.key, this.texto = TxtR.partUp});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Tuvo un préstamo ${TxtR.part}: no se le deben dar más préstamos',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: colorReestructurado,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sync_alt, size: 12, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(texto,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AvisoReestructuradoBanner extends StatelessWidget {
+  final String detalle;
+
+  const AvisoReestructuradoBanner({super.key, this.detalle = ''});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorReestructurado.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorReestructurado, width: 1.4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.do_not_disturb_on_outlined, color: colorReestructurado, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('CLIENTE ${TxtR.partUp} — NO DAR MÁS PRÉSTAMOS',
+                    style: TextStyle(color: colorReestructurado, fontWeight: FontWeight.w800, fontSize: 12.5)),
+                if (detalle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(detalle, style: const TextStyle(fontSize: 12.5, height: 1.35)),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 Color colorCategoriaCredito(String letra) => switch (letra) {
       'A' => CEColors.success,
@@ -417,6 +489,10 @@ class _PanelSeguimientoCreditoState extends State<PanelSeguimientoCredito> {
             child: LinearProgressIndicator(minHeight: 2),
           ),
         _encabezado(e),
+        if (e.clienteReestructurado) ...[
+          const SizedBox(height: 12),
+          AvisoReestructuradoBanner(detalle: e.detalleReestructuracion),
+        ],
         const SizedBox(height: 14),
         _bloque(titulo: 'Por qué está en ${e.categoria.etiqueta}', lineas: e.motivoCategoria),
         const SizedBox(height: 12),
@@ -443,6 +519,9 @@ class _PanelSeguimientoCreditoState extends State<PanelSeguimientoCredito> {
 
   List<String> _lineasProximo(EvaluacionCredito e) {
     final l = <String>[];
+    if (e.clienteReestructurado) {
+      l.add('Tiene un préstamo ${TxtR.part}: no se le deben dar más préstamos (solo con autorización especial del administrador).');
+    }
     if (e.tienePrestamoActivo) {
       l.add('Tiene un préstamo activo, no se le puede crear otro hasta que lo salde (salvo autorización especial del administrador). ${e.detalleActivo}');
     }
@@ -479,6 +558,7 @@ class _PanelSeguimientoCreditoState extends State<PanelSeguimientoCredito> {
                   if (e.incrementoElegible) _etiqueta('Aplica a incremento', CEColors.success),
                   if (e.limitePorVencimiento) _etiqueta('Total limitado (dejó vencer)', CEColors.danger),
                   if (e.tienePrestamoActivo) _etiqueta('Con préstamo activo', CEColors.accent),
+                  if (e.clienteReestructurado) const ReestructuradoChip(),
                 ],
               ),
             ],
@@ -606,6 +686,7 @@ class _HistorialEventos extends StatelessWidget {
         'incremento' => Icons.trending_up,
         'monto' => Icons.payments_outlined,
         'excepcion' => Icons.gavel_outlined,
+        'reestructuracion' => Icons.sync_alt,
         _ => Icons.info_outline,
       };
 
@@ -613,6 +694,7 @@ class _HistorialEventos extends StatelessWidget {
     if (ev.tipo == 'categoria') return colorCategoriaCredito(ev.nuevo);
     if (ev.tipo == 'tasa' && ev.nuevo == 'general') return CEColors.warning;
     if (ev.tipo == 'excepcion') return CEColors.danger;
+    if (ev.tipo == 'reestructuracion') return colorReestructurado;
     return CEColors.accent;
   }
 
@@ -624,6 +706,7 @@ class _HistorialEventos extends StatelessWidget {
         'consulta' => 'al consultar',
         'excepcion' => 'autorización especial',
         'administracion' => 'cambio de administración',
+        'reestructuracion' => TxtR.sust,
         _ => o,
       };
 }

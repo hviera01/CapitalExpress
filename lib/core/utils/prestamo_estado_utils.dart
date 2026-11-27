@@ -5,6 +5,7 @@ import 'firestore_parse.dart';
 /// reconcilia el campo `estado` contra saldo/proximoPago en vez de
 /// confiar ciegamente en el texto guardado.
 String estadoEfectivoPrestamo(PrestamoModel p) {
+  if (p.estado == 'reestructurado') return 'reestructurado';
   if (p.saldo <= 0.01 || p.estado == 'saldado' || p.estado == 'completado') {
     return 'saldado';
   }

@@ -84,6 +84,8 @@ class ClienteModel {
   final bool incrementoElegible;
   final bool limitePorVencimiento;
   final bool prestamoActivoCredito;
+  final bool reestructurado;
+  final String reestructuradoDetalle;
 
   const ClienteModel({
     required this.id,
@@ -121,6 +123,8 @@ class ClienteModel {
     this.incrementoElegible = false,
     this.limitePorVencimiento = false,
     this.prestamoActivoCredito = false,
+    this.reestructurado = false,
+    this.reestructuradoDetalle = '',
   });
 
   factory ClienteModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -162,6 +166,8 @@ class ClienteModel {
       incrementoElegible: (d['incrementoElegible'] ?? false) as bool,
       limitePorVencimiento: (d['limitePorVencimiento'] ?? false) as bool,
       prestamoActivoCredito: (d['prestamoActivoCredito'] ?? false) as bool,
+      reestructurado: (d['reestructurado'] ?? false) as bool,
+      reestructuradoDetalle: s('reestructuradoDetalle'),
     );
   }
 

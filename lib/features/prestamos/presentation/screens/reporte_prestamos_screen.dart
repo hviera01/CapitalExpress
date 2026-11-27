@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -23,7 +24,7 @@ import 'prestamo_detalle_screen.dart';
 import '../../providers/prestamos_provider.dart';
 import '../../providers/reporte_prestamos_cache.dart';
 
-const _estadosFiltro = ['Todos', 'activo', 'vencido', 'saldado'];
+const _estadosFiltro = ['Todos', 'activo', 'vencido', 'saldado', 'reestructurado'];
 
 class ReportePrestamosScreen extends ConsumerStatefulWidget {
   const ReportePrestamosScreen({super.key});
@@ -161,9 +162,12 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
   @override
   Widget build(BuildContext context) {
     final filas = _cargando ? const <PrestamoModel>[] : _filtrados;
-    final activos = filas.where((p) => estadoEfectivoPrestamo(p) != 'saldado').length;
+    final activos = filas.where((p) {
+      final e = estadoEfectivoPrestamo(p);
+      return e != 'saldado' && e != 'reestructurado';
+    }).length;
     final vencidos = filas.where((p) => estadoEfectivoPrestamo(p) == 'vencido').length;
-    final montoPrestado = filas.fold<double>(0, (a, p) => a + p.monto);
+    final montoPrestado = filas.fold<double>(0, (a, p) => a + (p.esReestructuracion ? 0 : p.monto));
     final montoPagado = filas.fold<double>(0, (a, p) => a + p.montoPagado);
     final mora = filas.fold<double>(0, (a, p) => a + p.mora);
     final pendiente = filas.fold<double>(0, (a, p) => a + p.saldo);
@@ -214,7 +218,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                         runSpacing: 8,
                         children: _estadosFiltro
                             .map((e) => ChoiceChip(
-                                  label: Text(e == 'Todos' ? e : e[0].toUpperCase() + e.substring(1)),
+                                  label: Text(e == 'Todos' ? e : (e == 'reestructurado' ? TxtR.partMay : e[0].toUpperCase() + e.substring(1))),
                                   selected: _filtroEstado == e,
                                   onSelected: (_) => setState(() => _filtroEstado = e),
                                 ))
@@ -322,7 +326,7 @@ class _ReportePrestamosScreenState extends ConsumerState<ReportePrestamosScreen>
                                     color: _colorEstado(estado).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(estado,
+                                  child: Text(estado == 'reestructurado' ? TxtR.part : estado,
                                       style: TextStyle(
                                           fontSize: 10,
                                           color: _colorEstado(estado),

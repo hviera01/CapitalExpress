@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -47,6 +48,7 @@ const _filtrosCondicion = [
   'Con préstamo activo',
   'Sin préstamo activo',
   'Bloqueado por Categoría C',
+  '${TxtR.partMay} (no dar préstamos)',
 ];
 
 bool _pasaFiltrosCredito(ClienteModel c, String categoria, String tasa, String condicion) {
@@ -60,6 +62,7 @@ bool _pasaFiltrosCredito(ClienteModel c, String categoria, String tasa, String c
     'Con préstamo activo' => c.prestamoActivoCredito,
     'Sin préstamo activo' => !c.prestamoActivoCredito,
     'Bloqueado por Categoría C' => c.categoriaCredito == 'C',
+    '${TxtR.partMay} (no dar préstamos)' => c.reestructurado,
     _ => true,
   };
 }
@@ -728,7 +731,16 @@ class _TablaClientes extends ConsumerWidget {
             return DataRow(
               onSelectChanged: (_) => _abrirResumen(context, ref, c),
               cells: [
-                DataCell(Text(c.nombre, style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(c.nombre, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    if (c.reestructurado) ...[
+                      const SizedBox(width: 8),
+                      const ReestructuradoChip(),
+                    ],
+                  ],
+                )),
                 DataCell(Text(c.telefono.isEmpty ? '—' : c.telefono)),
                 DataCell(Text(c.identidad.isEmpty ? '—' : c.identidad)),
                 DataCell(Text(nombreCobrador ?? c.cobradorAsignado)),
@@ -992,7 +1004,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                       children: [
                         Text(c.nombre,
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                        if (c.categoriaCredito.isNotEmpty || c.tasaTipo.isNotEmpty) ...[
+                        if (c.categoriaCredito.isNotEmpty || c.tasaTipo.isNotEmpty || c.reestructurado) ...[
                           const SizedBox(height: 6),
                           Wrap(
                             spacing: 6,
@@ -1009,6 +1021,7 @@ class _ClienteTileState extends ConsumerState<_ClienteTile> {
                                 const EtiquetaCreditoChip(texto: 'Aplica a incremento', color: CEColors.success),
                               if (c.limitePorVencimiento)
                                 const EtiquetaCreditoChip(texto: 'Total limitado', color: CEColors.danger),
+                              if (c.reestructurado) const ReestructuradoChip(),
                             ],
                           ),
                         ],

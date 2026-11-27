@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -13,7 +14,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../solicitudes/providers/solicitud_edicion_provider.dart';
 import '../../providers/prestamos_provider.dart';
 
-const _estadosPrestamo = ['activo', 'mora', 'saldado'];
+const _estadosPrestamo = ['activo', 'mora', 'saldado', 'reestructurado'];
 
 /// Edicion de datos del prestamo, incluidos los campos financieros
 /// (monto, total a pagar, cuotas, monto de cuota) -- a diferencia de
@@ -432,7 +433,8 @@ class _EditarPrestamoScreenState extends ConsumerState<EditarPrestamoScreen> {
                     initialValue: _estado,
                     decoration: const InputDecoration(labelText: 'Estado'),
                     items: _estadosPrestamo
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e.toUpperCase())))
+                        .where((e) => e != 'reestructurado' || _estado == 'reestructurado')
+                        .map((e) => DropdownMenuItem(value: e, child: Text(textoEstadoPrestamo(e))))
                         .toList(),
                     onChanged: (v) => setState(() => _estado = v ?? _estado),
                   ),

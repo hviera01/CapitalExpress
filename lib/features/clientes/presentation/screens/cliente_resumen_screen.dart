@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:intl/intl.dart';
@@ -567,7 +568,12 @@ class _ClienteResumenScreenState extends ConsumerState<ClienteResumenScreen> {
                         children: [
                           Text('N° ${p.numeroPrestamo}',
                               style: const TextStyle(fontWeight: FontWeight.w700)),
-                          Text(p.estado.toUpperCase(),
+                          if (p.esReestructuracion)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 3),
+                              child: ReestructuradoChip(),
+                            ),
+                          Text(textoEstadoPrestamo(p.estado),
                               style: const TextStyle(fontSize: 11, color: CEColors.textSecondary)),
                           const SizedBox(height: 2),
                           Text(

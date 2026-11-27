@@ -428,6 +428,7 @@ exports.obtenerResumenPanel = onCall({ region: "us-east1" }, async (request) => 
   const [
     totalClientes,
     montoInteresAgg,
+    montoRefinanciadoAgg,
     saldoPendienteAgg,
     prestamosActivos,
     prestamosMora,
@@ -439,6 +440,7 @@ exports.obtenerResumenPanel = onCall({ region: "us-east1" }, async (request) => 
   ] = await Promise.all([
     conCobrador(clientesCol).count().get().then((a) => a.data().count),
     prestamosCol.aggregate({ monto: AggregateField.sum("monto"), interes: AggregateField.sum("interesTotal") }).get(),
+    prestamosCol.where("esReestructuracion", "==", true).aggregate({ monto: AggregateField.sum("monto") }).get(),
     conCobrador(prestamosCol.where("eliminado", "==", false)).aggregate({ saldo: AggregateField.sum("saldo") }).get(),
     conCobrador(prestamosCol.where("estado", "==", "activo").where("eliminado", "==", false)).count().get().then((a) => a.data().count),
     conCobrador(prestamosCol.where("estado", "==", "mora").where("eliminado", "==", false)).count().get().then((a) => a.data().count),
@@ -464,7 +466,7 @@ exports.obtenerResumenPanel = onCall({ region: "us-east1" }, async (request) => 
 
   return {
     totalClientes,
-    totalPrestado: (montoInteresAgg.data().monto || 0),
+    totalPrestado: (montoInteresAgg.data().monto || 0) - (montoRefinanciadoAgg.data().monto || 0),
     totalInteres: (montoInteresAgg.data().interes || 0),
     totalPendiente: (saldoPendienteAgg.data().saldo || 0),
     prestamosActivos,

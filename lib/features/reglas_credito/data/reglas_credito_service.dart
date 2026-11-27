@@ -115,6 +115,8 @@ class ReglasCreditoService {
       tasaPreferencialAsignada: _tasaAsignada(datos),
       tasaPreferencialDesde: _tasaDesde(datos),
       tasaGeneralForzada: _tasaGeneralForzada(datos),
+      clienteReestructurado: datos['reestructurado'] == true,
+      detalleReestructuracion: (datos['reestructuradoDetalle'] ?? '') as String,
     );
   }
 
@@ -597,6 +599,8 @@ class ReglasCreditoService {
         tasaPreferencialAsignada: _tasaAsignada(datos),
         tasaPreferencialDesde: _tasaDesde(datos),
         tasaGeneralForzada: _tasaGeneralForzada(datos),
+        clienteReestructurado: datos['reestructurado'] == true,
+        detalleReestructuracion: (datos['reestructuradoDetalle'] ?? '') as String,
       );
       switch (evaluacion.categoria) {
         case CategoriaCredito.a:

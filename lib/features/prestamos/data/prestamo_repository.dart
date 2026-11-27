@@ -530,9 +530,14 @@ class PrestamoRepository {
   /// (sin filtro de fecha, igual que DashboardScreen.kt) -- agregado en
   /// el servidor, no se descarga ningun documento.
   Future<({double monto, double interes})> sumarMontoEInteres() async {
-    final agg = await _col.aggregate(sum('monto'), sum('interesTotal')).get();
+    final resultados = await Future.wait([
+      _col.aggregate(sum('monto'), sum('interesTotal')).get(),
+      _col.where('esReestructuracion', isEqualTo: true).aggregate(sum('monto')).get(),
+    ]);
+    final agg = resultados[0];
+    final refinanciado = (resultados[1].getSum('monto') ?? 0).toDouble();
     return (
-      monto: (agg.getSum('monto') ?? 0).toDouble(),
+      monto: (agg.getSum('monto') ?? 0).toDouble() - refinanciado,
       interes: (agg.getSum('interesTotal') ?? 0).toDouble(),
     );
   }

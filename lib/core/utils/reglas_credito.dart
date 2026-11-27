@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../constants/texto_reestructura.dart';
 
 import '../models/pago_model.dart';
 import '../models/prestamo_model.dart';
@@ -165,6 +166,8 @@ class EvaluacionCredito {
   final bool incrementoElegible;
   final List<String> motivoIncremento;
   final String detalleActivoAlmacenado;
+  final bool clienteReestructurado;
+  final String detalleReestructuracion;
 
   const EvaluacionCredito({
     required this.ultimo,
@@ -186,6 +189,8 @@ class EvaluacionCredito {
     required this.incrementoElegible,
     required this.motivoIncremento,
     this.detalleActivoAlmacenado = '',
+    this.clienteReestructurado = false,
+    this.detalleReestructuracion = '',
   });
 
   static EvaluacionCredito? desdeAlmacenado(Map<String, dynamic> d) {
@@ -216,8 +221,15 @@ class EvaluacionCredito {
       incrementoElegible: d['incrementoElegible'] == true,
       motivoIncremento: lista('incrementoMotivo'),
       detalleActivoAlmacenado: (d['prestamoActivoDetalle'] ?? '') as String,
+      clienteReestructurado: d['reestructurado'] == true,
+      detalleReestructuracion: (d['reestructuradoDetalle'] ?? '') as String,
     );
   }
+
+  String get avisoReestructuracion =>
+      'Cliente con préstamo ${TxtR.partUp}: no pudo pagar en tiempo y forma y se le dio más plazo. '
+      'No se le deben dar más préstamos.'
+      '${detalleReestructuracion.isNotEmpty ? ' $detalleReestructuracion' : ''}';
 
   bool get bloqueadoPorCategoriaC => categoria == CategoriaCredito.c;
 
@@ -371,6 +383,49 @@ List<String> motivoCategoriaDeCiclo(CicloCredito ciclo) {
 }
 
 EvaluacionCredito evaluarCredito({
+  required List<PrestamoModel> prestamos,
+  required Map<String, List<PagoModel>> pagosPorPrestamo,
+  required DateTime hoy,
+  double? tasaPreferencialAsignada,
+  DateTime? tasaPreferencialDesde,
+  bool tasaGeneralForzada = false,
+  bool clienteReestructurado = false,
+  String detalleReestructuracion = '',
+}) {
+  final e = _evaluarCredito(
+    prestamos: prestamos,
+    pagosPorPrestamo: pagosPorPrestamo,
+    hoy: hoy,
+    tasaPreferencialAsignada: tasaPreferencialAsignada,
+    tasaPreferencialDesde: tasaPreferencialDesde,
+    tasaGeneralForzada: tasaGeneralForzada,
+  );
+  if (!clienteReestructurado) return e;
+  return EvaluacionCredito(
+    ultimo: e.ultimo,
+    cicloActivo: e.cicloActivo,
+    ciclos: e.ciclos,
+    tienePrestamoActivo: e.tienePrestamoActivo,
+    categoria: e.categoria,
+    motivoCategoria: e.motivoCategoria,
+    tasaTipo: e.tasaTipo,
+    tasaVigentePct: e.tasaVigentePct,
+    tuvoTasaPreferencial: e.tuvoTasaPreferencial,
+    perdioTasaPreferencial: e.perdioTasaPreferencial,
+    tasaAsignadaPorAdmin: e.tasaAsignadaPorAdmin,
+    motivoTasa: e.motivoTasa,
+    tasaMinimaPct: e.tasaMinimaPct,
+    totalMaximo: e.totalMaximo,
+    motivoMonto: e.motivoMonto,
+    limitePorVencimiento: e.limitePorVencimiento,
+    incrementoElegible: false,
+    motivoIncremento: const ['No aplica a incremento: tiene un préstamo ${TxtR.part}.'],
+    clienteReestructurado: true,
+    detalleReestructuracion: detalleReestructuracion,
+  );
+}
+
+EvaluacionCredito _evaluarCredito({
   required List<PrestamoModel> prestamos,
   required Map<String, List<PagoModel>> pagosPorPrestamo,
   required DateTime hoy,
@@ -548,7 +603,7 @@ EvaluacionCredito evaluarCredito({
   );
 }
 
-enum TipoViolacion { prestamoActivo, categoriaC, montoExcedido, tasaInferior }
+enum TipoViolacion { prestamoActivo, clienteReestructurado, categoriaC, montoExcedido, tasaInferior }
 
 class ViolacionCredito {
   final TipoViolacion tipo;
@@ -574,6 +629,10 @@ List<ViolacionCredito> validarNuevoPrestamo({
     v.add(ViolacionCredito(
         TipoViolacion.prestamoActivo,
         prestamoActivoExterno));
+  }
+
+  if (evaluacion.clienteReestructurado) {
+    v.add(ViolacionCredito(TipoViolacion.clienteReestructurado, evaluacion.avisoReestructuracion));
   }
 
   if (evaluacion.bloqueadoPorCategoriaC) {

@@ -100,6 +100,18 @@ class PrestamoModel {
   final List<String> morasAplicadas;
   final List<MoraIndividual> morasIndividuales;
   final Timestamp? fechaUltimaMora;
+  final bool esReestructuracion;
+  final String reestructuraDe;
+  final String reestructuraDeNumero;
+  final String reestructuradoEn;
+  final String reestructuradoEnNumero;
+  final String motivoReestructuracion;
+  final Timestamp? fechaReestructuracion;
+  final double saldoReestructurado;
+  final double cuotaAnterior;
+  final int cuotasAnteriores;
+
+  bool get fueReestructurado => estado == 'reestructurado' || reestructuradoEn.isNotEmpty;
 
   const PrestamoModel({
     required this.prestamoId,
@@ -140,6 +152,16 @@ class PrestamoModel {
     this.morasAplicadas = const [],
     this.morasIndividuales = const [],
     this.fechaUltimaMora,
+    this.esReestructuracion = false,
+    this.reestructuraDe = '',
+    this.reestructuraDeNumero = '',
+    this.reestructuradoEn = '',
+    this.reestructuradoEnNumero = '',
+    this.motivoReestructuracion = '',
+    this.fechaReestructuracion,
+    this.saldoReestructurado = 0,
+    this.cuotaAnterior = 0,
+    this.cuotasAnteriores = 0,
   });
 
   /// `numeroPrestamo` deberia ser siempre String ("SDG-00001") pero por
@@ -202,6 +224,16 @@ class PrestamoModel {
               .toList() ??
           const [],
       fechaUltimaMora: asTimestamp(d['fechaUltimaMora']),
+      esReestructuracion: (d['esReestructuracion'] ?? false) as bool,
+      reestructuraDe: (d['reestructuraDe'] ?? '') as String,
+      reestructuraDeNumero: (d['reestructuraDeNumero'] ?? '').toString(),
+      reestructuradoEn: (d['reestructuradoEn'] ?? '') as String,
+      reestructuradoEnNumero: (d['reestructuradoEnNumero'] ?? '').toString(),
+      motivoReestructuracion: (d['motivoReestructuracion'] ?? '') as String,
+      fechaReestructuracion: asTimestamp(d['fechaReestructuracion']),
+      saldoReestructurado: dd('saldoReestructurado'),
+      cuotaAnterior: dd('cuotaAnterior'),
+      cuotasAnteriores: (d['cuotasAnteriores'] as num?)?.toInt() ?? 0,
     );
   }
 }

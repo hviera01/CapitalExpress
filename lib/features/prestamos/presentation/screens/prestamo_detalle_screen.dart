@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -20,6 +21,7 @@ import '../../../pagos/presentation/screens/ver_cuotas_screen.dart';
 import '../../../../core/utils/reglas_credito.dart' show tasaGeneralPct;
 import '../../../reglas_credito/presentation/widgets/credito_widgets.dart';
 import '../../data/recibo_prestamo_service.dart';
+import 'reestructurar_prestamo_screen.dart';
 import '../../providers/prestamos_provider.dart';
 
 class PrestamoDetalleScreen extends ConsumerStatefulWidget {
@@ -140,12 +142,93 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
     }
   }
 
+  Future<void> _reestructurar(BuildContext context, PrestamoModel p) async {
+    final nuevoId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => ReestructurarPrestamoScreen(prestamo: p)),
+    );
+    if (nuevoId == null || !context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => PrestamoDetalleScreen(prestamoId: nuevoId)),
+    );
+  }
+
+  void _abrirOtro(BuildContext context, String id) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => PrestamoDetalleScreen(prestamoId: id)));
+  }
+
+  Widget _bannerReestructuracion(BuildContext context, PrestamoModel p) {
+    final f = p.fechaReestructuracion?.toDate();
+    final fecha = f == null ? '' : ' el ${DateFormat('dd/MM/yyyy').format(f)}';
+    final String titulo;
+    final String texto;
+    final String? otroId;
+    if (p.estado == 'reestructurado') {
+      titulo = 'PRÉSTAMO ${TxtR.partUp}';
+      texto = 'Se ${TxtR.pasado}$fecha: su saldo pasó al préstamo N° ${p.reestructuradoEnNumero}, '
+          'que es el que se cobra ahora.';
+      otroId = p.reestructuradoEn.isEmpty ? null : p.reestructuradoEn;
+    } else {
+      titulo = 'PRÉSTAMO POR ${TxtR.sustUp}';
+      final antes = p.cuotasAnteriores > 0
+          ? ' Antes: ${p.cuotasAnteriores} cuotas de ${formatearLempiras(p.cuotaAnterior)}; ahora ${p.cuotas} de ${formatearLempiras(p.cuota)}.'
+          : '';
+      texto = 'Viene del préstamo N° ${p.reestructuraDeNumero}, ${TxtR.part}$fecha '
+          'por ${formatearLempiras(p.saldoReestructurado > 0 ? p.saldoReestructurado : p.monto)}.$antes '
+          'Al cliente no se le deben dar más préstamos.';
+      otroId = p.reestructuraDe.isEmpty ? null : p.reestructuraDe;
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorReestructurado.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colorReestructurado, width: 1.4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.sync_alt, color: colorReestructurado, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(titulo,
+                    style: const TextStyle(color: colorReestructurado, fontWeight: FontWeight.w800, fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(texto, style: const TextStyle(fontSize: 12.5, height: 1.4)),
+          if (p.motivoReestructuracion.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text('Motivo: ${p.motivoReestructuracion}',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ],
+          if (otroId != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _abrirOtro(context, otroId!),
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: Text(p.estado == 'reestructurado'
+                    ? 'Ver préstamo N° ${p.reestructuradoEnNumero}'
+                    : 'Ver préstamo original N° ${p.reestructuraDeNumero}'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Color _colorEstado(String estado) {
     switch (estado) {
       case 'saldado':
         return CEColors.success;
       case 'mora':
         return CEColors.danger;
+      case 'reestructurado':
+        return colorReestructurado;
       default:
         return CEColors.accent;
     }
@@ -224,6 +307,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
               child: Text('Eliminado por ${p.eliminadoPor ?? ''}',
                   style: const TextStyle(color: CEColors.danger, fontWeight: FontWeight.w600)),
             ),
+          if (p.esReestructuracion || p.estado == 'reestructurado') _bannerReestructuracion(context, p),
           // Hero: numero de prestamo
           Container(
             width: double.infinity,
@@ -257,6 +341,10 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
                       style: const TextStyle(
                           color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
                     ),
+                    if (p.esReestructuracion) ...[
+                      const SizedBox(height: 8),
+                      const ReestructuradoChip(),
+                    ],
                   ],
                 ),
               ],
@@ -281,7 +369,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
                           decoration: BoxDecoration(color: colorEstado, shape: BoxShape.circle),
                         ),
                         Text(
-                          p.estado.toUpperCase(),
+                          textoEstadoPrestamo(p.estado),
                           style: TextStyle(
                               color: colorEstado, fontWeight: FontWeight.w800, fontSize: 15),
                         ),
@@ -475,7 +563,7 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
             ),
           ],
           const SizedBox(height: 20),
-          if (!p.eliminado && p.estado != 'saldado') ...[
+          if (!p.eliminado && p.estado != 'saldado' && p.estado != 'reestructurado') ...[
             SizedBox(
               height: 52,
               child: ElevatedButton.icon(
@@ -511,6 +599,21 @@ class _PrestamoDetalleScreenState extends ConsumerState<PrestamoDetalleScreen> {
               label: const Text('Historial de Pagos'),
             ),
           ),
+          if (esAdmin && !p.eliminado && (p.estado == 'activo' || p.estado == 'mora') && p.saldo > 0.01) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 50,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colorReestructurado,
+                  side: const BorderSide(color: colorReestructurado),
+                ),
+                onPressed: () => _reestructurar(context, p),
+                icon: const Icon(Icons.sync_alt),
+                label: const Text('${TxtR.verboMay} Préstamo'),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             height: 50,

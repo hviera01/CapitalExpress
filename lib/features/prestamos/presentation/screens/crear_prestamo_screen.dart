@@ -128,7 +128,10 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
       totalAPagar: 0,
       interesMensualPct: 100,
       prestamoActivoExterno: externo,
-    ).where((v) => v.tipo == TipoViolacion.prestamoActivo || v.tipo == TipoViolacion.categoriaC).toList();
+    ).where((v) =>
+        v.tipo == TipoViolacion.prestamoActivo ||
+        v.tipo == TipoViolacion.clienteReestructurado ||
+        v.tipo == TipoViolacion.categoriaC).toList();
     if (bloqueos.isEmpty || !mounted) return;
     final accion = await mostrarBloqueoCredito(
       context,
@@ -367,6 +370,10 @@ class _CrearPrestamoScreenState extends ConsumerState<CrearPrestamoScreen> {
                 padding: EdgeInsets.only(bottom: 8),
                 child: LinearProgressIndicator(minHeight: 2),
               ),
+            if (e.clienteReestructurado) ...[
+              AvisoReestructuradoBanner(detalle: e.detalleReestructuracion),
+              const SizedBox(height: 10),
+            ],
             Row(
               children: [
                 CategoriaCreditoChip(letra: e.categoria.letra),

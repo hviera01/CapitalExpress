@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/texto_reestructura.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/roles.dart';
@@ -14,6 +15,7 @@ import '../../../../core/widgets/ce_scaffold.dart';
 import '../../../../core/widgets/ce_stat_card.dart';
 import '../../../../core/widgets/ce_web_nav.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../reglas_credito/presentation/widgets/credito_widgets.dart';
 import '../../providers/prestamos_busqueda_cache.dart';
 import '../../providers/prestamos_provider.dart';
 import 'crear_prestamo_screen.dart';
@@ -482,6 +484,8 @@ class _TablaPrestamos extends ConsumerWidget {
         return CEColors.success;
       case 'mora':
         return CEColors.danger;
+      case 'reestructurado':
+        return colorReestructurado;
       default:
         return CEColors.accent;
     }
@@ -583,10 +587,19 @@ class _TablaPrestamos extends ConsumerWidget {
               onSelectChanged: (_) => _verDetalle(context, ref, p),
               cells: [
                 DataCell(Text(p.cliente, style: const TextStyle(fontWeight: FontWeight.w600))),
-                DataCell(Text('#${p.numeroPrestamo}')),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('#${p.numeroPrestamo}'),
+                    if (p.esReestructuracion) ...[
+                      const SizedBox(width: 6),
+                      const ReestructuradoChip(),
+                    ],
+                  ],
+                )),
                 DataCell(Text(formatearLempiras(p.saldo),
                     style: const TextStyle(fontWeight: FontWeight.w700, color: CEColors.accent))),
-                DataCell(ceTableBadge(p.estado.toUpperCase(), _colorEstado(p.estado))),
+                DataCell(ceTableBadge(textoEstadoPrestamo(p.estado), _colorEstado(p.estado))),
                 DataCell(Text('${p.cuotas}')),
                 DataCell(Text(p.cobrador.isEmpty ? 'Sin asignar' : p.cobrador)),
                 DataCell(PopupMenuButton<String>(
@@ -710,6 +723,8 @@ class _PrestamoCard extends ConsumerWidget {
         return CEColors.success;
       case 'mora':
         return CEColors.danger;
+      case 'reestructurado':
+        return colorReestructurado;
       default:
         return CEColors.accent;
     }
@@ -761,6 +776,10 @@ class _PrestamoCard extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (prestamo.esReestructuracion) ...[
+                  const SizedBox(height: 6),
+                  const ReestructuradoChip(),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -775,7 +794,7 @@ class _PrestamoCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        prestamo.estado.toUpperCase(),
+                        textoEstadoPrestamo(prestamo.estado),
                         style: TextStyle(
                             fontSize: 11, color: _colorEstado(), fontWeight: FontWeight.w800),
                       ),
